@@ -41,7 +41,7 @@ def build_due_actions(
     forecast_ids: list[str] = []
     news_ids: list[str] = []
     for match_id, entry in sorted((schedule.get("matches") or {}).items()):
-        closes_at = _parse(entry.get("closing_time"))
+        closes_at = _parse(entry.get("opening_time") or entry.get("closing_time"))
         if closes_at is None or closes_at <= now:
             continue
         forecast_due_at = closes_at - timedelta(minutes=forecast_offset_minutes)

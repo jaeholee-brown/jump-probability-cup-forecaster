@@ -43,7 +43,7 @@ class Match(BaseModel):
 
     @property
     def closes_at(self) -> datetime | None:
-        return parse_dt(self.closing_time or self.opening_time)
+        return parse_dt(self.opening_time or self.closing_time)
 
 
 class MarketMatch(BaseModel):
@@ -63,7 +63,7 @@ class Market(BaseModel):
 
     @property
     def closes_at(self) -> datetime | None:
-        return parse_dt(self.match.closing_time or self.match.opening_time)
+        return parse_dt(self.match.opening_time or self.match.closing_time)
 
 
 class Prediction(BaseModel):
