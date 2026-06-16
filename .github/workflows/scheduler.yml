@@ -11,7 +11,7 @@ on:
     # Poll for newly posted games every 6 hours.
     - cron: "17 */6 * * *"
     # Cheap due-checker. It only spends model credits when a match hits its scheduled window.
-    - cron: "2/5 * * * *"
+    - cron: "7/15 * * * *"
 
 concurrency:
   group: probability-cup-forecaster
