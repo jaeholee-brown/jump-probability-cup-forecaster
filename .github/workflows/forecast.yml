@@ -19,6 +19,10 @@ on:
         description: "Optional scheduler command: refresh or due"
         required: false
         default: ""
+      dashboard_snapshot:
+        description: "Fetch platform predictions and upload a dashboard artifact"
+        required: false
+        default: "false"
       inspect_max_questions:
         description: "Maximum questions to print when inspect_docket is true"
         required: false
@@ -124,9 +128,10 @@ jobs:
           INPUT_INSPECT_DOCKET: ${{ github.event.inputs.inspect_docket }}
           INPUT_REPAIR_BOUNDARY_FORECASTS: ${{ github.event.inputs.repair_boundary_forecasts }}
           INPUT_SCHEDULE_MODE: ${{ github.event.inputs.schedule_mode }}
+          INPUT_DASHBOARD_SNAPSHOT: ${{ github.event.inputs.dashboard_snapshot }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
-          if { [ "$INPUT_INSPECT_DOCKET" = "true" ] || [ "$INPUT_REPAIR_BOUNDARY_FORECASTS" = "true" ] || [ "$INPUT_SCHEDULE_MODE" = "refresh" ] || [ "$INPUT_SCHEDULE_MODE" = "due" ] || [ "$EVENT_SCHEDULE" = "17 */6 * * *" ]; } && [ -n "$SPORTSPREDICT_API_KEY" ]; then
+          if { [ "$INPUT_INSPECT_DOCKET" = "true" ] || [ "$INPUT_REPAIR_BOUNDARY_FORECASTS" = "true" ] || [ "$INPUT_SCHEDULE_MODE" = "refresh" ] || [ "$INPUT_SCHEDULE_MODE" = "due" ] || [ "$INPUT_DASHBOARD_SNAPSHOT" = "true" ] || [ "$EVENT_SCHEDULE" = "17 */6 * * *" ]; } && [ -n "$SPORTSPREDICT_API_KEY" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           elif [ "$EVENT_SCHEDULE" = "*/5 * * * *" ] && [ -n "$SPORTSPREDICT_API_KEY" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
@@ -144,6 +149,7 @@ jobs:
           INPUT_INSPECT_DOCKET: ${{ github.event.inputs.inspect_docket }}
           INPUT_REPAIR_BOUNDARY_FORECASTS: ${{ github.event.inputs.repair_boundary_forecasts }}
           INPUT_SCHEDULE_MODE: ${{ github.event.inputs.schedule_mode }}
+          INPUT_DASHBOARD_SNAPSHOT: ${{ github.event.inputs.dashboard_snapshot }}
           INPUT_INSPECT_MAX_QUESTIONS: ${{ github.event.inputs.inspect_max_questions }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
@@ -163,6 +169,9 @@ jobs:
           elif [ "$INPUT_SCHEDULE_MODE" = "due" ]; then
             echo "Forecast workflow mode=schedule_due_manual schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot schedule --run-due
+          elif [ "$INPUT_DASHBOARD_SNAPSHOT" = "true" ]; then
+            echo "Forecast workflow mode=dashboard_snapshot schedule='${EVENT_SCHEDULE}'"
+            probability-cup-bot dashboard --output dashboard
           elif [ "$EVENT_SCHEDULE" = "17 */6 * * *" ]; then
             echo "Forecast workflow mode=schedule_refresh schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot schedule --refresh-only
@@ -185,6 +194,7 @@ jobs:
           path: |
             logs/
             state/
+            dashboard/
           if-no-files-found: ignore
 
       - name: Save forecast state

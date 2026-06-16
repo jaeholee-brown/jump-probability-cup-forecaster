@@ -9,8 +9,10 @@ import os
 import sys
 import time
 from datetime import timezone
+from pathlib import Path
 
 from probability_cup_bot.config import load_settings
+from probability_cup_bot.dashboard import DashboardBuilder, serve_dashboard
 from probability_cup_bot.models import Market, utcnow
 from probability_cup_bot.runner import ForecastRunner
 from probability_cup_bot.scheduler import MatchScheduler
@@ -70,6 +72,21 @@ def build_parser() -> argparse.ArgumentParser:
     schedule.add_argument("--dotenv", default=None, help="Optional path to an env file.")
     schedule.add_argument("--refresh-only", action="store_true", help="Refresh match schedule only.")
     schedule.add_argument("--run-due", action="store_true", help="Run due scheduled jobs.")
+    dashboard = subparsers.add_parser(
+        "dashboard",
+        help="Fetch platform predictions and write a local forecast dashboard.",
+    )
+    dashboard.add_argument("--dotenv", default=None, help="Optional path to an env file.")
+    dashboard.add_argument("--output", default="dashboard", help="Output directory.")
+    dashboard.add_argument("--serve", action="store_true", help="Serve and refresh the dashboard locally.")
+    dashboard.add_argument("--host", default="127.0.0.1", help="Dashboard server host.")
+    dashboard.add_argument("--port", type=int, default=8765, help="Dashboard server port.")
+    dashboard.add_argument(
+        "--refresh-seconds",
+        type=int,
+        default=60,
+        help="Platform refresh interval when using --serve.",
+    )
     inspect = subparsers.add_parser(
         "inspect-docket",
         help="List current matches/markets and summarize odds-feed usefulness without model calls.",
@@ -125,6 +142,44 @@ async def _schedule(args: argparse.Namespace) -> int:
     result = await scheduler.refresh() if args.refresh_only else await scheduler.run_due()
     print(json.dumps(result, indent=2), flush=True)
     return 0
+
+
+async def _dashboard_once(args: argparse.Namespace) -> int:
+    _configure_logging()
+    settings = load_settings(dotenv_path=args.dotenv, force_dry_run=True)
+    builder = DashboardBuilder(settings)
+    data = await builder.write(Path(args.output))
+    print(
+        json.dumps(
+            {
+                "output": str(Path(args.output).resolve()),
+                "index": str((Path(args.output) / "index.html").resolve()),
+                "data": str((Path(args.output) / "dashboard-data.json").resolve()),
+                "prediction_count": data["summary"]["prediction_count"],
+                "open_prediction_count": data["summary"]["open_prediction_count"],
+                "bot_probability_mismatch_count": data["summary"]["bot_probability_mismatch_count"],
+            },
+            indent=2,
+        ),
+        flush=True,
+    )
+    return 0
+
+
+def _dashboard(args: argparse.Namespace) -> int:
+    if args.serve:
+        _configure_logging()
+        settings = load_settings(dotenv_path=args.dotenv, force_dry_run=True)
+        builder = DashboardBuilder(settings)
+        serve_dashboard(
+            builder=builder,
+            output_dir=Path(args.output),
+            host=args.host,
+            port=args.port,
+            refresh_seconds=args.refresh_seconds,
+        )
+        return 0
+    return asyncio.run(_dashboard_once(args))
 
 
 def _market_category(question: str) -> str:
@@ -231,6 +286,8 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(_run(args))
     if args.command == "schedule":
         return asyncio.run(_schedule(args))
+    if args.command == "dashboard":
+        return _dashboard(args)
     if args.command == "inspect-docket":
         return asyncio.run(_inspect_docket(args))
     parser.print_help()
