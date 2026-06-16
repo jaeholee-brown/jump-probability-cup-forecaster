@@ -167,8 +167,8 @@ class MarketForecast(BaseModel):
 class ForecastBatch(BaseModel):
     match_id: str
     match_name: str
-    model: str
-    prompt_variant: str
+    model: str = ""
+    prompt_variant: str = ""
     provider: str = ""
     weight: float = 1.0
     forecasts: list[MarketForecast]

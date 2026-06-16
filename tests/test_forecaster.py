@@ -32,7 +32,9 @@ class FakeAdapter:
 
 
 class SuccessfulAdapter:
-    provider = "openai"
+    def __init__(self, provider: str = "openai") -> None:
+        self.provider = provider
+        self.reasoning_efforts: list[str] = []
 
     async def structured_response(
         self,
@@ -45,6 +47,7 @@ class SuccessfulAdapter:
         reasoning_effort: str = "medium",
         tools: list[dict[str, Any]] | None = None,
     ) -> T:
+        self.reasoning_efforts.append(reasoning_effort)
         return schema_model.model_validate(
             {
                 "match_id": "match",
@@ -97,6 +100,38 @@ async def test_forecast_match_logs_variant_progress_without_evidence_text(caplog
     assert "Forecast variant start match_id=match provider=openai model=gpt-5" in caplog.text
     assert "Forecast variant end match_id=match provider=openai model=gpt-5" in caplog.text
     assert "private evidence" not in caplog.text
+
+
+async def test_forecast_match_uses_no_reasoning_label_for_claude() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="",
+        anthropic_api_key="anthropic_test_key",
+        use_openai_forecast=False,
+        use_grok_forecast=False,
+        claude_forecast_models=("claude-opus-4-8",),
+    )
+    adapter = SuccessfulAdapter("anthropic")
+    forecaster = MatchForecaster(settings, anthropic=adapter)
+    match = Match(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z")
+    market = Market(
+        id="market",
+        question="Will A win?",
+        status="open",
+        match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+        lobby_id="lobby",
+    )
+    evidence = MatchEvidence(
+        match_id="match",
+        match_name="A vs B",
+        generated_at="2026-06-16T00:00:00Z",
+        query_summary="summary",
+    )
+
+    forecasts = await forecaster.forecast_match(match=match, markets=[market], evidence=evidence)
+
+    assert forecasts[0].market_id == "market"
+    assert adapter.reasoning_efforts == ["none"]
 
 
 def test_forecaster_builds_cross_provider_specs() -> None:

@@ -188,7 +188,7 @@ class MatchForecaster:
                 user_input=user_input,
                 schema_model=ForecastBatch,
                 schema_name="forecast_batch",
-                reasoning_effort=self.settings.reasoning_effort,
+                reasoning_effort=self._reasoning_effort(provider),
                 tools=tools,
             )
         except Exception as exc:
@@ -259,6 +259,11 @@ class MatchForecaster:
     def _model_weight(self, model: str, provider_default: float) -> float:
         configured = (self.settings.forecast_model_weights or {}).get(model, provider_default)
         return configured * self.calibration_multipliers.get(model, 1.0)
+
+    def _reasoning_effort(self, provider: str) -> str:
+        if provider == "claude":
+            return "none"
+        return self.settings.reasoning_effort
 
     @staticmethod
     def _unique_models(models: tuple[str, ...]) -> tuple[str, ...]:

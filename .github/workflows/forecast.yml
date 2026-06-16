@@ -74,7 +74,8 @@ jobs:
       FORCE_REFORECAST_WITHIN_HOURS: "1.5"
       FINAL_REFORECAST_MIN_INTERVAL_MINUTES: "30"
       UPDATE_THRESHOLD_POINTS: "2"
-      CONCURRENCY: "4"
+      CONCURRENCY: "8"
+      PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v4
 

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import re
 from collections import defaultdict
+from contextlib import suppress
 from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any
@@ -49,6 +50,14 @@ class ForecastRunner:
 
     async def run(self) -> dict[str, Any]:
         ensure_dirs(self.settings.state_dir, self.settings.logs_dir)
+        self._write_forecast_checkpoint(
+            [],
+            completed_matches=0,
+            failed_matches=0,
+            total_matches=0,
+            status="started",
+            stage="run_start",
+        )
         logger.info(
             "Run start event_title=%r dry_run=%s max_matches=%s concurrency=%d",
             self.settings.event_title,
@@ -818,6 +827,7 @@ class ForecastRunner:
     ) -> list[AggregatedForecast]:
         semaphore = asyncio.Semaphore(self.settings.concurrency)
         outputs: list[AggregatedForecast] = []
+        started_at = utcnow()
         logger.info(
             "Forecast selected start matches=%d markets=%d concurrency=%d",
             len(selected),
@@ -825,7 +835,10 @@ class ForecastRunner:
             self.settings.concurrency,
         )
 
-        async def forecast_one(match: Match, markets: list[Market]) -> list[AggregatedForecast]:
+        async def forecast_one(
+            match: Match,
+            markets: list[Market],
+        ) -> tuple[Match, list[Market], list[AggregatedForecast], Exception | None]:
             async with semaphore:
                 use_firecrawl = self._should_use_firecrawl(match, markets, history, news_cache, utcnow())
                 cached_news = (news_cache.get("matches") or {}).get(match.id, {})
@@ -857,34 +870,92 @@ class ForecastRunner:
                         evidence=evidence,
                     )
                     logger.info("Match pipeline end match_id=%s forecasts=%d", match.id, len(forecasts))
-                    return forecasts
+                    return match, markets, forecasts, None
                 except Exception as exc:
                     logger.warning(
                         "Match pipeline failed match_id=%s error_type=%s",
                         match.id,
                         type(exc).__name__,
                     )
-                    raise
+                    return match, markets, [], exc
 
-        tasks = [forecast_one(match, markets) for match, markets in selected]
+        tasks = [asyncio.create_task(forecast_one(match, markets)) for match, markets in selected]
         failed_matches = 0
-        for result in await asyncio.gather(*tasks, return_exceptions=True):
-            if isinstance(result, Exception):
-                failed_matches += 1
-                outputs.append(
-                    AggregatedForecast(
-                        market_id="error",
-                        question=str(result),
-                        probability=0.5,
-                        probability_int=50,
-                        component_probabilities=[],
-                        confidence="low",
-                        evidence_quality="low",
-                        notes="Forecasting failed for one match.",
-                    )
+        completed_matches = 0
+        latest_match_id: str | None = None
+        latest_match_name: str | None = None
+        self._write_forecast_checkpoint(
+            outputs,
+            completed_matches=0,
+            failed_matches=0,
+            total_matches=len(selected),
+            status="started",
+            stage="forecasting",
+        )
+
+        async def heartbeat() -> None:
+            while True:
+                await asyncio.sleep(60)
+                elapsed_seconds = round((utcnow() - started_at).total_seconds(), 1)
+                forecast_count = len([forecast for forecast in outputs if forecast.market_id != "error"])
+                logger.info(
+                    "Forecast heartbeat completed_matches=%d/%d failed_matches=%d forecasts=%d elapsed=%.1fs",
+                    completed_matches,
+                    len(selected),
+                    failed_matches,
+                    forecast_count,
+                    elapsed_seconds,
                 )
-            else:
-                outputs.extend(result)
+                self._write_forecast_checkpoint(
+                    outputs,
+                    completed_matches=completed_matches,
+                    failed_matches=failed_matches,
+                    total_matches=len(selected),
+                    status="running",
+                    stage="forecasting",
+                    latest_match_id=latest_match_id,
+                    latest_match_name=latest_match_name,
+                    elapsed_seconds=elapsed_seconds,
+                )
+
+        heartbeat_task = asyncio.create_task(heartbeat())
+        try:
+            for task in asyncio.as_completed(tasks):
+                match, _markets, forecasts, error = await task
+                latest_match_id = match.id
+                latest_match_name = match.name
+                completed_matches += 1
+                if error is not None:
+                    failed_matches += 1
+                    outputs.append(
+                        AggregatedForecast(
+                            market_id="error",
+                            question=str(error),
+                            probability=0.5,
+                            probability_int=50,
+                            component_probabilities=[],
+                            confidence="low",
+                            evidence_quality="low",
+                            notes="Forecasting failed for one match.",
+                        )
+                    )
+                else:
+                    outputs.extend(forecasts)
+                self._write_forecast_checkpoint(
+                    outputs,
+                    completed_matches=completed_matches,
+                    failed_matches=failed_matches,
+                    total_matches=len(selected),
+                    status="running" if completed_matches < len(selected) else "complete",
+                    stage="forecasting",
+                    latest_match_id=match.id,
+                    latest_match_name=match.name,
+                    elapsed_seconds=round((utcnow() - started_at).total_seconds(), 1),
+                )
+        finally:
+            heartbeat_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await heartbeat_task
         forecasts = [forecast for forecast in outputs if forecast.market_id != "error"]
         logger.info(
             "Forecast selected complete forecasts=%d failed_matches=%d",
@@ -892,6 +963,38 @@ class ForecastRunner:
             failed_matches,
         )
         return forecasts
+
+    def _write_forecast_checkpoint(
+        self,
+        forecasts: list[AggregatedForecast],
+        *,
+        completed_matches: int,
+        failed_matches: int,
+        total_matches: int,
+        status: str,
+        stage: str,
+        latest_match_id: str | None = None,
+        latest_match_name: str | None = None,
+        elapsed_seconds: float | None = None,
+    ) -> None:
+        valid_forecasts = [forecast for forecast in forecasts if forecast.market_id != "error"]
+        errors = [forecast.question for forecast in forecasts if forecast.market_id == "error"]
+        checkpoint = {
+            "generated_at": utcnow().isoformat(),
+            "status": status,
+            "stage": stage,
+            "completed_matches": completed_matches,
+            "failed_matches": failed_matches,
+            "total_matches": total_matches,
+            "forecast_count": len(valid_forecasts),
+            "latest_match_id": latest_match_id,
+            "latest_match_name": latest_match_name,
+            "errors": errors[-10:],
+            "forecasts": [forecast.model_dump() for forecast in valid_forecasts],
+        }
+        if elapsed_seconds is not None:
+            checkpoint["elapsed_seconds"] = elapsed_seconds
+        write_json(self.settings.state_dir / "in-progress-run.json", checkpoint)
 
     @staticmethod
     def _cached_news_context(cached_news: dict[str, Any]) -> str:

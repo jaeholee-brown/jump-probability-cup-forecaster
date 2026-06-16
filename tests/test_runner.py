@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import timedelta, timezone
 
@@ -83,6 +84,45 @@ def test_plan_writes_creates_updates_and_skips(caplog) -> None:
     assert plan["updates"][0]["prediction_id"] == "pred_update"
     assert len(plan["skips"]) == 1
     assert "Plan writes ready creates=1 updates=1 skips=1" in caplog.text
+
+
+def test_forecast_checkpoint_writes_partial_telemetry(tmp_path) -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+        state_dir=tmp_path / "state",
+        logs_dir=tmp_path / "logs",
+    )
+    runner = ForecastRunner(settings)
+    forecast = AggregatedForecast(
+        market_id="market",
+        question="Will A win?",
+        probability=0.61,
+        probability_int=61,
+        component_probabilities=[0.6, 0.62],
+        confidence="medium",
+        evidence_quality="medium",
+    )
+
+    runner._write_forecast_checkpoint(
+        [forecast],
+        completed_matches=1,
+        failed_matches=0,
+        total_matches=3,
+        status="running",
+        stage="forecasting",
+        latest_match_id="match",
+        latest_match_name="A vs B",
+        elapsed_seconds=12.5,
+    )
+
+    checkpoint = json.loads((tmp_path / "state" / "in-progress-run.json").read_text())
+    assert checkpoint["status"] == "running"
+    assert checkpoint["stage"] == "forecasting"
+    assert checkpoint["completed_matches"] == 1
+    assert checkpoint["forecast_count"] == 1
+    assert checkpoint["elapsed_seconds"] == 12.5
+    assert checkpoint["forecasts"][0]["market_id"] == "market"
 
 
 def test_select_matches_skips_fresh_existing_predictions() -> None:

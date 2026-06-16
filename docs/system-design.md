@@ -50,7 +50,7 @@ Important limitations:
 8. Submit creates in batches of 50 and PATCH material updates.
 9. For skipped-but-open matches, run a Grok-only news monitor with web/X search. Promote a match to the full ensemble only if credible news is likely to move a market by at least the threshold. The monitor cadence ramps as close approaches: about 6h when far out, 3h inside 72h, 1h inside 24h, 30m inside 6h, and 15m inside 2h; volatile, low-evidence, or high-disagreement matches are checked twice as often.
 10. Fetch settled results and update calibration telemetry.
-11. Write `logs/run-*.json`, `logs/calibration-*.json`, `state/latest-run.json`, `state/news-cache.json`, and `state/calibration-report.json`.
+11. Write `state/in-progress-run.json` at run start, before forecasting starts, every heartbeat during long forecast batches, and after each completed match. Completed runs also write `logs/run-*.json`, `logs/calibration-*.json`, `state/latest-run.json`, `state/news-cache.json`, and `state/calibration-report.json`.
 
 ## Model Strategy
 
@@ -67,6 +67,7 @@ Default:
 - Fallback research/evidence model with OpenAI key: `gpt-5.4-mini`.
 - Default forecast variants: one `base_rate_frequency` call per configured forecast model.
 - Default model-specific forecast weights: `gpt-5=1.0`, `grok-4.3=0.4`, `grok-4.20-0309-reasoning=0.6`, `claude-opus-4-8=0.7`, and `claude-opus-4-6=0.8`.
+- Claude forecast calls do not enable extended thinking. The forecaster passes `reasoning_effort=none` for Claude so logs and future adapter behavior stay explicit; Opus still uses normal inference at standard token pricing.
 - Calibration multipliers are applied on top of those base weights after enough settled results accumulate.
 - Full prompt-ensemble mode: set `OPENAI_FORECAST_VARIANTS=all`, `GROK_FORECAST_VARIANTS=all`, and/or `CLAUDE_FORECAST_VARIANTS=all`.
 - Grok-only mode is supported if `OPENAI_API_KEY` is absent.
@@ -156,7 +157,7 @@ Key environment controls:
 - `FORCE_REFORECAST_WITHIN_HOURS=1.5`: full ensemble enters mandatory final-window cadence 90 minutes before kickoff.
 - `FINAL_REFORECAST_MIN_INTERVAL_MINUTES=30`: avoid paid-model spam inside the final window while still catching confirmed lineups.
 - `UPDATE_THRESHOLD_POINTS=2`: avoid noisy one-point updates.
-- `CONCURRENCY=4`: bound concurrent match forecasts.
+- `CONCURRENCY=8`: bound concurrent match forecasts. The bot is already async across matches, Grok research passes, Firecrawl requests, and forecast models; this value controls how many match pipelines run at once. Forecasting also emits one-minute heartbeat logs and refreshes `state/in-progress-run.json` so long provider calls remain visible in GitHub Actions artifacts.
 - `USE_GROK_NEWS_MONITOR=true`: run cheap Grok web/X checks on otherwise-skipped matches.
 - `NEWS_MONITOR_MAX_HOURS_TO_CLOSE=168`: news-monitor eligible matches within the same close window.
 - `NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS=2`: promote to full ensemble only when expected movement clears the update threshold.

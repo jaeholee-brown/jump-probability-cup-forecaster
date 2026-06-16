@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def _is_retryable_exception(exc: BaseException) -> bool:
-    if isinstance(exc, (APIConnectionError, APITimeoutError, RateLimitError, ModelOutputError, TimeoutError)):
+    if isinstance(exc, (APIConnectionError, APITimeoutError, RateLimitError, TimeoutError)):
         return True
     if isinstance(exc, APIStatusError):
         return exc.status_code >= 500
@@ -81,7 +81,9 @@ class AnthropicAdapter:
                 messages=[{"role": "user", "content": user_input}],
             )
             text = self._extract_text(response)
-            data = json.loads(text)
+            data = _load_json_object(text)
+            if isinstance(data, dict) and isinstance(data.get(schema_name), dict):
+                data = data[schema_name]
             parsed = schema_model.model_validate(data)
         except (json.JSONDecodeError, ValidationError) as exc:
             logger.warning(
@@ -122,3 +124,22 @@ class AnthropicAdapter:
         if chunks:
             return "\n".join(chunks).strip()
         return str(response)
+
+
+def _load_json_object(text: str) -> Any:
+    stripped = text.strip()
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        pass
+
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(stripped):
+        if char != "{":
+            continue
+        try:
+            data, _ = decoder.raw_decode(stripped[index:])
+        except json.JSONDecodeError:
+            continue
+        return data
+    raise json.JSONDecodeError("No JSON object found", stripped, 0)
