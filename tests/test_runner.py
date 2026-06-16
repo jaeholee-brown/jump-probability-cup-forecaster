@@ -389,6 +389,29 @@ def test_forecast_firecrawl_context_is_cached_for_audit() -> None:
     assert "Official: Team news" in cached_context
 
 
+def test_affected_markets_limits_news_monitor_promotion() -> None:
+    markets = [
+        Market(
+            id="affected",
+            question="Will player X score?",
+            status="open",
+            match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+            lobby_id="lobby",
+        ),
+        Market(
+            id="unaffected",
+            question="Will A win?",
+            status="open",
+            match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+            lobby_id="lobby",
+        ),
+    ]
+
+    affected = ForecastRunner._affected_markets(markets, ["affected"])
+
+    assert [market.id for market in affected] == ["affected"]
+
+
 async def test_news_monitor_promotes_skipped_match() -> None:
     settings = Settings(
         sportspredict_api_key="sportspredict_test_key",

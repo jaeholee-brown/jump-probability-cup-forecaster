@@ -2,7 +2,7 @@
 
 ## Goal
 
-Run an LLM forecasting bot for the Jump Trading Probability Cup from GitHub Actions every 15 minutes. SportsPredict scores the latest prediction submitted before market close, not a time-weighted forecast path, so the bot should submit a baseline for coverage, use cheap Grok news monitoring between updates, and concentrate the paid OpenAI/Grok/Claude ensemble near kickoff or on material news.
+Run an LLM forecasting bot for the Jump Trading Probability Cup from GitHub Actions. SportsPredict scores the latest prediction submitted before market close, not a time-weighted forecast path, so the bot should submit a baseline for coverage, use cheap Grok news monitoring between full updates, and concentrate the paid OpenAI/Grok/Claude ensemble on daily refreshes, near kickoff, or on material news.
 
 ## SportsPredict API Surface
 
@@ -48,9 +48,9 @@ Important limitations:
    - integer 1-99 conversion.
 7. Compare with existing predictions.
 8. Submit creates in batches of 50 and PATCH material updates.
-9. For skipped-but-open matches, run a Grok-only news monitor with web/X search. Promote a match to the full ensemble only if credible news is likely to move a market by at least the threshold. The monitor cadence ramps as close approaches: about 6h when far out, 3h inside 72h, 1h inside 24h, 30m inside 6h, and 15m inside 2h; volatile, low-evidence, or high-disagreement matches are checked twice as often.
+9. For skipped-but-open matches, run one Grok-only news monitor call per match group with web/X search. Replace cached news with the current summary even when nothing changed. Promote only affected market ids to the full ensemble if credible news is likely to move those markets by at least the threshold.
 10. Fetch settled results and update calibration telemetry.
-11. Write `state/in-progress-run.json` at run start, before forecasting starts, every heartbeat during long forecast batches, and after each completed match. Completed runs also write `logs/run-*.json`, `logs/calibration-*.json`, `state/latest-run.json`, `state/news-cache.json`, and `state/calibration-report.json`.
+11. Write `state/in-progress-run.json` at run start, before forecasting starts, every heartbeat during long forecast batches, and after each completed match. Completed runs also write `logs/run-*.json`, `logs/calibration-*.json`, `logs/usage-*.json`, `state/latest-run.json`, `state/news-cache.json`, `state/calibration-report.json`, and `state/usage-ledger.json`.
 
 ## Model Strategy
 
@@ -59,7 +59,7 @@ Default:
 - Primary high-volume research model: `grok-4.20-multi-agent-0309` via xAI when `XAI_API_KEY` is set.
 - Research passes: `overview`, `base_rates`, `late_news`, and `market_micro`.
 - Base-rate pass policy: bucket markets by family, search for the narrowest reliable reference class, and report explicit frequencies/rates when available. For the current Jump docket this matters more than generic match odds because shots, cards, corners, fouls, offsides, halves, and player props outnumber vanilla match-winner/goal-total markets. The pass may use StatMuse FC, FBref/Stathead-style tables, StatBunker, API-Football/Sportmonks/Sportradar-style pages, official competition pages, and bookmaker lines as evidence sources, but natural-language stats answers should be corroborated or downweighted.
-- Grok news monitor: `grok-4.20-multi-agent-0309` with low reasoning, `web_search`, and `x_search`, used as a cheap change detector before spending on the full ensemble.
+- Grok news monitor: `grok-4.20-multi-agent-0309` with low reasoning, `web_search`, and `x_search`, used as a change detector before spending on the full ensemble. It returns `affected_market_ids`, so material news for one player/prop does not force every market in the match through the paid ensemble.
 - Optional Firecrawl retrieval: targeted web-only searches, five scraped results per search, fed into Grok monitor/research as source context.
 - Grok forecast models: `grok-4.3` and `grok-4.20-0309-reasoning`.
 - OpenAI forecast model: `gpt-5`.
@@ -67,7 +67,7 @@ Default:
 - Fallback research/evidence model with OpenAI key: `gpt-5.4-mini`.
 - Default forecast variants: one `base_rate_frequency` call per configured forecast model.
 - Default model-specific forecast weights: `gpt-5=1.0`, `grok-4.3=0.4`, `grok-4.20-0309-reasoning=0.6`, `claude-opus-4-8=0.7`, and `claude-opus-4-6=0.8`.
-- Claude forecast calls do not enable extended thinking. The forecaster passes `reasoning_effort=none` for Claude so logs and future adapter behavior stay explicit; Opus still uses normal inference at standard token pricing.
+- Claude forecast calls use Anthropic tool-choice structured output and do not enable extended thinking. The forecaster passes `reasoning_effort=none` for Claude so logs and future adapter behavior stay explicit; Opus still uses normal inference at standard token pricing.
 - Calibration multipliers are applied on top of those base weights after enough settled results accumulate.
 - Full prompt-ensemble mode: set `OPENAI_FORECAST_VARIANTS=all`, `GROK_FORECAST_VARIANTS=all`, and/or `CLAUDE_FORECAST_VARIANTS=all`.
 - Grok-only mode is supported if `OPENAI_API_KEY` is absent.
@@ -137,7 +137,10 @@ ForecastBench's current tournament leaderboard, checked June 16, 2026, is domina
 
 ## GitHub Action Operation
 
-The workflow runs every 15 minutes and also supports manual `workflow_dispatch`.
+The workflow has two scheduled modes and also supports manual `workflow_dispatch`:
+
+- `17 */6 * * *`: news-monitor-only mode. It runs cheap Grok web/X checks on already-covered matches, updates `state/news-cache.json`, and forecasts only affected market ids if material news moved.
+- `43 8 * * *`: daily full mode. It refreshes missing/stale forecasts using the normal update gate and final-window rules.
 
 Repository secrets:
 
@@ -152,14 +155,13 @@ Key environment controls:
 - `SUBMIT=true`: actually writes predictions.
 - `MAX_HOURS_TO_CLOSE=168`: forecast next seven days by default.
 - `ENABLE_UPDATE_GATE=true`: skip full reforecasting of already-fresh matches.
-- `STALE_REFORECAST_WITHOUT_NEWS=false`: do not rerun the paid ensemble just because an existing forecast is old.
-- `MAX_PREDICTION_AGE_HOURS=12`: fallback stale cadence if `STALE_REFORECAST_WITHOUT_NEWS=true`.
+- `STALE_REFORECAST_WITHOUT_NEWS=true`: daily scheduled runs can refresh stale forecasts.
+- `MAX_PREDICTION_AGE_HOURS=24`: default stale cadence for daily full refreshes.
 - `FORCE_REFORECAST_WITHIN_HOURS=1.5`: full ensemble enters mandatory final-window cadence 90 minutes before kickoff.
 - `FINAL_REFORECAST_MIN_INTERVAL_MINUTES=30`: avoid paid-model spam inside the final window while still catching confirmed lineups.
 - `UPDATE_THRESHOLD_POINTS=2`: avoid noisy one-point updates.
-- `CONCURRENCY=8`: bound concurrent match forecasts. The bot is already async across matches, Grok research passes, Firecrawl requests, and forecast models; this value controls how many match pipelines run at once. Forecasting also emits one-minute heartbeat logs and refreshes `state/in-progress-run.json` so long provider calls remain visible in GitHub Actions artifacts.
+- `CONCURRENCY=10`: bound concurrent match forecasts. The bot is already async across matches, Grok research passes, Firecrawl requests, and forecast models; this value controls how many match pipelines run at once. Forecasting also emits one-minute heartbeat logs and refreshes `state/in-progress-run.json` so long provider calls remain visible in GitHub Actions artifacts.
 - `USE_GROK_NEWS_MONITOR=true`: run cheap Grok web/X checks on otherwise-skipped matches.
-- Scheduled GitHub runs are cost-guarded: the workflow skips the paid `Forecast` step on cron events unless repository variable `ENABLE_SCHEDULED_FORECAST=true` is set. Manual `workflow_dispatch` runs still execute normally.
 - `NEWS_MONITOR_MAX_HOURS_TO_CLOSE=168`: news-monitor eligible matches within the same close window.
 - `NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS=2`: promote to full ensemble only when expected movement clears the update threshold.
 - `USE_GROK_RESEARCH=true`: use xAI multi-agent search for evidence when `XAI_API_KEY` exists.
@@ -184,6 +186,13 @@ Key environment controls:
 - `EXTREMIZE_ALPHA=1.05`: mild log-odds extremization.
 - `BASE_SHRINKAGE=0.04`: mild shrinkage toward 50.
 - `LOW_EVIDENCE_SHRINKAGE=0.12`: stronger shrinkage when evidence is weak.
+
+Cost telemetry:
+
+- Every completed run includes `usage` and `usage_cumulative` in `state/latest-run.json`.
+- `state/usage-ledger.json` keeps cumulative estimated cost by provider across recent runs.
+- `logs/usage-*.json` stores per-call usage events for audit.
+- The estimate uses configured token prices plus xAI server-side search tool counts when the SDK exposes them. Provider dashboards remain authoritative.
 
 ## Future Improvements
 

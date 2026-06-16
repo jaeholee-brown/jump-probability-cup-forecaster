@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from probability_cup_bot.openai_adapter import ModelOutputError
+from probability_cup_bot.usage import record_usage
 
 
 T = TypeVar("T", bound=BaseModel)
@@ -73,16 +74,30 @@ class AnthropicAdapter:
                 model=model,
                 max_tokens=4096,
                 system=(
-                    f"{instructions}\n\n"
-                    f"Return only a JSON object named {schema_name} matching this JSON Schema. "
-                    "Do not wrap it in markdown and do not add commentary.\n"
-                    f"{json.dumps(schema, ensure_ascii=True)}"
+                    f"{instructions}\n\nReturn one structured {schema_name} tool call. "
+                    "Do not add commentary outside the tool call."
                 ),
+                tools=[
+                    {
+                        "name": schema_name,
+                        "description": f"Structured {schema_name} output.",
+                        "input_schema": schema,
+                    }
+                ],
+                tool_choice={"type": "tool", "name": schema_name},
                 messages=[{"role": "user", "content": user_input}],
             )
             self._log_usage(response, model=model, schema_name=schema_name)
-            text = self._extract_text(response)
-            data = _load_json_object(text)
+            record_usage(
+                provider=self.provider,
+                model=model,
+                schema_name=schema_name,
+                usage=getattr(response, "usage", None),
+            )
+            data = self._extract_tool_input(response, schema_name)
+            text = "" if data is not None else self._extract_text(response)
+            if data is None:
+                data = _load_json_object(text)
             if isinstance(data, dict) and isinstance(data.get(schema_name), dict):
                 data = data[schema_name]
             parsed = schema_model.model_validate(data)
@@ -114,6 +129,18 @@ class AnthropicAdapter:
             time.perf_counter() - started_at,
         )
         return parsed
+
+    @staticmethod
+    def _extract_tool_input(response: Any, schema_name: str) -> Any | None:
+        for item in getattr(response, "content", []) or []:
+            if getattr(item, "type", "") != "tool_use":
+                continue
+            if getattr(item, "name", "") != schema_name:
+                continue
+            tool_input = getattr(item, "input", None)
+            if tool_input is not None:
+                return tool_input
+        return None
 
     def _log_usage(self, response: Any, *, model: str, schema_name: str) -> None:
         usage = getattr(response, "usage", None)

@@ -35,6 +35,11 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     run = subparsers.add_parser("run", help="Discover open markets, forecast, and optionally submit.")
     run.add_argument("--dry-run", action="store_true", help="Force dry-run mode even if SUBMIT=true.")
+    run.add_argument(
+        "--news-monitor-only",
+        action="store_true",
+        help="Run cheap news checks and forecast only markets promoted by material new information.",
+    )
     run.add_argument("--dotenv", default=None, help="Optional path to an env file.")
     inspect = subparsers.add_parser(
         "inspect-docket",
@@ -49,11 +54,12 @@ async def _run(args: argparse.Namespace) -> int:
     _configure_logging()
     settings = load_settings(dotenv_path=args.dotenv, force_dry_run=args.dry_run)
     runner = ForecastRunner(settings)
-    result = await runner.run()
+    result = await runner.run(news_monitor_only=args.news_monitor_only)
     print(
         json.dumps(
             {
                 "mode": result["submission_results"]["mode"],
+                "news_monitor_only": result.get("news_monitor_only", False),
                 "matches_forecasted": result["matches_forecasted"],
                 "forecast_count": result["forecast_count"],
                 "creates": len(result["plan"]["creates"]),

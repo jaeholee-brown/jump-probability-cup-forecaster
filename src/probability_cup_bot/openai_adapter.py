@@ -9,6 +9,8 @@ from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpe
 from pydantic import BaseModel, ValidationError
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
+from probability_cup_bot.usage import record_usage
+
 
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
@@ -112,6 +114,13 @@ class OpenAIAdapter:
                 request["reasoning"] = reasoning_payload
             response = await self.client.responses.create(**request)
             self._log_usage(response, model=model, schema_name=schema_name)
+            record_usage(
+                provider=self.provider,
+                model=model,
+                schema_name=schema_name,
+                usage=getattr(response, "usage", None),
+                server_side_tool_usage=getattr(response, "server_side_tool_usage", None),
+            )
             text = getattr(response, "output_text", None) or self._extract_text(response)
             data = json.loads(text)
             parsed = schema_model.model_validate(data)

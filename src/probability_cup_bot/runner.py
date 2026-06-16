@@ -20,6 +20,7 @@ from probability_cup_bot.news_monitor import GrokNewsMonitor
 from probability_cup_bot.openai_adapter import OpenAIAdapter
 from probability_cup_bot.sportspredict import SportsPredictClient, chunks
 from probability_cup_bot.state import ensure_dirs, read_json, timestamp_slug, write_json
+from probability_cup_bot.usage import UsageTracker, reset_current_tracker, set_current_tracker, update_usage_ledger
 
 
 logger = logging.getLogger(__name__)
@@ -48,8 +49,10 @@ class ForecastRunner:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-    async def run(self) -> dict[str, Any]:
+    async def run(self, *, news_monitor_only: bool = False) -> dict[str, Any]:
         ensure_dirs(self.settings.state_dir, self.settings.logs_dir)
+        usage_tracker = UsageTracker()
+        usage_token = set_current_tracker(usage_tracker)
         self._write_forecast_checkpoint(
             [],
             completed_matches=0,
@@ -59,11 +62,12 @@ class ForecastRunner:
             stage="run_start",
         )
         logger.info(
-            "Run start event_title=%r dry_run=%s max_matches=%s concurrency=%d",
+            "Run start event_title=%r dry_run=%s max_matches=%s concurrency=%d news_monitor_only=%s",
             self.settings.event_title,
             not self.settings.can_submit,
             self.settings.max_matches_per_run or "unlimited",
             self.settings.concurrency,
+            news_monitor_only,
         )
         sp = SportsPredictClient(
             base_url=self.settings.sportspredict_base_url,
@@ -149,7 +153,11 @@ class ForecastRunner:
                 len(news_cache.get("matches") or {}),
             )
 
-            selected = self._select_matches(matches, all_markets, existing_predictions, history)
+            selected = (
+                []
+                if news_monitor_only
+                else self._select_matches(matches, all_markets, existing_predictions, history)
+            )
             logger.info(
                 "Selected matches count=%d markets=%d",
                 len(selected),
@@ -193,8 +201,15 @@ class ForecastRunner:
             history = self._update_history(history, selected, forecast_results, plan)
             submission_results = await self._write_predictions(sp, plan)
             calibration_report = await self._build_calibration_report(sp, lobby.id, history, calibration_multipliers)
+            generated_at = utcnow().isoformat()
+            usage_summary = usage_tracker.summary()
+            usage_summary["generated_at"] = generated_at
+            usage_ledger = update_usage_ledger(
+                read_json(self.settings.state_dir / "usage-ledger.json", {}),
+                usage_summary,
+            )
             run_log = {
-                "generated_at": utcnow().isoformat(),
+                "generated_at": generated_at,
                 "settings": {
                     key: value
                     for key, value in asdict(self.settings).items()
@@ -205,6 +220,7 @@ class ForecastRunner:
                 "matches_seen": len(matches),
                 "open_markets_seen": len(all_markets),
                 "matches_forecasted": len(selected),
+                "news_monitor_only": news_monitor_only,
                 "update_gate": {
                     "enabled": self.settings.enable_update_gate,
                     "max_prediction_age_hours": self.settings.max_prediction_age_hours,
@@ -222,13 +238,17 @@ class ForecastRunner:
                     "aggregate": calibration_report.get("aggregate", {}),
                     "suggested_multipliers": calibration_report.get("suggested_multipliers", {}),
                 },
+                "usage": usage_summary,
+                "usage_cumulative": usage_ledger.get("cumulative", {}),
                 "forecasts": [forecast.model_dump() for forecast in forecast_results],
             }
             logger.info("Writing run artifacts logs_dir=%s state_dir=%s", self.settings.logs_dir, self.settings.state_dir)
             write_json(self.settings.state_dir / "forecast-history.json", history)
             write_json(self.settings.state_dir / "news-cache.json", news_cache)
             write_json(self.settings.state_dir / "calibration-report.json", calibration_report)
+            write_json(self.settings.state_dir / "usage-ledger.json", usage_ledger)
             write_json(self.settings.logs_dir / f"calibration-{timestamp_slug()}.json", calibration_report)
+            write_json(self.settings.logs_dir / f"usage-{timestamp_slug()}.json", usage_summary)
             write_json(self.settings.logs_dir / f"run-{timestamp_slug()}.json", run_log)
             write_json(self.settings.state_dir / "latest-run.json", run_log)
             logger.info("Run artifacts written latest=%s", self.settings.state_dir / "latest-run.json")
@@ -238,6 +258,7 @@ class ForecastRunner:
             logger.error("Run failed error_type=%s", type(exc).__name__)
             raise
         finally:
+            reset_current_tracker(usage_token)
             if firecrawl is not None:
                 await firecrawl.aclose()
             await sp.aclose()
@@ -460,23 +481,33 @@ class ForecastRunner:
             row["used_firecrawl"] = bool(firecrawl_context)
             checks.append(row)
             logger.info(
-                "News monitor check end match_id=%s should_reforecast=%s delta_points=%d materiality=%s used_firecrawl=%s",
+                "News monitor check end match_id=%s should_reforecast=%s delta_points=%d materiality=%s affected_markets=%d used_firecrawl=%s",
                 match.id,
                 result.should_reforecast,
                 result.estimated_delta_points,
                 result.materiality,
+                len(result.affected_market_ids),
                 bool(firecrawl_context),
             )
             if (
                 result.should_reforecast
                 and result.estimated_delta_points >= self.settings.news_monitor_materiality_threshold_points
             ):
-                promoted.append((match, match_markets))
+                promoted_markets = self._affected_markets(match_markets, result.affected_market_ids)
+                promoted.append((match, promoted_markets))
 
         output = selected + promoted
         output.sort(key=lambda item: item[0].closes_at or utcnow())
         logger.info("News monitor checks complete checks=%d promoted=%d", len(checks), len(promoted))
         return output, news_cache, checks
+
+    @staticmethod
+    def _affected_markets(markets: list[Market], affected_market_ids: list[str]) -> list[Market]:
+        affected_ids = {market_id for market_id in affected_market_ids if market_id}
+        if not affected_ids:
+            return markets
+        affected_markets = [market for market in markets if market.id in affected_ids]
+        return affected_markets or markets
 
     def _should_news_monitor_match(
         self,
@@ -646,6 +677,7 @@ class ForecastRunner:
             "materiality": news_check.materiality,
             "evidence_quality": news_check.evidence_quality,
             "reason": news_check.reason,
+            "affected_market_ids": news_check.affected_market_ids,
             "firecrawl_context": firecrawl_context,
         }
 

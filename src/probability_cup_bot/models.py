@@ -143,6 +143,7 @@ class NewsCheck(BaseModel):
     evidence_quality: str = Field(pattern="^(low|medium|high)$")
     reason: str
     summary: str
+    affected_market_ids: list[str] = Field(default_factory=list)
     new_developments: list[str] = Field(default_factory=list)
     sources: list[NewsSource] = Field(default_factory=list)
 

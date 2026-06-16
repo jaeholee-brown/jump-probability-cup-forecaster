@@ -12,7 +12,10 @@ on:
         required: false
         default: "false"
   schedule:
-    - cron: "*/15 * * * *"
+    # Cheap monitor-only pass every 6 hours.
+    - cron: "17 */6 * * *"
+    # Full stale-forecast refresh once per day.
+    - cron: "43 8 * * *"
 
 concurrency:
   group: probability-cup-forecaster
@@ -59,7 +62,7 @@ jobs:
       USE_GROK_NEWS_MONITOR: "true"
       NEWS_MONITOR_MAX_HOURS_TO_CLOSE: "168"
       NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS: "2"
-      STALE_REFORECAST_WITHOUT_NEWS: "false"
+      STALE_REFORECAST_WITHOUT_NEWS: "true"
       USE_FIRECRAWL_RETRIEVAL: "true"
       FIRECRAWL_MODE: targeted
       FIRECRAWL_SEARCH_LIMIT: "5"
@@ -70,11 +73,11 @@ jobs:
       REASONING_EFFORT: medium
       MAX_HOURS_TO_CLOSE: "168"
       ENABLE_UPDATE_GATE: "true"
-      MAX_PREDICTION_AGE_HOURS: "12"
+      MAX_PREDICTION_AGE_HOURS: "24"
       FORCE_REFORECAST_WITHIN_HOURS: "1.5"
       FINAL_REFORECAST_MIN_INTERVAL_MINUTES: "30"
       UPDATE_THRESHOLD_POINTS: "2"
-      CONCURRENCY: "8"
+      CONCURRENCY: "10"
       PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v4
@@ -114,13 +117,16 @@ jobs:
           fi
 
       - name: Forecast
-        if: steps.forecast_secrets.outputs.available == 'true' && (github.event_name != 'schedule' || vars.ENABLE_SCHEDULED_FORECAST == 'true')
+        if: steps.forecast_secrets.outputs.available == 'true'
         env:
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
           INPUT_INSPECT_DOCKET: ${{ github.event.inputs.inspect_docket }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
           if [ "$INPUT_INSPECT_DOCKET" = "true" ]; then
             probability-cup-bot inspect-docket --max-questions 220
+          elif [ "$EVENT_SCHEDULE" = "17 */6 * * *" ]; then
+            probability-cup-bot run --news-monitor-only
           elif [ "$INPUT_DRY_RUN" = "true" ]; then
             probability-cup-bot run --dry-run
           else
