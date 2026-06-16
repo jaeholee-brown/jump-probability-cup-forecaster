@@ -1,0 +1,134 @@
+name: Probability Cup Scheduler
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Scheduler command: refresh or due"
+        required: false
+        default: "due"
+  schedule:
+    # Poll for newly posted games every 6 hours.
+    - cron: "17 */6 * * *"
+    # Cheap due-checker. It only spends model credits when a match hits its scheduled window.
+    - cron: "2-59/5 * * * *"
+
+concurrency:
+  group: probability-cup-forecaster
+  cancel-in-progress: false
+
+jobs:
+  scheduler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    permissions:
+      contents: read
+    env:
+      SPORTSPREDICT_API_KEY: ${{ secrets.SPORTSPREDICT_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      EVENT_ID: ${{ vars.EVENT_ID }}
+      SUBMIT: "true"
+      FORECAST_MODEL: gpt-5
+      RESEARCH_MODEL: gpt-5.4-mini
+      GROK_RESEARCH_MODEL: grok-4.20-multi-agent-0309
+      GROK_RESEARCH_PASSES: overview,base_rates,late_news,market_micro
+      GROK_RESEARCH_REASONING_EFFORT: medium
+      GROK_NEWS_MODEL: grok-4.20-multi-agent-0309
+      GROK_NEWS_REASONING_EFFORT: low
+      GROK_FORECAST_MODELS: grok-4.3,grok-4.20-0309-reasoning
+      CLAUDE_FORECAST_MODELS: claude-opus-4-8,claude-opus-4-6
+      USE_OPENAI_FORECAST: "true"
+      USE_GROK_RESEARCH: "true"
+      USE_GROK_FORECAST: "true"
+      USE_CLAUDE_FORECAST: "true"
+      OPENAI_FORECAST_VARIANTS: base_rate_frequency
+      GROK_FORECAST_VARIANTS: base_rate_frequency
+      CLAUDE_FORECAST_VARIANTS: base_rate_frequency
+      OPENAI_FORECAST_WEIGHT: "1.0"
+      GROK_FORECAST_WEIGHT: "0.5"
+      CLAUDE_FORECAST_WEIGHT: "0.75"
+      FORECAST_MODEL_WEIGHTS: gpt-5=1.0,grok-4.3=0.4,grok-4.20-0309-reasoning=0.6,claude-opus-4-8=0.7,claude-opus-4-6=0.8
+      APPLY_CALIBRATION_WEIGHTS: "true"
+      CALIBRATION_LEARNING_RATE: "1.8"
+      CALIBRATION_PRIOR_COUNT: "20"
+      USE_GROK_NEWS_MONITOR: "true"
+      NEWS_MONITOR_MAX_HOURS_TO_CLOSE: "168"
+      NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS: "2"
+      STALE_REFORECAST_WITHOUT_NEWS: "true"
+      USE_FIRECRAWL_RETRIEVAL: "true"
+      FIRECRAWL_MODE: targeted
+      FIRECRAWL_SEARCH_LIMIT: "5"
+      FIRECRAWL_SEARCH_QUERIES: "2"
+      FIRECRAWL_FORCE_WITHIN_HOURS: "2"
+      FIRECRAWL_VOLATILE_WITHIN_HOURS: "24"
+      FIRECRAWL_DISAGREEMENT_THRESHOLD_POINTS: "20"
+      REASONING_EFFORT: medium
+      MAX_HOURS_TO_CLOSE: "168"
+      ENABLE_UPDATE_GATE: "true"
+      MAX_PREDICTION_AGE_HOURS: "24"
+      FORCE_REFORECAST_WITHIN_HOURS: "1.5"
+      FINAL_REFORECAST_MIN_INTERVAL_MINUTES: "30"
+      UPDATE_THRESHOLD_POINTS: "2"
+      SPORTSPREDICT_RETRY_ATTEMPTS: "6"
+      SPORTSPREDICT_RETRY_INITIAL_SECONDS: "2"
+      SPORTSPREDICT_RETRY_MAX_SECONDS: "60"
+      SPORTSPREDICT_UPDATE_INTERVAL_SECONDS: "1.1"
+      CONCURRENCY: "10"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Restore forecast state
+        uses: actions/cache/restore@v4
+        with:
+          path: state/
+          key: forecast-state-${{ github.run_id }}
+          restore-keys: |
+            forecast-state-
+
+      - name: Run scheduler
+        env:
+          INPUT_MODE: ${{ github.event.inputs.mode }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          if [ -z "$SPORTSPREDICT_API_KEY" ]; then
+            echo "SPORTSPREDICT_API_KEY is required for scheduler."
+            exit 1
+          fi
+          if [ "$EVENT_SCHEDULE" = "17 */6 * * *" ] || [ "$INPUT_MODE" = "refresh" ]; then
+            echo "Scheduler mode=refresh schedule='${EVENT_SCHEDULE}'"
+            probability-cup-bot schedule --refresh-only
+          else
+            echo "Scheduler mode=due schedule='${EVENT_SCHEDULE}'"
+            probability-cup-bot schedule --run-due
+          fi
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scheduler-logs
+          path: |
+            logs/
+            state/
+          if-no-files-found: ignore
+
+      - name: Save forecast state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state/
+          key: forecast-state-${{ github.run_id }}
