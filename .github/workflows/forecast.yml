@@ -77,6 +77,10 @@ jobs:
       FORCE_REFORECAST_WITHIN_HOURS: "1.5"
       FINAL_REFORECAST_MIN_INTERVAL_MINUTES: "30"
       UPDATE_THRESHOLD_POINTS: "2"
+      SPORTSPREDICT_RETRY_ATTEMPTS: "6"
+      SPORTSPREDICT_RETRY_INITIAL_SECONDS: "2"
+      SPORTSPREDICT_RETRY_MAX_SECONDS: "60"
+      SPORTSPREDICT_UPDATE_INTERVAL_SECONDS: "1.1"
       CONCURRENCY: "10"
       PYTHONUNBUFFERED: "1"
     steps:
@@ -124,12 +128,16 @@ jobs:
           EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
           if [ "$INPUT_INSPECT_DOCKET" = "true" ]; then
+            echo "Forecast workflow mode=inspect_docket schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot inspect-docket --max-questions 220
           elif [ "$EVENT_SCHEDULE" = "17 */6 * * *" ]; then
+            echo "Forecast workflow mode=news_monitor_only schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot run --news-monitor-only
           elif [ "$INPUT_DRY_RUN" = "true" ]; then
+            echo "Forecast workflow mode=dry_run schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot run --dry-run
           else
+            echo "Forecast workflow mode=full_run schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot run
           fi
 

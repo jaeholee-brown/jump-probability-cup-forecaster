@@ -459,3 +459,40 @@ async def test_news_monitor_promotes_skipped_match() -> None:
     assert selected[0][0].id == "match"
     assert news_cache["matches"]["match"]["estimated_delta_points"] == 4
     assert checks[0]["should_reforecast"] is True
+
+
+async def test_write_predictions_continues_after_update_failure() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+        submit=True,
+        sportspredict_update_interval_seconds=0,
+    )
+    runner = ForecastRunner(settings)
+
+    class FakeSportsPredict:
+        async def submit_batch(self, predictions):
+            return {"total": len(predictions), "succeeded": len(predictions), "failed": 0}
+
+        async def update_prediction(self, prediction_id, probability):
+            if prediction_id == "first":
+                raise RuntimeError("rate limited")
+            return Prediction(id=prediction_id, market_id="second_market", lobby_id="lobby", probability=probability)
+
+    result = await runner._write_predictions(
+        FakeSportsPredict(),
+        {
+            "creates": [],
+            "updates": [
+                {"prediction_id": "first", "market_id": "first_market", "probability": 42},
+                {"prediction_id": "second", "market_id": "second_market", "probability": 57},
+            ],
+            "skips": [],
+        },
+    )
+
+    assert result["mode"] == "submitted_with_errors"
+    assert len(result["updates"]) == 1
+    assert result["updates"][0]["id"] == "second"
+    assert len(result["failed_updates"]) == 1
+    assert result["failed_updates"][0]["market_id"] == "first_market"

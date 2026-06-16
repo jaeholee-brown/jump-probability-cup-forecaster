@@ -26,6 +26,25 @@ def test_usage_tracker_summarizes_cost_by_provider() -> None:
     assert summary["by_provider"]["xai"]["estimated_cost_usd"] > 0.01
 
 
+def test_usage_tracker_uses_xai_cost_ticks_when_available() -> None:
+    tracker = UsageTracker()
+
+    event = tracker.record(
+        provider="xai",
+        model="grok-4.20-multi-agent-0309",
+        schema_name="match_evidence",
+        usage={
+            "input_tokens": 375_275,
+            "output_tokens": 11_882,
+            "num_server_side_tools_used": 33,
+            "cost_in_usd_ticks": 3_930_499_500,
+        },
+    )
+
+    assert event["estimated_cost_usd"] == 0.39305
+    assert event["cost_source"] == "xai_cost_in_usd_ticks"
+
+
 def test_update_usage_ledger_accumulates_by_provider() -> None:
     previous = {
         "cumulative": {

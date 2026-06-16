@@ -72,8 +72,12 @@ class ForecastRunner:
         sp = SportsPredictClient(
             base_url=self.settings.sportspredict_base_url,
             api_key=self.settings.sportspredict_api_key,
+            retry_attempts=self.settings.sportspredict_retry_attempts,
+            retry_initial_seconds=self.settings.sportspredict_retry_initial_seconds,
+            retry_max_seconds=self.settings.sportspredict_retry_max_seconds,
         )
         firecrawl: FirecrawlClient | None = None
+        usage_written = False
         try:
             grok = (
                 OpenAIAdapter(
@@ -202,12 +206,9 @@ class ForecastRunner:
             submission_results = await self._write_predictions(sp, plan)
             calibration_report = await self._build_calibration_report(sp, lobby.id, history, calibration_multipliers)
             generated_at = utcnow().isoformat()
-            usage_summary = usage_tracker.summary()
-            usage_summary["generated_at"] = generated_at
-            usage_ledger = update_usage_ledger(
-                read_json(self.settings.state_dir / "usage-ledger.json", {}),
-                usage_summary,
-            )
+            usage_summary = self._usage_summary(usage_tracker, generated_at=generated_at, status="complete")
+            usage_ledger = self._write_usage_artifacts(usage_summary)
+            usage_written = True
             run_log = {
                 "generated_at": generated_at,
                 "settings": {
@@ -246,22 +247,85 @@ class ForecastRunner:
             write_json(self.settings.state_dir / "forecast-history.json", history)
             write_json(self.settings.state_dir / "news-cache.json", news_cache)
             write_json(self.settings.state_dir / "calibration-report.json", calibration_report)
-            write_json(self.settings.state_dir / "usage-ledger.json", usage_ledger)
             write_json(self.settings.logs_dir / f"calibration-{timestamp_slug()}.json", calibration_report)
-            write_json(self.settings.logs_dir / f"usage-{timestamp_slug()}.json", usage_summary)
             write_json(self.settings.logs_dir / f"run-{timestamp_slug()}.json", run_log)
             write_json(self.settings.state_dir / "latest-run.json", run_log)
             logger.info("Run artifacts written latest=%s", self.settings.state_dir / "latest-run.json")
             logger.info("Run complete forecasts=%d mode=%s", len(forecast_results), submission_results["mode"])
             return run_log
         except Exception as exc:
-            logger.error("Run failed error_type=%s", type(exc).__name__)
+            logger.exception("Run failed error_type=%s", type(exc).__name__)
+            if not usage_written:
+                with suppress(Exception):
+                    generated_at = utcnow().isoformat()
+                    usage_summary = self._usage_summary(
+                        usage_tracker,
+                        generated_at=generated_at,
+                        status="failed",
+                        error={
+                            "type": type(exc).__name__,
+                            "message": str(exc),
+                        },
+                    )
+                    usage_ledger = self._write_usage_artifacts(usage_summary, failed=True)
+                    write_json(
+                        self.settings.state_dir / "last-failed-run.json",
+                        {
+                            "generated_at": generated_at,
+                            "error": {
+                                "type": type(exc).__name__,
+                                "message": str(exc),
+                            },
+                            "usage": usage_summary,
+                            "usage_cumulative": usage_ledger.get("cumulative", {}),
+                        },
+                    )
             raise
         finally:
             reset_current_tracker(usage_token)
             if firecrawl is not None:
                 await firecrawl.aclose()
             await sp.aclose()
+
+    def _usage_summary(
+        self,
+        usage_tracker: UsageTracker,
+        *,
+        generated_at: str,
+        status: str,
+        error: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        usage_summary = usage_tracker.summary()
+        usage_summary["generated_at"] = generated_at
+        usage_summary["status"] = status
+        if error:
+            usage_summary["error"] = error
+        return usage_summary
+
+    def _write_usage_artifacts(self, usage_summary: dict[str, Any], *, failed: bool = False) -> dict[str, Any]:
+        usage_ledger = update_usage_ledger(
+            read_json(self.settings.state_dir / "usage-ledger.json", {}),
+            usage_summary,
+        )
+        provider_costs = {
+            provider: bucket.get("estimated_cost_usd", 0)
+            for provider, bucket in (usage_summary.get("by_provider") or {}).items()
+        }
+        logger.info(
+            "Usage summary status=%s calls=%d estimated_cost_usd=%.6f by_provider=%s",
+            usage_summary.get("status"),
+            usage_summary.get("call_count", 0),
+            float(usage_summary.get("estimated_cost_usd") or 0),
+            provider_costs,
+        )
+        write_json(self.settings.state_dir / "usage-ledger.json", usage_ledger)
+        write_json(self.settings.state_dir / "latest-usage.json", usage_summary)
+        if failed:
+            write_json(self.settings.state_dir / "last-failed-usage.json", usage_summary)
+            write_json(self.settings.logs_dir / f"usage-failed-{timestamp_slug()}.json", usage_summary)
+        else:
+            write_json(self.settings.logs_dir / f"usage-{timestamp_slug()}.json", usage_summary)
+        return usage_ledger
 
     def _select_matches(
         self,
@@ -1185,7 +1249,10 @@ class ForecastRunner:
 
         logger.info("Submission start creates=%d updates=%d skips=%d", create_count, update_count, skip_count)
         create_results: list[dict[str, Any]] = []
+        create_errors: list[dict[str, Any]] = []
         for index, chunk in enumerate(chunks(plan["creates"], 50), start=1):
+            if index > 1 and self.settings.sportspredict_update_interval_seconds > 0:
+                await asyncio.sleep(self.settings.sportspredict_update_interval_seconds)
             logger.info("Submission create batch start batch=%d size=%d", index, len(chunk))
             try:
                 result = await sp.submit_batch(chunk)
@@ -1195,7 +1262,14 @@ class ForecastRunner:
                     index,
                     type(exc).__name__,
                 )
-                raise
+                create_errors.append(
+                    {
+                        "batch": index,
+                        "size": len(chunk),
+                        "error": self._error_summary(exc),
+                    }
+                )
+                continue
             create_results.append(result)
             logger.info(
                 "Submission create batch end batch=%d total=%s succeeded=%s failed=%s",
@@ -1206,7 +1280,10 @@ class ForecastRunner:
             )
 
         update_results: list[dict[str, Any]] = []
+        update_errors: list[dict[str, Any]] = []
         for index, item in enumerate(plan["updates"], start=1):
+            if index > 1 and self.settings.sportspredict_update_interval_seconds > 0:
+                await asyncio.sleep(self.settings.sportspredict_update_interval_seconds)
             logger.info(
                 "Submission update start index=%d market_id=%s probability=%d",
                 index,
@@ -1222,9 +1299,40 @@ class ForecastRunner:
                     item["market_id"],
                     type(exc).__name__,
                 )
-                raise
+                update_errors.append(
+                    {
+                        "index": index,
+                        "prediction_id": item["prediction_id"],
+                        "market_id": item["market_id"],
+                        "probability": item["probability"],
+                        "error": self._error_summary(exc),
+                    }
+                )
+                continue
             update_results.append(updated.model_dump())
             logger.info("Submission update end index=%d market_id=%s", index, item["market_id"])
 
-        logger.info("Submission complete create_batches=%d updates=%d", len(create_results), len(update_results))
-        return {"mode": "submitted", "creates": create_results, "updates": update_results}
+        mode = "submitted" if not create_errors and not update_errors else "submitted_with_errors"
+        logger.info(
+            "Submission complete mode=%s create_batches=%d updates=%d failed_create_batches=%d failed_updates=%d",
+            mode,
+            len(create_results),
+            len(update_results),
+            len(create_errors),
+            len(update_errors),
+        )
+        return {
+            "mode": mode,
+            "creates": create_results,
+            "updates": update_results,
+            "failed_create_batches": create_errors,
+            "failed_updates": update_errors,
+        }
+
+    @staticmethod
+    def _error_summary(exc: Exception) -> dict[str, Any]:
+        return {
+            "type": type(exc).__name__,
+            "status_code": getattr(exc, "status_code", None),
+            "message": str(exc)[:2000],
+        }

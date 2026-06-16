@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+
+import httpx
 import pytest
 
 from probability_cup_bot.models import Event
@@ -56,3 +59,37 @@ async def test_find_event_error_lists_available_events() -> None:
 
     with pytest.raises(SportsPredictError, match="Available events:"):
         await client.find_event("Probability Cup")
+
+
+async def test_request_retries_429_with_retry_after(monkeypatch) -> None:
+    calls = 0
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(429, json={"message": "Too Many Requests"}, headers={"Retry-After": "0"})
+        return httpx.Response(200, json=[{"id": "event", "title": "Cup", "type": "probability"}])
+
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+    client = SportsPredictClient(
+        base_url="https://example.test/api/v1",
+        api_key="sportspredict_test_key",
+        retry_attempts=3,
+        retry_initial_seconds=0,
+        retry_max_seconds=1,
+    )
+    await client.client.aclose()
+    client.client = httpx.AsyncClient(base_url=client.base_url, transport=httpx.MockTransport(handler))
+    try:
+        data = await client._request("GET", "/events")
+    finally:
+        await client.aclose()
+
+    assert calls == 2
+    assert sleeps == [0.0]
+    assert data[0]["id"] == "event"

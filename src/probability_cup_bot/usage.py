@@ -9,6 +9,7 @@ from typing import Any, Iterator
 _CURRENT_TRACKER: ContextVar[UsageTracker | None] = ContextVar("usage_tracker", default=None)
 
 XAI_SEARCH_TOOL_COST_USD = 0.005
+XAI_COST_TICKS_PER_USD = 10_000_000_000
 
 MODEL_PRICING_PER_MILLION = {
     ("openai", "gpt-5"): {"input": 1.25, "output": 10.0},
@@ -35,6 +36,7 @@ class UsageTracker:
         tool_usage_data = _jsonable(server_side_tool_usage)
         tokens = _token_counts(usage_data)
         tool_calls = _tool_call_count({"usage": usage_data, "server_side_tool_usage": tool_usage_data})
+        estimated_cost_usd, cost_source = _cost_usd(provider, model, usage_data, tokens, tool_calls)
         event = {
             "provider": provider,
             "model": model,
@@ -44,10 +46,8 @@ class UsageTracker:
             "reasoning_tokens": tokens["reasoning_tokens"],
             "total_tokens": tokens["total_tokens"],
             "tool_calls": tool_calls,
-            "estimated_cost_usd": round(
-                _estimated_cost_usd(provider, model, tokens, tool_calls),
-                6,
-            ),
+            "estimated_cost_usd": round(estimated_cost_usd, 6),
+            "cost_source": cost_source,
             "usage": usage_data,
             "server_side_tool_usage": tool_usage_data,
         }
@@ -77,8 +77,9 @@ class UsageTracker:
             "by_model": by_model,
             "events": self.events,
             "pricing_note": (
-                "Estimated from configured per-token prices plus xAI server-side search tool counts "
-                "when exposed by the SDK. Provider dashboards remain authoritative."
+                "xAI costs use provider-returned cost_in_usd_ticks when present. Other costs are "
+                "estimated from configured per-token prices plus exposed server-side tool counts. "
+                "Provider dashboards remain authoritative."
             ),
         }
 
@@ -175,6 +176,20 @@ def _estimated_cost_usd(
     output_cost = tokens["output_tokens"] / 1_000_000 * pricing.get("output", 0.0)
     tool_cost = tool_calls * XAI_SEARCH_TOOL_COST_USD if provider == "xai" else 0.0
     return input_cost + output_cost + tool_cost
+
+
+def _cost_usd(
+    provider: str,
+    model: str,
+    usage_data: Any,
+    tokens: dict[str, int],
+    tool_calls: int,
+) -> tuple[float, str]:
+    if provider == "xai" and isinstance(usage_data, dict):
+        ticks = usage_data.get("cost_in_usd_ticks")
+        if isinstance(ticks, int | float):
+            return float(ticks) / XAI_COST_TICKS_PER_USD, "xai_cost_in_usd_ticks"
+    return _estimated_cost_usd(provider, model, tokens, tool_calls), "configured_estimate"
 
 
 def _pricing_for(provider: str, model: str) -> dict[str, float]:

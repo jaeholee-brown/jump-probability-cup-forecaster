@@ -114,6 +114,10 @@ class Settings:
     force_reforecast_within_hours: float = 1.5
     final_reforecast_min_interval_minutes: float = 30.0
     update_threshold_points: int = 2
+    sportspredict_retry_attempts: int = 6
+    sportspredict_retry_initial_seconds: float = 2.0
+    sportspredict_retry_max_seconds: float = 60.0
+    sportspredict_update_interval_seconds: float = 1.1
     extremize_alpha: float = 1.05
     base_shrinkage: float = 0.04
     low_evidence_shrinkage: float = 0.12
@@ -201,6 +205,13 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         force_reforecast_within_hours=_float_env("FORCE_REFORECAST_WITHIN_HOURS", 1.5),
         final_reforecast_min_interval_minutes=_float_env("FINAL_REFORECAST_MIN_INTERVAL_MINUTES", 30.0),
         update_threshold_points=_int_env("UPDATE_THRESHOLD_POINTS", 2),
+        sportspredict_retry_attempts=max(1, _int_env("SPORTSPREDICT_RETRY_ATTEMPTS", 6)),
+        sportspredict_retry_initial_seconds=_float_env("SPORTSPREDICT_RETRY_INITIAL_SECONDS", 2.0),
+        sportspredict_retry_max_seconds=_float_env("SPORTSPREDICT_RETRY_MAX_SECONDS", 60.0),
+        sportspredict_update_interval_seconds=max(
+            0.0,
+            _float_env("SPORTSPREDICT_UPDATE_INTERVAL_SECONDS", 1.1),
+        ),
         extremize_alpha=_float_env("EXTREMIZE_ALPHA", 1.05),
         base_shrinkage=_float_env("BASE_SHRINKAGE", 0.04),
         low_evidence_shrinkage=_float_env("LOW_EVIDENCE_SHRINKAGE", 0.12),

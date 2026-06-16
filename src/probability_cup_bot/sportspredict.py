@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import logging
 from collections.abc import Iterable
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
@@ -10,15 +14,32 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from probability_cup_bot.models import Event, Lobby, Market, Match, Prediction
 
 
+logger = logging.getLogger(__name__)
+
+
 class SportsPredictError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class SportsPredictClient:
-    def __init__(self, *, base_url: str, api_key: str, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        api_key: str,
+        timeout: float = 30.0,
+        retry_attempts: int = 6,
+        retry_initial_seconds: float = 2.0,
+        retry_max_seconds: float = 60.0,
+    ) -> None:
         if not api_key:
             raise SportsPredictError("SPORTSPREDICT_API_KEY is required")
         self.base_url = base_url.rstrip("/")
+        self.retry_attempts = max(1, retry_attempts)
+        self.retry_initial_seconds = max(0.0, retry_initial_seconds)
+        self.retry_max_seconds = max(self.retry_initial_seconds, retry_max_seconds)
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=timeout,
@@ -39,15 +60,51 @@ class SportsPredictClient:
         reraise=True,
     )
     async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
-        response = await self.client.request(method, path, **kwargs)
-        if response.status_code == 429:
-            await asyncio.sleep(10)
+        response: httpx.Response | None = None
+        for attempt in range(1, self.retry_attempts + 1):
             response = await self.client.request(method, path, **kwargs)
+            if response.status_code not in {429, 500, 502, 503, 504}:
+                break
+            if attempt == self.retry_attempts:
+                break
+            delay = self._retry_delay(response, attempt)
+            logger.warning(
+                "SportsPredict retryable response method=%s path=%s status=%d attempt=%d/%d delay=%.1fs",
+                method,
+                path,
+                response.status_code,
+                attempt,
+                self.retry_attempts,
+                delay,
+            )
+            await asyncio.sleep(delay)
+        if response is None:
+            raise SportsPredictError(f"{method} {path} failed before request")
         if response.status_code >= 400:
-            raise SportsPredictError(f"{method} {path} failed: {response.status_code} {response.text}")
+            raise SportsPredictError(
+                f"{method} {path} failed: {response.status_code} {response.text}",
+                status_code=response.status_code,
+            )
         if not response.content:
             return None
         return response.json()
+
+    def _retry_delay(self, response: httpx.Response, attempt: int) -> float:
+        retry_after = response.headers.get("retry-after")
+        if retry_after:
+            try:
+                return min(float(retry_after), self.retry_max_seconds)
+            except ValueError:
+                with contextlib.suppress(ValueError, TypeError):
+                    retry_at = parsedate_to_datetime(retry_after)
+                    if retry_at.tzinfo is None:
+                        retry_at = retry_at.replace(tzinfo=timezone.utc)
+                    return min(
+                        max((retry_at - datetime.now(timezone.utc)).total_seconds(), 0.0),
+                        self.retry_max_seconds,
+                    )
+        delay = self.retry_initial_seconds * (2 ** max(0, attempt - 1))
+        return min(delay, self.retry_max_seconds)
 
     async def list_events(self, limit: int = 100) -> list[Event]:
         data = await self._request("GET", "/events", params={"limit": limit})
