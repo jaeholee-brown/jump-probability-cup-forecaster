@@ -98,6 +98,12 @@ Calibration is deliberately conservative. The SportsPredict results endpoint ret
 
 Firecrawl is now targeted. Use it for close matches, volatile markets, low-evidence or high-disagreement forecasts, and material Grok-news cases. Its raw snippets are cached in `state/news-cache.json` for auditability when used by the monitor.
 
+The implementation now also caches Firecrawl snippets used by the full research pass, not only the monitor pass. This matters operationally because a daily review should be able to inspect the actual source text that influenced a submitted update. The cache keeps the latest full-research snippet block and the three most recent full-research Firecrawl blocks per match.
+
+Grok news polling is the default cheap gate. Already-covered matches are not rerun with GPT-5 and Claude just because time has passed. Instead, Grok 4.20 Multi-Agent checks web and X on a cadence that tightens near kickoff: 6h far out, 3h inside 72h, 1h inside 24h, 30m inside 6h, and 15m inside 2h, halved for volatile, low-evidence, or high-disagreement matches. It promotes to the full ensemble only when credible new information is likely to move at least one market by the update threshold.
+
+X/Twitter is useful, but the evidence is narrower than "social sentiment wins." Brown et al. studied 13.8m EPL tweets and found Twitter tone had information beyond Betfair prices especially after goals and red cards. Since Jump closes markets at kickoff, the bot should not spend effort on in-play sentiment. It should use X for pre-close discovery: official team posts, confirmed lineups, credible reporters, injury/suspension news, travel/weather disruption, and fast player-availability updates. The prompt now tells Grok to discount fan speculation and social-only claims unless corroborated.
+
 ## 4. Platform Facts That Shape the System
 
 Public Jump/SportsPredict pages and the attached API docs say:

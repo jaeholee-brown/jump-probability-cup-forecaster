@@ -330,6 +330,22 @@ def test_firecrawl_gate_targets_close_or_volatile_matches() -> None:
     assert runner._should_use_firecrawl(later_match, volatile_markets, {}, {}, utcnow())
 
 
+def test_forecast_firecrawl_context_is_cached_for_audit() -> None:
+    news_cache = {"matches": {}}
+    match = Match(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z")
+    context = "Firecrawl credits used: 14\nFirecrawl query: A vs B lineup\n- Official: Team news"
+
+    ForecastRunner._record_forecast_firecrawl_context(news_cache, match, context)
+
+    entry = news_cache["matches"]["match"]
+    assert entry["forecast_firecrawl_credits"] == 14
+    assert entry["forecast_firecrawl_context"] == context
+    assert entry["forecast_firecrawl_history"][0]["context"] == context
+    cached_context = ForecastRunner._cached_news_context(entry)
+    assert "Cached full-research Firecrawl snippets" in cached_context
+    assert "Official: Team news" in cached_context
+
+
 async def test_news_monitor_promotes_skipped_match() -> None:
     settings = Settings(
         sportspredict_api_key="sportspredict_test_key",

@@ -53,16 +53,37 @@ class SportsPredictClient:
         data = await self._request("GET", "/events", params={"limit": limit})
         return [Event.model_validate(item) for item in data]
 
-    async def find_event(self, title: str) -> Event:
+    async def find_event(self, title: str, event_id: str = "") -> Event:
         events = await self.list_events()
+        if event_id:
+            for event in events:
+                if event.id == event_id:
+                    return event
+            return Event(
+                id=event_id,
+                title=title or event_id,
+                type="probability",
+                status=None,
+            )
+
         title_lower = title.lower()
-        probability_events = [event for event in events if event.type == "probability"]
-        for event in probability_events:
-            if title_lower in event.title.lower():
+        probability_events = [event for event in events if str(event.type).lower() == "probability"]
+        for event in events:
+            event_title = event.title.lower()
+            if title_lower in event_title or event_title in title_lower:
                 return event
         if probability_events:
             return probability_events[0]
-        raise SportsPredictError(f"No probability event found matching {title!r}")
+        if len(events) == 1:
+            return events[0]
+        available = ", ".join(
+            f"{event.id} title={event.title!r} type={event.type!r} status={event.status!r}"
+            for event in events[:10]
+        )
+        suffix = f" Available events: {available}" if available else " /events returned no events."
+        raise SportsPredictError(
+            f"No event found matching {title!r}. Set EVENT_ID to the desired event id if needed.{suffix}"
+        )
 
     async def list_lobbies(self, event_id: str) -> list[Lobby]:
         data = await self._request("GET", "/lobbies", params={"event_id": event_id})
@@ -121,4 +142,3 @@ class SportsPredictClient:
 def chunks(items: list[dict[str, Any]], size: int) -> Iterable[list[dict[str, Any]]]:
     for i in range(0, len(items), size):
         yield items[i : i + size]
-

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from collections import defaultdict
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -86,7 +87,7 @@ class ForecastRunner:
                 calibration_multipliers=calibration_multipliers,
             )
 
-            event = await sp.find_event(self.settings.event_title)
+            event = await sp.find_event(self.settings.event_title, self.settings.event_id)
             lobby = await sp.ensure_lobby(event.id)
             matches = await sp.list_matches(event.id, lobby.id)
             all_markets = await sp.list_markets(lobby.id)
@@ -667,11 +668,17 @@ class ForecastRunner:
                 use_firecrawl = self._should_use_firecrawl(match, markets, history, news_cache, utcnow())
                 cached_news = (news_cache.get("matches") or {}).get(match.id, {})
                 cached_news_context = self._cached_news_context(cached_news)
+                firecrawl_context = ""
+                if use_firecrawl:
+                    firecrawl_context = await evidence_collector.firecrawl_context(match, markets)
+                    if firecrawl_context:
+                        self._record_forecast_firecrawl_context(news_cache, match, firecrawl_context)
                 evidence = await evidence_collector.collect(
                     match,
                     markets,
-                    use_firecrawl=use_firecrawl,
+                    use_firecrawl=False,
                     cached_news_context=cached_news_context,
+                    firecrawl_context_override=firecrawl_context,
                 )
                 return await forecaster.forecast_match(match=match, markets=markets, evidence=evidence)
 
@@ -719,7 +726,53 @@ class ForecastRunner:
         firecrawl_context = cached_news.get("firecrawl_context") or ""
         if firecrawl_context:
             parts.append("Cached Firecrawl snippets:\n" + firecrawl_context[:12000])
+        forecast_firecrawl_context = cached_news.get("forecast_firecrawl_context") or ""
+        if forecast_firecrawl_context:
+            parts.append("Cached full-research Firecrawl snippets:\n" + forecast_firecrawl_context[:12000])
         return "\n\n".join(parts)
+
+    @staticmethod
+    def _record_forecast_firecrawl_context(
+        news_cache: dict[str, Any],
+        match: Match,
+        firecrawl_context: str,
+    ) -> None:
+        news_cache.setdefault("matches", {})
+        entry = news_cache["matches"].setdefault(
+            match.id,
+            {
+                "match_id": match.id,
+                "match_name": match.name,
+                "closing_time": match.closing_time,
+            },
+        )
+        checked_at = utcnow().isoformat()
+        compact_context = firecrawl_context[:12000]
+        credits = ForecastRunner._parse_firecrawl_credits(firecrawl_context)
+        entry.update(
+            {
+                "match_id": match.id,
+                "match_name": match.name,
+                "closing_time": match.closing_time,
+                "last_forecast_firecrawl_at": checked_at,
+                "forecast_firecrawl_context": compact_context,
+                "forecast_firecrawl_credits": credits,
+            }
+        )
+        history = list(entry.get("forecast_firecrawl_history") or [])
+        history.append(
+            {
+                "checked_at": checked_at,
+                "credits": credits,
+                "context": compact_context,
+            }
+        )
+        entry["forecast_firecrawl_history"] = history[-3:]
+
+    @staticmethod
+    def _parse_firecrawl_credits(firecrawl_context: str) -> int | None:
+        match = re.search(r"Firecrawl (?:monitor )?credits used: (\d+)", firecrawl_context)
+        return int(match.group(1)) if match else None
 
     def _plan_writes(
         self,

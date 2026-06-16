@@ -63,6 +63,7 @@ class Settings:
     anthropic_api_key: str = ""
     xai_base_url: str = "https://api.x.ai/v1"
     sportspredict_base_url: str = "https://api.sportspredict.com/api/v1"
+    event_id: str = ""
     event_title: str = "Probability Cup"
     forecast_model: str = "gpt-5"
     research_model: str = "gpt-5.4-mini"
@@ -139,6 +140,7 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         sportspredict_base_url=os.getenv(
             "SPORTSPREDICT_BASE_URL", "https://api.sportspredict.com/api/v1"
         ).rstrip("/"),
+        event_id=os.getenv("EVENT_ID", ""),
         event_title=os.getenv("EVENT_TITLE", "Probability Cup"),
         forecast_model=os.getenv("FORECAST_MODEL", "gpt-5"),
         research_model=os.getenv("RESEARCH_MODEL", "gpt-5.4-mini"),

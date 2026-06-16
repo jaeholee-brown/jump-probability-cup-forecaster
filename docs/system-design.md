@@ -39,7 +39,7 @@ Important limitations:
 6. For each selected match:
    - optional The Odds API lookup;
    - optional cached Grok news-monitor summary;
-   - targeted Firecrawl search+scrape snippets when `FIRECRAWL_API_KEY` exists and the match is close, volatile, low-evidence, or high-disagreement;
+   - targeted Firecrawl search+scrape snippets when `FIRECRAWL_API_KEY` exists and the match is close, volatile, low-evidence, high-disagreement, or already has material cached news;
    - four xAI/Grok multi-agent web/X-search evidence passes when `XAI_API_KEY` exists;
    - OpenAI web-search evidence summary as fallback when Grok is unavailable;
    - configurable forecasting variants per configured forecast provider;
@@ -48,7 +48,7 @@ Important limitations:
    - integer 1-99 conversion.
 7. Compare with existing predictions.
 8. Submit creates in batches of 50 and PATCH material updates.
-9. For skipped-but-open matches, run a Grok-only news monitor with web/X search. Promote a match to the full ensemble only if credible news is likely to move a market by at least the threshold.
+9. For skipped-but-open matches, run a Grok-only news monitor with web/X search. Promote a match to the full ensemble only if credible news is likely to move a market by at least the threshold. The monitor cadence ramps as close approaches: about 6h when far out, 3h inside 72h, 1h inside 24h, 30m inside 6h, and 15m inside 2h; volatile, low-evidence, or high-disagreement matches are checked twice as often.
 10. Fetch settled results and update calibration telemetry.
 11. Write `logs/run-*.json`, `logs/calibration-*.json`, `state/latest-run.json`, `state/news-cache.json`, and `state/calibration-report.json`.
 
@@ -103,6 +103,30 @@ Anthropic docs checked for current API behavior:
 - Brier score is a strictly proper scoring rule, so settled results can support conservative online reweighting without inventing an untested sports model layer.
 - Pitfalls papers warn against overfitting backtests and correlated bets, so live logs and per-market calibration matter.
 - X/Twitter search is not treated as a proven forecasting edge by itself; it is a late-breaking discovery channel for lineups, injuries, suspensions, weather disruption, and beat-reporting signals that should be corroborated or discounted by the research prompt.
+
+## Grok, X Search, and Firecrawl Policy
+
+Because xAI credits are abundant here, Grok is used freely for monitoring and research but not allowed to dominate the final ensemble. The full paid ensemble still uses one GPT-5 forecast, two Claude Opus forecasts, and two downweighted Grok forecasts. The xAI surplus goes into evidence:
+
+- scheduled Grok monitor checks on covered matches;
+- four specialized Grok research passes for selected matches;
+- `web_search` plus `x_search` in both the monitor and research stages;
+- cached summaries and source lists in `state/news-cache.json`.
+
+The X-search rule is deliberately narrow. Grok should use X for official team/player/tournament posts, credible journalists, team reporters, lineup leaks, injury reports, suspension news, weather disruption, and fast-moving availability claims. It should not use raw fan sentiment as a forecast input. Brown et al. found Twitter tone added information to Betfair prices for EPL matches, especially immediately after goals and red cards, which is stronger evidence for time-sensitive discovery than for pre-kickoff sentiment modeling. The Jump markets close at kickoff, so the bot uses X mainly for pre-close lineup and availability discovery.
+
+I did not find public evidence that Firecrawl itself has been used by winning forecasting bots. The analogous component in published and open-source systems is the retrieval/content layer: Halawi et al. use query generation, news retrieval, relevance ranking, and summarization; the Panshul42/Q2 bot fork describes Google Search, Google News, AskNews, Perplexity, and custom extraction; No-Stream uses AskNews, Gemini grounded search, optional Grok native search, Perplexity, Exa, and persistent research. Firecrawl fills the content-extraction slot: it turns targeted web results into clean markdown snippets with URLs and timestamps.
+
+Firecrawl is therefore not used as a broad search replacement. It is used when clean source text is most likely to change the final pre-kickoff forecast:
+
+- always inside `FIRECRAWL_FORCE_WITHIN_HOURS` before close, default 2h;
+- for volatile player/card/shot/corner/lineup-sensitive markets inside `FIRECRAWL_VOLATILE_WITHIN_HOURS`, default 24h;
+- when prior component spread is at least `FIRECRAWL_DISAGREEMENT_THRESHOLD_POINTS`, default 20 points;
+- when prior evidence quality was low;
+- when cached Grok news is material enough to justify a full ensemble rerun;
+- for monitor checks inside 6h before close.
+
+Full-research Firecrawl snippets and monitor Firecrawl snippets are cached in `state/news-cache.json` for auditability. The bot keeps the latest full-research snippet block plus the last three full-research Firecrawl blocks per match, capped before storage so the state file remains manageable.
 
 ## Similar Competition Signals
 

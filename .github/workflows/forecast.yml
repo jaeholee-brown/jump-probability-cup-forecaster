@@ -27,6 +27,7 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
       ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      EVENT_ID: ${{ vars.EVENT_ID }}
       SUBMIT: "true"
       FORECAST_MODEL: gpt-5
       RESEARCH_MODEL: gpt-5.4-mini

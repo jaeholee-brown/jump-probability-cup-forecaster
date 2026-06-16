@@ -30,7 +30,9 @@ RESEARCH_PASS_TASKS: dict[str, str] = {
     "late_news": (
         "Search specifically for current lineups, injuries, suspensions, player availability, "
         "manager comments, weather, travel/rest issues, and credible late-breaking news. Use "
-        "recent web/X evidence and prefer timestamped sources."
+        "recent web/X evidence and prefer timestamped sources. Treat X as a fast discovery "
+        "channel for official accounts and credible reporters; label social-only claims as "
+        "uncertain unless corroborated."
     ),
     "market_micro": (
         "Work market by market. For every listed question, find the most decision-relevant "
@@ -73,9 +75,13 @@ class EvidenceCollector:
         *,
         use_firecrawl: bool = True,
         cached_news_context: str = "",
+        firecrawl_context_override: str | None = None,
     ) -> MatchEvidence:
         odds_context = await self._odds_context(match)
-        firecrawl_context = await self._firecrawl_context(match, markets) if use_firecrawl else ""
+        if firecrawl_context_override is not None:
+            firecrawl_context = firecrawl_context_override
+        else:
+            firecrawl_context = await self._firecrawl_context(match, markets) if use_firecrawl else ""
         adapter = self.grok if self.settings.use_grok_research and self.grok else self.openai
         if adapter is None:
             return MatchEvidence(
@@ -122,6 +128,9 @@ class EvidenceCollector:
             items=[],
             evidence_quality="low",
         )
+
+    async def firecrawl_context(self, match: Match, markets: list[Market]) -> str:
+        return await self._firecrawl_context(match, markets)
 
     async def _research_pass(
         self,

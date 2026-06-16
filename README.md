@@ -12,6 +12,7 @@ The bot:
 - aggregates forecasts in log-odds space, applies configurable calibration, and outputs 1-99 integer probabilities;
 - submits new predictions in `/predictions/batch` chunks and updates existing predictions before close;
 - skips already-covered predictions unless they are new, material news moved, or inside the final pre-kickoff cadence;
+- caches Grok news summaries and Firecrawl source snippets for later audit/review;
 - writes settled-result telemetry and conservative model-weight calibration suggestions;
 - runs locally or on a scheduled GitHub Action.
 
@@ -41,7 +42,9 @@ SUBMIT=true probability-cup-bot run
 
 ## GitHub Action
 
-The workflow in `.github/workflows/forecast.yml` runs hourly and can also be started manually from the Actions tab. It dry-runs unless `SUBMIT=true` is set in the workflow environment and the required secrets exist.
+The workflow in `.github/workflows/forecast.yml` runs every 15 minutes on the repository default branch and can also be started manually from the Actions tab. GitHub scheduled workflows are not retroactive and can be delayed by a few minutes. It dry-runs only when the manual `dry_run=true` input is used or `SUBMIT=true` is removed from the workflow environment.
+
+If event discovery fails, add a repository variable named `EVENT_ID` with the Probability Cup event id from `GET /events`. Event ids are not secrets; API keys still belong in repository secrets.
 
 The SportsPredict key should be stored only as a repository secret. Do not put it in the repo or logs.
 

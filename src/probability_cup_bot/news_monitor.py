@@ -15,6 +15,11 @@ Goal: decide whether new public information is important enough to rerun the exp
 OpenAI/Grok/Claude forecast ensemble before kickoff.
 
 Use web search and X search aggressively for freshness, but be conservative about rerunning.
+On X, look for official club/tournament/player accounts, credible journalists, team reporters,
+and timestamped first-hand posts. Treat X as a discovery and corroboration channel, not as a
+raw sentiment signal. Discount fan speculation, anonymous aggregator claims, and repeated old
+posts unless corroborated by official, reputable media, bookmaker/odds, or weather sources.
+
 Trigger rerun only for information likely to move at least one listed market by the configured
 threshold. Important examples: confirmed or strongly credible lineup changes, injury/suspension
 news, weather that materially affects play, major odds movement if found, tactical/motivation
@@ -57,6 +62,11 @@ class GrokNewsMonitor:
                 "previous_forecast_state": match_history,
                 "cached_news": cached_news,
                 "firecrawl_context": firecrawl_context,
+                "source_policy": (
+                    "Mark developments as new only if they are newer than cached_news or materially "
+                    "clarify prior uncertainty. Prefer official/team/journalist/market/weather "
+                    "sources; X-only claims need corroboration or explicit uncertainty."
+                ),
                 "rerun_threshold_points": self.settings.news_monitor_materiality_threshold_points,
                 "decision_rule": (
                     "Set should_reforecast=true only if new information is credible and likely "
@@ -80,4 +90,3 @@ class GrokNewsMonitor:
         if not news_check.match_name:
             news_check.match_name = match.name
         return news_check
-
