@@ -7,8 +7,10 @@ from datetime import datetime, timezone
 from typing import Any
 
 from probability_cup_bot.anthropic_adapter import AnthropicAdapter
+from probability_cup_bot.calibration import build_calibration_report
 from probability_cup_bot.config import Settings
 from probability_cup_bot.evidence import EvidenceCollector
+from probability_cup_bot.firecrawl import FirecrawlClient
 from probability_cup_bot.forecaster import MatchForecaster
 from probability_cup_bot.models import AggregatedForecast, Market, Match, Prediction, parse_dt, utcnow
 from probability_cup_bot.openai_adapter import OpenAIAdapter
@@ -42,6 +44,7 @@ class ForecastRunner:
             base_url=self.settings.sportspredict_base_url,
             api_key=self.settings.sportspredict_api_key,
         )
+        firecrawl: FirecrawlClient | None = None
         try:
             grok = (
                 OpenAIAdapter(
@@ -66,8 +69,21 @@ class ForecastRunner:
                 raise RuntimeError(
                     "Set OPENAI_API_KEY, XAI_API_KEY, or ANTHROPIC_API_KEY before running forecasts."
                 )
-            evidence_collector = EvidenceCollector(self.settings, openai, grok)
-            forecaster = MatchForecaster(self.settings, openai, grok, anthropic)
+            if self.settings.firecrawl_api_key and self.settings.use_firecrawl_retrieval:
+                firecrawl = FirecrawlClient(self.settings.firecrawl_api_key)
+            previous_calibration = read_json(self.settings.state_dir / "calibration-report.json", {})
+            if self.settings.apply_calibration_weights:
+                calibration_multipliers = previous_calibration.get("suggested_multipliers") or {}
+            else:
+                calibration_multipliers = {}
+            evidence_collector = EvidenceCollector(self.settings, openai, grok, firecrawl)
+            forecaster = MatchForecaster(
+                self.settings,
+                openai,
+                grok,
+                anthropic,
+                calibration_multipliers=calibration_multipliers,
+            )
 
             event = await sp.find_event(self.settings.event_title)
             lobby = await sp.ensure_lobby(event.id)
@@ -87,8 +103,9 @@ class ForecastRunner:
                 existing_predictions=existing_predictions,
                 lobby_id=lobby.id,
             )
-            history = self._update_history(history, selected, forecast_results)
+            history = self._update_history(history, selected, forecast_results, plan)
             submission_results = await self._write_predictions(sp, plan)
+            calibration_report = await self._build_calibration_report(sp, lobby.id, history, calibration_multipliers)
             run_log = {
                 "generated_at": utcnow().isoformat(),
                 "settings": {
@@ -109,13 +126,22 @@ class ForecastRunner:
                 "forecast_count": len(forecast_results),
                 "plan": plan,
                 "submission_results": submission_results,
+                "calibration": {
+                    "settled_market_count": calibration_report.get("settled_market_count", 0),
+                    "aggregate": calibration_report.get("aggregate", {}),
+                    "suggested_multipliers": calibration_report.get("suggested_multipliers", {}),
+                },
                 "forecasts": [forecast.model_dump() for forecast in forecast_results],
             }
             write_json(self.settings.state_dir / "forecast-history.json", history)
+            write_json(self.settings.state_dir / "calibration-report.json", calibration_report)
+            write_json(self.settings.logs_dir / f"calibration-{timestamp_slug()}.json", calibration_report)
             write_json(self.settings.logs_dir / f"run-{timestamp_slug()}.json", run_log)
             write_json(self.settings.state_dir / "latest-run.json", run_log)
             return run_log
         finally:
+            if firecrawl is not None:
+                await firecrawl.aclose()
             await sp.aclose()
 
     def _select_matches(
@@ -241,12 +267,14 @@ class ForecastRunner:
         history: dict[str, Any],
         selected: list[tuple[Match, list[Market]]],
         forecasts: list[AggregatedForecast],
+        plan: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         now = utcnow().isoformat()
         updated = dict(history)
         updated.setdefault("matches", {})
         updated.setdefault("markets", {})
         forecasts_by_market = {forecast.market_id: forecast for forecast in forecasts}
+        written_market_ids = self._written_market_ids(plan or {}) if self.settings.can_submit else set()
         for match, markets in selected:
             match_spreads: list[float] = []
             confidences: list[str] = []
@@ -259,16 +287,30 @@ class ForecastRunner:
                 match_spreads.append(spread)
                 confidences.append(forecast.confidence)
                 qualities.append(forecast.evidence_quality)
-                updated["markets"][market.id] = {
-                    "last_forecast_at": now,
-                    "match_id": match.id,
-                    "question": market.question,
-                    "probability_int": forecast.probability_int,
-                    "component_spread_points": spread,
-                    "confidence": forecast.confidence,
-                    "evidence_quality": forecast.evidence_quality,
-                    "component_count": len(forecast.component_probabilities),
-                }
+                should_record_submission = market.id in written_market_ids
+                if should_record_submission:
+                    updated["markets"][market.id] = {
+                        "last_forecast_at": now,
+                        "match_id": match.id,
+                        "question": market.question,
+                        "probability_int": forecast.probability_int,
+                        "probability": forecast.probability,
+                        "component_spread_points": spread,
+                        "confidence": forecast.confidence,
+                        "evidence_quality": forecast.evidence_quality,
+                        "component_count": len(forecast.component_probabilities),
+                        "components": self._component_records(forecast),
+                    }
+                else:
+                    updated["markets"].setdefault(
+                        market.id,
+                        {
+                            "match_id": match.id,
+                            "question": market.question,
+                        },
+                    )
+                    updated["markets"][market.id]["last_model_forecast_at"] = now
+                    updated["markets"][market.id]["last_skipped_probability_int"] = forecast.probability_int
             if match_spreads:
                 previous = updated["matches"].get(match.id, {})
                 updated["matches"][match.id] = {
@@ -283,6 +325,59 @@ class ForecastRunner:
                     "market_ids": [market.id for market in markets],
                 }
         return updated
+
+    @staticmethod
+    def _written_market_ids(plan: dict[str, Any]) -> set[str]:
+        return {
+            item["market_id"]
+            for key in ("creates", "updates")
+            for item in plan.get(key, [])
+            if "market_id" in item
+        }
+
+    @staticmethod
+    def _component_records(forecast: AggregatedForecast) -> list[dict[str, Any]]:
+        variants = forecast.metadata.get("variants") or []
+        models = forecast.metadata.get("models") or []
+        providers = forecast.metadata.get("providers") or []
+        weights = forecast.metadata.get("weights") or []
+        records: list[dict[str, Any]] = []
+        for index, probability in enumerate(forecast.component_probabilities):
+            records.append(
+                {
+                    "probability": probability,
+                    "variant": variants[index] if index < len(variants) else "",
+                    "model": models[index] if index < len(models) else "",
+                    "provider": providers[index] if index < len(providers) else "",
+                    "weight": weights[index] if index < len(weights) else 1.0,
+                }
+            )
+        return records
+
+    async def _build_calibration_report(
+        self,
+        sp: SportsPredictClient,
+        lobby_id: str,
+        history: dict[str, Any],
+        calibration_multipliers: dict[str, float],
+    ) -> dict[str, Any]:
+        try:
+            results = await sp.list_results(lobby_id)
+        except Exception as exc:
+            return {
+                "generated_at": utcnow().isoformat(),
+                "settled_market_count": 0,
+                "error": f"Could not fetch settled results: {exc}",
+                "current_multipliers": calibration_multipliers,
+                "suggested_multipliers": calibration_multipliers,
+            }
+        return build_calibration_report(
+            results=results,
+            history=history,
+            current_multipliers=calibration_multipliers,
+            learning_rate=self.settings.calibration_learning_rate,
+            prior_count=self.settings.calibration_prior_count,
+        )
 
     @staticmethod
     def _component_spread_points(probabilities: list[float]) -> float:

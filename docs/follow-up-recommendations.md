@@ -8,7 +8,11 @@ Yes for the primary research path, with one caveat: keep direct structured odds 
 
 The bot should treat `grok-4.20-multi-agent-0309` as the default research engine when `XAI_API_KEY` exists. The reason is practical rather than mystical: the strongest LLM-forecasting evidence supports retrieval and evidence quality more than prompt phrasing. Halawi et al., "Approaching Human-Level Forecasting with Language Models" ([arXiv:2402.18563](https://arxiv.org/abs/2402.18563)), improved Brier from 0.208 for a raw GPT-4 baseline to 0.179 for a retrieval, summarization, reasoning, fine-tuning, and ensembling system over 914 post-cutoff test questions. That is much larger than prompt-only effects in later work.
 
-xAI's docs describe Grok 4.20 Multi-Agent as parallel collaborating agents for deep research, with `web_search` and `x_search` tools available in the Responses API ([model page](https://docs.x.ai/developers/models/grok-4.20-multi-agent-beta-0309), [multi-agent guide](https://docs.x.ai/developers/model-capabilities/text/multi-agent)). Given the user's $2,500 Grok credit and 450 RPM / 2.5M TPM limit, Grok should do all routine match research, late news, lineup, injury, weather, and social-source checking.
+xAI's docs describe Grok 4.20 Multi-Agent as parallel collaborating agents for deep research, with `web_search` and `x_search` tools available in the Responses API ([model page](https://docs.x.ai/developers/models/grok-4.20-multi-agent-beta-0309), [multi-agent guide](https://docs.x.ai/developers/model-capabilities/text/multi-agent)). Given the user's $2,500 Grok credit and 450 RPM / 2.5M TPM limit, Grok should do all routine match research, late news, lineup, injury, weather, social-source checking, and base-rate gathering.
+
+If forced to spend more xAI budget, spend it on evidence, not extra same-family forecast votes. The best marginal use is a decomposed `base_rates` pass that explicitly searches for historical team, league, player, and market-family frequencies. That is more literature-aligned than asking Grok to cast many additional ballots, because retrieval/system effects are larger and better-supported than prompt-only variance. The current research stack is therefore `overview`, `base_rates`, `late_news`, and `market_micro`.
+
+Firecrawl is useful, but as a retrieval plumbing layer rather than as a replacement for Grok's synthesis. Firecrawl should do search+scrape to provide clean, recent public snippets to the Grok research passes. Firecrawl search is priced in credits per search-result batch and scrape is priced per page, so the default uses two web-only searches per match-cycle and five scraped results per query. That is roughly `2 * (2 search credits + 5 scrape credits) = 14` Firecrawl credits per match-cycle. With 50,000 credits, this supports about 3,571 full match-cycles. The planning upper bound below uses about 2,704 match-cycles, or about 37,856 Firecrawl credits. Enabling both `web` and `news` sources would roughly double result volume and can burn through credits; web-only is the higher-confidence default.
 
 Do not remove the optional odds feed. Bookmaker odds are not just another text source. They are a compact real-money market signal. ForecastBench and "Wisdom of the Silicon Crowd" both point toward crowd/market anchors being high-value. Jump's API exposes no platform current price or crowd forecast, so public odds are the closest legal proxy.
 
@@ -26,10 +30,10 @@ Current forecast ensemble:
 Default configured forecast providers do not all run all variants. The evidence says model diversity is more valuable than prompt-only diversity, and xAI forecast calls are more correlated with each other than OpenAI/Anthropic calls. The workflow now defaults to:
 
 - OpenAI `gpt-5` x 1 variant: `base_rate_frequency`, weight 1.0.
-- xAI `grok-4.3` x 1 variant: `base_rate_frequency`, weight 0.35.
-- xAI `grok-4.20-0309-reasoning` x 1 variant: `base_rate_frequency`, weight 0.35.
-- Anthropic `claude-opus-4-8` x 1 variant: `base_rate_frequency`, weight 1.0.
-- Anthropic `claude-opus-4-6` x 1 variant: `base_rate_frequency`, weight 1.0.
+- xAI `grok-4.3` x 1 variant: `base_rate_frequency`, weight 0.4.
+- xAI `grok-4.20-0309-reasoning` x 1 variant: `base_rate_frequency`, weight 0.6.
+- Anthropic `claude-opus-4-8` x 1 variant: `base_rate_frequency`, weight 0.7.
+- Anthropic `claude-opus-4-6` x 1 variant: `base_rate_frequency`, weight 0.8.
 
 Set `OPENAI_FORECAST_VARIANTS=all`, `GROK_FORECAST_VARIANTS=all`, or `CLAUDE_FORECAST_VARIANTS=all` for full prompt ensembling when desired. With all keys present, the default is 5 forecast batches per match-cycle.
 
@@ -50,7 +54,7 @@ Recommended Jump stack:
 - Grok multi-agent primary research for every selected match.
 - Grok-only fallback mode if no OpenAI key exists.
 - Default: use GPT-5, two Claude Opus generations, and two lightly weighted Grok forecast models. This keeps model diversity while preventing xAI from overruling OpenAI/Anthropic through volume.
-- Spend the xAI surplus on three specialized Grok research passes: stable overview, late-news/lineups, and market-specific micro evidence.
+- Spend the xAI surplus on four specialized Grok research passes: stable overview, base rates, late-news/lineups, and market-specific micro evidence.
 - If paid budget gets tight, keep Grok research and one Grok forecast on every selected match, then reserve GPT-5/Claude for close-to-kickoff, high-disagreement, or high-value matches.
 
 ## 3. Blind Reruns vs Cheap Update Gate
@@ -83,8 +87,13 @@ Implemented now:
 - `ENABLE_UPDATE_GATE=true`
 - `MAX_PREDICTION_AGE_HOURS=12`
 - `FORCE_REFORECAST_WITHIN_HOURS=6`
+- Five-attempt exponential retry around OpenAI, Anthropic, xAI, and Firecrawl calls.
+- If a forecast component still fails, aggregate over the surviving components with the configured weights renormalized implicitly by weighted log-odds averaging.
+- Settled-result calibration through `GET /results`, written to `state/calibration-report.json` and timestamped `logs/calibration-*.json`.
 
 This gate is now stateful and slightly smarter than a fixed timer. It avoids suppressing new markets, refreshes every selected run in the final six hours, refreshes stable far-future matches slowly, and refreshes uncertain or volatile matches faster. It records per-market probability, component count, component spread, evidence quality, confidence, and per-match worst-case summaries.
+
+Calibration is deliberately conservative. The SportsPredict results endpoint returns settled Brier scores and submitted probabilities, but not explicit outcomes. The outcome is inferable because Brier is either `p^2` for a no-resolution or `(1-p)^2` for a yes-resolution. The bot scores each saved model component against the inferred outcome, compares each model's mean Brier to the ensemble mean, and proposes multiplicative weight updates using an exponentially weighted regret rule with prior-count shrinkage. This is rooted in proper scoring and online aggregation theory, but it avoids overfitting a tiny early sample. The report is designed for a daily coding-agent review: model/provider Brier, sample counts, current multipliers, suggested multipliers, and per-market component records are all visible.
 
 Recommended next implementation:
 
@@ -123,33 +132,34 @@ Prices checked 2026-06-16:
 Assumptions:
 
 - One full match-cycle forecasts all markets for one match, about 9-10 markets.
-- Three Grok research passes, each about 9K billed input tokens, 6K billed reasoning/completion tokens, and 2 web/X tool invocations.
+- Four Grok research passes, each about 9K billed input tokens, 6K billed reasoning/completion tokens, and 2 web/X tool invocations.
 - Each forecast call: 12K billed input tokens. OpenAI and Grok forecast calls assume 3.5K billed reasoning/completion tokens at `REASONING_EFFORT=medium`; Claude defaults to no explicit extended-thinking parameter, so the base estimate uses 1.5K visible output tokens, with a sensitivity case of 3.5K if hidden/adaptive thinking is billed similarly.
-- xAI research cost: `3 * (9K * $1.25/M + 6K * $2.50/M + 2 * $5/1K) = $0.109`.
+- xAI research cost: `4 * (9K * $1.25/M + 6K * $2.50/M + 2 * $5/1K) = $0.145`.
 - OpenAI GPT-5 forecast call: `12K * $1.25/M + 3.5K * $10/M = $0.050`.
 - Grok forecast call: `12K * $1.25/M + 3.5K * $2.50/M = $0.0238`.
 - Claude forecast call: `12K * $5/M + 1.5K * $25/M = $0.0975`; sensitivity with 3.5K billed output is `$0.1475`.
-- Default cycle: three Grok research passes, two lightly weighted Grok forecasts, one GPT-5 forecast, and two Claude Opus forecasts, about `$0.401`.
-- Provider split per cycle: about `$0.156` xAI, `$0.050` OpenAI, and `$0.195` Anthropic.
+- Firecrawl retrieval cost: about 14 credits per match-cycle under the default two-query, five-result-per-query web-only configuration.
+- Default cycle: four Grok research passes, two lightly weighted Grok forecasts, one GPT-5 forecast, and two Claude Opus forecasts, about `$0.438`, plus about 14 Firecrawl credits if Firecrawl is enabled.
+- Provider split per cycle: about `$0.193` xAI, `$0.050` OpenAI, and `$0.195` Anthropic.
 - Bot considers matches within the default 168-hour close window, not the full 919-hour event window.
 
 Approximate costs:
 
-| Scenario | Match cycles | xAI share | OpenAI share | Claude share | Total |
-|---|---:|---:|---:|---:|---:|
-| Forecast once per match | 104 | $16 | $5 | $20 | $42 |
-| Selective: 10 refreshes per match | 1,040 | $163 | $52 | $203 | $417 |
-| Expected stateful gate: 20 refreshes per match | 2,080 | $325 | $104 | $406 | $835 |
-| Stateful gate planning upper bound: about 26 refreshes per match | 2,704 | $422 | $135 | $527 | $1,085 |
-| Blind hourly within 168h window | 17,472 | $2,731 | $874 | $3,407 | $7,012 |
+| Scenario | Match cycles | xAI share | OpenAI share | Claude share | Total | Firecrawl credits |
+|---|---:|---:|---:|---:|---:|---:|
+| Forecast once per match | 104 | $20 | $5 | $20 | $46 | 1,456 |
+| Selective: 10 refreshes per match | 1,040 | $200 | $52 | $203 | $455 | 14,560 |
+| Expected stateful gate: 20 refreshes per match | 2,080 | $400 | $104 | $406 | $910 | 29,120 |
+| Stateful gate planning upper bound: about 26 refreshes per match | 2,704 | $521 | $135 | $527 | $1,183 | 37,856 |
+| Blind hourly within 168h window | 17,472 | $3,363 | $874 | $3,407 | $7,644 | 244,608 |
 
-The user's $2,500 xAI credit covers about 16,000 default xAI match-cycles under these assumptions. The user's $500 Claude credit covers about 2,560 default cycles with two Claude calls, or about 1,690 cycles under the higher hidden-output sensitivity case.
+The user's $2,500 xAI credit covers about 13,000 default xAI match-cycles under these assumptions. The user's $500 Claude credit covers about 2,560 default cycles with two Claude calls, or about 1,690 cycles under the higher hidden-output sensitivity case. The hypothetical 50,000 Firecrawl credits cover the planning upper bound, but not blind hourly refreshes for every eligible match.
 
 Interpretation:
 
 - Replacing GPT-5.5 with GPT-5 cuts the OpenAI forecast call from about `$0.165` to about `$0.050`, making Claude the main paid marginal cost.
-- The two Grok forecasts have a combined raw weight of 0.70, so xAI can contribute useful disagreement without dominating two Claude components plus GPT-5.
-- The extra xAI budget is better spent on research decomposition than forecast over-voting because retrieval/evidence quality has the strongest measured effect in the forecasting literature.
+- The two Grok forecasts have a combined raw weight of 1.0, equal to GPT-5 alone and below the two-Claude total of 1.5, so xAI can contribute useful disagreement without dominating the full ensemble.
+- The extra xAI budget is better spent on research decomposition, base-rate gathering, and source cleanup than forecast over-voting because retrieval/evidence quality has the strongest measured effect in the forecasting literature.
 
 ## Recommendation
 

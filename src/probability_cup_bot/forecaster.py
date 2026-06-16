@@ -62,11 +62,13 @@ class MatchForecaster:
         openai: OpenAIAdapter | None = None,
         grok: OpenAIAdapter | None = None,
         anthropic: AnthropicAdapter | None = None,
+        calibration_multipliers: dict[str, float] | None = None,
     ) -> None:
         self.settings = settings
         self.openai = openai
         self.grok = grok
         self.anthropic = anthropic
+        self.calibration_multipliers = calibration_multipliers or {}
 
     async def forecast_match(
         self,
@@ -160,7 +162,7 @@ class MatchForecaster:
                     adapter=self.openai,
                     model=self.settings.forecast_model,
                     variants=self.settings.openai_forecast_variants,
-                    weight=self.settings.openai_forecast_weight,
+                    weight=self._model_weight(self.settings.forecast_model, self.settings.openai_forecast_weight),
                 )
             )
         if self.settings.use_grok_forecast and self.grok:
@@ -172,7 +174,7 @@ class MatchForecaster:
                         adapter=self.grok,
                         model=model,
                         variants=self.settings.grok_forecast_variants,
-                        weight=self.settings.grok_forecast_weight,
+                        weight=self._model_weight(model, self.settings.grok_forecast_weight),
                     )
                 )
         if self.settings.use_claude_forecast and self.anthropic:
@@ -184,10 +186,14 @@ class MatchForecaster:
                         adapter=self.anthropic,
                         model=model,
                         variants=self.settings.claude_forecast_variants,
-                        weight=self.settings.claude_forecast_weight,
+                        weight=self._model_weight(model, self.settings.claude_forecast_weight),
                     )
                 )
         return specs
+
+    def _model_weight(self, model: str, provider_default: float) -> float:
+        configured = (self.settings.forecast_model_weights or {}).get(model, provider_default)
+        return configured * self.calibration_multipliers.get(model, 1.0)
 
     @staticmethod
     def _unique_models(models: tuple[str, ...]) -> tuple[str, ...]:

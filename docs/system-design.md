@@ -38,7 +38,8 @@ Important limitations:
    - set `MAX_HOURS_TO_CLOSE=0` to remove this filter.
 6. For each selected match:
    - optional The Odds API lookup;
-   - three xAI/Grok multi-agent web/X-search evidence passes when `XAI_API_KEY` exists;
+   - optional Firecrawl search+scrape snippets when `FIRECRAWL_API_KEY` exists;
+   - four xAI/Grok multi-agent web/X-search evidence passes when `XAI_API_KEY` exists;
    - OpenAI web-search evidence summary as fallback when Grok is unavailable;
    - configurable forecasting variants per configured forecast provider;
    - log-odds aggregation;
@@ -46,20 +47,23 @@ Important limitations:
    - integer 1-99 conversion.
 7. Compare with existing predictions.
 8. Submit creates in batches of 50 and PATCH material updates.
-9. Write `logs/run-*.json` and `state/latest-run.json`.
+9. Fetch settled results and update calibration telemetry.
+10. Write `logs/run-*.json`, `logs/calibration-*.json`, `state/latest-run.json`, and `state/calibration-report.json`.
 
 ## Model Strategy
 
 Default:
 
 - Primary high-volume research model: `grok-4.20-multi-agent-0309` via xAI when `XAI_API_KEY` is set.
-- Research passes: `overview`, `late_news`, and `market_micro`.
+- Research passes: `overview`, `base_rates`, `late_news`, and `market_micro`.
+- Optional Firecrawl retrieval: two web-only searches per match-cycle, five scraped results per search, fed into Grok research as source context.
 - Grok forecast models: `grok-4.3` and `grok-4.20-0309-reasoning`.
 - OpenAI forecast model: `gpt-5`.
 - Claude forecast models: `claude-opus-4-8` and `claude-opus-4-6`.
 - Fallback research/evidence model with OpenAI key: `gpt-5.4-mini`.
 - Default forecast variants: one `base_rate_frequency` call per configured forecast model.
-- Default forecast weights: OpenAI 1.0, Claude 1.0 per model, Grok 0.35 per model.
+- Default model-specific forecast weights: `gpt-5=1.0`, `grok-4.3=0.4`, `grok-4.20-0309-reasoning=0.6`, `claude-opus-4-8=0.7`, and `claude-opus-4-6=0.8`.
+- Calibration multipliers are applied on top of those base weights after enough settled results accumulate.
 - Full prompt-ensemble mode: set `OPENAI_FORECAST_VARIANTS=all`, `GROK_FORECAST_VARIANTS=all`, and/or `CLAUDE_FORECAST_VARIANTS=all`.
 - Grok-only mode is supported if `OPENAI_API_KEY` is absent.
 - Not used: `gpt-5.5-pro`.
@@ -93,6 +97,7 @@ Anthropic docs checked for current API behavior:
 - Prompt-engineering studies show base-rate/frequency/step-back prompts are the only prompt-only components worth keeping, and even those are modest.
 - ForecastBench and Silicon Crowd support cross-model aggregation more directly than prompt-variant-only ensembling, so the bot defaults to model diversity, explicit component weights, and better retrieval instead of many same-family forecast votes.
 - Baron/Satopaa-style extremization motivates a mild log-odds extremization after aggregation.
+- Brier score is a strictly proper scoring rule, so settled results can support conservative online reweighting without inventing an untested sports model layer.
 - Pitfalls papers warn against overfitting backtests and correlated bets, so live logs and per-market calibration matter.
 
 ## Similar Competition Signals
@@ -109,6 +114,7 @@ Repository secrets:
 - `OPENAI_API_KEY` or `XAI_API_KEY`
 - optional `ANTHROPIC_API_KEY`
 - optional `ODDS_API_KEY`
+- optional `FIRECRAWL_API_KEY`
 
 Key environment controls:
 
@@ -120,8 +126,10 @@ Key environment controls:
 - `UPDATE_THRESHOLD_POINTS=2`: avoid noisy one-point updates.
 - `CONCURRENCY=4`: bound concurrent match forecasts.
 - `USE_GROK_RESEARCH=true`: use xAI multi-agent search for evidence when `XAI_API_KEY` exists.
-- `GROK_RESEARCH_PASSES=overview,late_news,market_micro`: specialized xAI research passes to run and merge.
+- `GROK_RESEARCH_PASSES=overview,base_rates,late_news,market_micro`: specialized xAI research passes to run and merge.
 - `GROK_RESEARCH_REASONING_EFFORT=medium`: xAI research effort.
+- `USE_FIRECRAWL_RETRIEVAL=true`: prepend Firecrawl search+scrape snippets to Grok research when `FIRECRAWL_API_KEY` exists.
+- `FIRECRAWL_SEARCH_QUERIES=2`, `FIRECRAWL_SEARCH_LIMIT=5`: default Firecrawl budget controls.
 - `USE_OPENAI_FORECAST=true`: run configured variants with `gpt-5` when `OPENAI_API_KEY` exists.
 - `USE_GROK_FORECAST=true`: run configured variants with `GROK_FORECAST_MODELS` when `XAI_API_KEY` exists.
 - `USE_CLAUDE_FORECAST=true`: run configured variants with `CLAUDE_FORECAST_MODELS` when `ANTHROPIC_API_KEY` exists.
@@ -130,16 +138,18 @@ Key environment controls:
 - `OPENAI_FORECAST_VARIANTS=base_rate_frequency`: comma-separated OpenAI variants, or `all`.
 - `GROK_FORECAST_VARIANTS=base_rate_frequency`: comma-separated Grok variants, or `all`.
 - `CLAUDE_FORECAST_VARIANTS=base_rate_frequency`: comma-separated Claude variants, or `all`.
-- `OPENAI_FORECAST_WEIGHT=1.0`, `GROK_FORECAST_WEIGHT=0.35`, `CLAUDE_FORECAST_WEIGHT=1.0`: component weights before confidence/evidence adjustments.
+- `FORECAST_MODEL_WEIGHTS=gpt-5=1.0,grok-4.3=0.4,grok-4.20-0309-reasoning=0.6,claude-opus-4-8=0.7,claude-opus-4-6=0.8`: model-specific component weights before confidence/evidence adjustments.
+- `APPLY_CALIBRATION_WEIGHTS=true`: apply suggested multipliers from prior settled results.
+- `CALIBRATION_LEARNING_RATE=1.8`, `CALIBRATION_PRIOR_COUNT=20`: conservative online reweighting controls.
 - `EXTREMIZE_ALPHA=1.05`: mild log-odds extremization.
 - `BASE_SHRINKAGE=0.04`: mild shrinkage toward 50.
 - `LOW_EVIDENCE_SHRINKAGE=0.12`: stronger shrinkage when evidence is weak.
 
 ## Future Improvements
 
-1. Add a true sports model layer: Elo/SPI-style team ratings, Poisson goal model, and de-vigged bookmaker consensus.
+1. Add bookmaker consensus and de-vigged odds anchors if a reliable sports odds feed is available.
 2. Add hard coherence repair for mutually exclusive markets and monotone totals.
-3. Use settled `GET /results` to learn calibration by market family.
+3. Learn calibration by market family once enough settled results exist.
 4. Persist historical odds snapshots and detect meaningful odds moves before updating.
 5. Add a second bot key with an intentionally different strategy if platform rules allow two bots per user.
 6. Add a nightly calibration report that decomposes Brier score by confidence bin and market type.

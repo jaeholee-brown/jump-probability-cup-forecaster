@@ -5,12 +5,13 @@ Autonomous forecasting system for the Jump Trading Probability Cup / SportsPredi
 The bot:
 
 - discovers the Probability Cup event, lobby, open matches, and open markets;
-- gathers fresh public evidence with multiple xAI/Grok multi-agent web/X research passes when `XAI_API_KEY` is available, with OpenAI web search as fallback;
+- gathers fresh public evidence with multiple xAI/Grok multi-agent web/X research passes when `XAI_API_KEY` is available, with optional Firecrawl search+scrape context and OpenAI web search as fallback;
 - can add optional structured bookmaker odds context before LLM research;
 - forecasts each match's markets with a configurable OpenAI/xAI/Claude ensemble when keys are available;
 - aggregates forecasts in log-odds space, applies configurable calibration, and outputs 1-99 integer probabilities;
 - submits new predictions in `/predictions/batch` chunks and updates existing predictions before close;
 - skips already-fresh predictions unless they are stale, new, or close to kickoff;
+- writes settled-result telemetry and conservative model-weight calibration suggestions;
 - runs locally or on a scheduled GitHub Action.
 
 ## Quick Start
@@ -21,6 +22,7 @@ The bot:
    - `SPORTSPREDICT_API_KEY`
    - `XAI_API_KEY`, `OPENAI_API_KEY`, and/or `ANTHROPIC_API_KEY`
    - optional `ODDS_API_KEY`
+   - optional `FIRECRAWL_API_KEY`
 4. Install and run:
 
 ```bash
@@ -41,6 +43,8 @@ SUBMIT=true probability-cup-bot run
 The workflow in `.github/workflows/forecast.yml` runs hourly and can also be started manually from the Actions tab. It dry-runs unless `SUBMIT=true` is set in the workflow environment and the required secrets exist.
 
 The SportsPredict key should be stored only as a repository secret. Do not put it in the repo or logs.
+
+After settled results exist, inspect `state/calibration-report.json` and timestamped `logs/calibration-*.json` to see Brier by model/provider and the suggested weight multipliers applied on the next run.
 
 ## Main Documents
 

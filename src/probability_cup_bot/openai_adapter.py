@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, TypeVar
 
-from openai import AsyncOpenAI
+from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI, RateLimitError
 from pydantic import BaseModel, ValidationError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -45,9 +45,11 @@ class OpenAIAdapter:
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     @retry(
-        retry=retry_if_exception_type((ModelOutputError, TimeoutError)),
+        retry=retry_if_exception_type(
+            (APIConnectionError, APIStatusError, APITimeoutError, ModelOutputError, RateLimitError, TimeoutError)
+        ),
         wait=wait_exponential(multiplier=1, min=2, max=30),
-        stop=stop_after_attempt(3),
+        stop=stop_after_attempt(5),
         reraise=True,
     )
     async def structured_response(

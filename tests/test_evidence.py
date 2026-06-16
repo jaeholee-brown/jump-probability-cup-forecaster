@@ -29,6 +29,23 @@ class FakeAdapter:
         raise AssertionError("not called")
 
 
+class FakeFirecrawl:
+    async def search(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        sources: tuple[str, ...] = ("web", "news"),
+        tbs: str | None = None,
+        country: str = "US",
+    ) -> tuple[list[Any], int]:
+        class Result:
+            def compact(self, max_chars: int = 1800) -> str:
+                return f"- Result for {query}: Team news markdown"
+
+        return [Result()], 7
+
+
 def test_merge_evidence_deduplicates_and_keeps_best_quality() -> None:
     collector = EvidenceCollector(
         Settings(
@@ -83,3 +100,23 @@ def test_merge_evidence_deduplicates_and_keeps_best_quality() -> None:
     assert evidence.key_facts == ["A striker fit", "Weather is clear"]
     assert len(evidence.items) == 1
     assert "Merged 2 research passes" in evidence.query_summary
+
+
+async def test_firecrawl_context_renders_search_results() -> None:
+    collector = EvidenceCollector(
+        Settings(
+            sportspredict_api_key="sportspredict_test_key",
+            openai_api_key="",
+            xai_api_key="xai_test_key",
+            firecrawl_search_queries=1,
+        ),
+        openai=None,
+        grok=FakeAdapter(),
+        firecrawl=FakeFirecrawl(),
+    )
+    match = Match(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z")
+
+    context = await collector._firecrawl_context(match, [])
+
+    assert "Firecrawl credits used: 7" in context
+    assert "Team news markdown" in context

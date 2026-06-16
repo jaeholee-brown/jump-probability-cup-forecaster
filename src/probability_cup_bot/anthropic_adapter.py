@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, TypeVar
 
-from anthropic import AsyncAnthropic
+from anthropic import APIConnectionError, APIStatusError, APITimeoutError, AsyncAnthropic, RateLimitError
 from pydantic import BaseModel, ValidationError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -21,9 +21,11 @@ class AnthropicAdapter:
         self.client = AsyncAnthropic(api_key=api_key)
 
     @retry(
-        retry=retry_if_exception_type((ModelOutputError, TimeoutError)),
+        retry=retry_if_exception_type(
+            (APIConnectionError, APIStatusError, APITimeoutError, ModelOutputError, RateLimitError, TimeoutError)
+        ),
         wait=wait_exponential(multiplier=1, min=2, max=30),
-        stop=stop_after_attempt(3),
+        stop=stop_after_attempt(5),
         reraise=True,
     )
     async def structured_response(

@@ -25,12 +25,13 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
       ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
       SUBMIT: "true"
       FORECAST_MODEL: gpt-5
       RESEARCH_MODEL: gpt-5.4-mini
       GROK_RESEARCH_MODEL: grok-4.20-multi-agent-0309
-      GROK_RESEARCH_PASSES: overview,late_news,market_micro
+      GROK_RESEARCH_PASSES: overview,base_rates,late_news,market_micro
       GROK_RESEARCH_REASONING_EFFORT: medium
       GROK_FORECAST_MODELS: grok-4.3,grok-4.20-0309-reasoning
       CLAUDE_FORECAST_MODELS: claude-opus-4-8,claude-opus-4-6
@@ -42,8 +43,15 @@ jobs:
       GROK_FORECAST_VARIANTS: base_rate_frequency
       CLAUDE_FORECAST_VARIANTS: base_rate_frequency
       OPENAI_FORECAST_WEIGHT: "1.0"
-      GROK_FORECAST_WEIGHT: "0.35"
-      CLAUDE_FORECAST_WEIGHT: "1.0"
+      GROK_FORECAST_WEIGHT: "0.5"
+      CLAUDE_FORECAST_WEIGHT: "0.75"
+      FORECAST_MODEL_WEIGHTS: gpt-5=1.0,grok-4.3=0.4,grok-4.20-0309-reasoning=0.6,claude-opus-4-8=0.7,claude-opus-4-6=0.8
+      APPLY_CALIBRATION_WEIGHTS: "true"
+      CALIBRATION_LEARNING_RATE: "1.8"
+      CALIBRATION_PRIOR_COUNT: "20"
+      USE_FIRECRAWL_RETRIEVAL: "true"
+      FIRECRAWL_SEARCH_LIMIT: "5"
+      FIRECRAWL_SEARCH_QUERIES: "2"
       REASONING_EFFORT: medium
       MAX_HOURS_TO_CLOSE: "168"
       ENABLE_UPDATE_GATE: "true"

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -31,6 +31,30 @@ def _csv_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
+def _mapping_env(name: str, default: dict[str, float]) -> dict[str, float]:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    output: dict[str, float] = {}
+    for item in value.split(","):
+        if "=" not in item:
+            continue
+        key, raw_value = item.split("=", 1)
+        key = key.strip()
+        if key:
+            output[key] = float(raw_value.strip())
+    return output or default
+
+
+DEFAULT_FORECAST_MODEL_WEIGHTS = {
+    "gpt-5": 1.0,
+    "grok-4.3": 0.4,
+    "grok-4.20-0309-reasoning": 0.6,
+    "claude-opus-4-8": 0.7,
+    "claude-opus-4-6": 0.8,
+}
+
+
 @dataclass(frozen=True)
 class Settings:
     sportspredict_api_key: str
@@ -43,7 +67,7 @@ class Settings:
     forecast_model: str = "gpt-5"
     research_model: str = "gpt-5.4-mini"
     grok_research_model: str = "grok-4.20-multi-agent-0309"
-    grok_research_passes: tuple[str, ...] = ("overview", "late_news", "market_micro")
+    grok_research_passes: tuple[str, ...] = ("overview", "base_rates", "late_news", "market_micro")
     grok_research_reasoning_effort: str = "medium"
     grok_forecast_model: str = "grok-4.3"
     grok_forecast_models: tuple[str, ...] = ("grok-4.3", "grok-4.20-0309-reasoning")
@@ -57,8 +81,18 @@ class Settings:
     grok_forecast_variants: tuple[str, ...] = ("base_rate_frequency",)
     claude_forecast_variants: tuple[str, ...] = ("base_rate_frequency",)
     openai_forecast_weight: float = 1.0
-    grok_forecast_weight: float = 0.35
-    claude_forecast_weight: float = 1.0
+    grok_forecast_weight: float = 0.5
+    claude_forecast_weight: float = 0.75
+    forecast_model_weights: dict[str, float] = field(
+        default_factory=lambda: dict(DEFAULT_FORECAST_MODEL_WEIGHTS)
+    )
+    apply_calibration_weights: bool = True
+    calibration_learning_rate: float = 1.8
+    calibration_prior_count: int = 20
+    firecrawl_api_key: str = ""
+    use_firecrawl_retrieval: bool = True
+    firecrawl_search_limit: int = 5
+    firecrawl_search_queries: int = 2
     reasoning_effort: str = "medium"
     submit: bool = False
     max_matches_per_run: int = 0
@@ -100,7 +134,7 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         grok_research_model=os.getenv("GROK_RESEARCH_MODEL", "grok-4.20-multi-agent-0309"),
         grok_research_passes=_csv_env(
             "GROK_RESEARCH_PASSES",
-            ("overview", "late_news", "market_micro"),
+            ("overview", "base_rates", "late_news", "market_micro"),
         ),
         grok_research_reasoning_effort=os.getenv("GROK_RESEARCH_REASONING_EFFORT", "medium"),
         grok_forecast_model=os.getenv("GROK_FORECAST_MODEL", "grok-4.3"),
@@ -121,8 +155,19 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         grok_forecast_variants=_csv_env("GROK_FORECAST_VARIANTS", ("base_rate_frequency",)),
         claude_forecast_variants=_csv_env("CLAUDE_FORECAST_VARIANTS", ("base_rate_frequency",)),
         openai_forecast_weight=_float_env("OPENAI_FORECAST_WEIGHT", 1.0),
-        grok_forecast_weight=_float_env("GROK_FORECAST_WEIGHT", 0.35),
-        claude_forecast_weight=_float_env("CLAUDE_FORECAST_WEIGHT", 1.0),
+        grok_forecast_weight=_float_env("GROK_FORECAST_WEIGHT", 0.5),
+        claude_forecast_weight=_float_env("CLAUDE_FORECAST_WEIGHT", 0.75),
+        forecast_model_weights=_mapping_env(
+            "FORECAST_MODEL_WEIGHTS",
+            dict(DEFAULT_FORECAST_MODEL_WEIGHTS),
+        ),
+        apply_calibration_weights=_bool_env("APPLY_CALIBRATION_WEIGHTS", True),
+        calibration_learning_rate=_float_env("CALIBRATION_LEARNING_RATE", 1.8),
+        calibration_prior_count=_int_env("CALIBRATION_PRIOR_COUNT", 20),
+        firecrawl_api_key=os.getenv("FIRECRAWL_API_KEY", ""),
+        use_firecrawl_retrieval=_bool_env("USE_FIRECRAWL_RETRIEVAL", True),
+        firecrawl_search_limit=_int_env("FIRECRAWL_SEARCH_LIMIT", 5),
+        firecrawl_search_queries=max(0, _int_env("FIRECRAWL_SEARCH_QUERIES", 2)),
         reasoning_effort=os.getenv("REASONING_EFFORT", "medium"),
         submit=submit,
         max_matches_per_run=_int_env("MAX_MATCHES_PER_RUN", 0),

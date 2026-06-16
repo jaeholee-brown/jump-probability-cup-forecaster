@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from probability_cup_bot.config import Settings
+from probability_cup_bot.firecrawl import FirecrawlClient
 from probability_cup_bot.models import Match, MatchEvidence, Market, utcnow
 from probability_cup_bot.openai_adapter import OpenAIAdapter
 from probability_cup_bot.prompts import RESEARCH_INSTRUCTIONS
@@ -19,6 +20,12 @@ RESEARCH_PASS_TASKS: dict[str, str] = {
         "Build the stable outside-view picture for this match: team strength, recent form, "
         "tournament incentives, likely tactical setup, historical/base rates for the listed "
         "market families, and any reliable public odds context."
+    ),
+    "base_rates": (
+        "Spend this pass on base rates and reference classes. Estimate market-family priors "
+        "for soccer outcomes, goals, cards, corners, shots, player participation/starts, and "
+        "common prop markets. Prefer quantitative ranges and explain when no good base-rate "
+        "data is available."
     ),
     "late_news": (
         "Search specifically for current lineups, injuries, suspensions, player availability, "
@@ -52,13 +59,16 @@ class EvidenceCollector:
         settings: Settings,
         openai: OpenAIAdapter | None,
         grok: OpenAIAdapter | None = None,
+        firecrawl: FirecrawlClient | None = None,
     ) -> None:
         self.settings = settings
         self.openai = openai
         self.grok = grok
+        self.firecrawl = firecrawl
 
     async def collect(self, match: Match, markets: list[Market]) -> MatchEvidence:
         odds_context = await self._odds_context(match)
+        firecrawl_context = await self._firecrawl_context(match, markets)
         adapter = self.grok if self.settings.use_grok_research and self.grok else self.openai
         if adapter is None:
             return MatchEvidence(
@@ -82,6 +92,7 @@ class EvidenceCollector:
                     match=match,
                     markets=markets,
                     odds_context=odds_context,
+                    firecrawl_context=firecrawl_context,
                     pass_name=pass_name,
                 )
                 for pass_name in pass_names
@@ -111,6 +122,7 @@ class EvidenceCollector:
         match: Match,
         markets: list[Market],
         odds_context: str,
+        firecrawl_context: str,
         pass_name: str,
     ) -> MatchEvidence:
         research_task = RESEARCH_PASS_TASKS.get(pass_name, pass_name)
@@ -120,6 +132,7 @@ class EvidenceCollector:
                 "match": match.model_dump(),
                 "markets": [market.model_dump() for market in markets],
                 "odds_context": odds_context,
+                "firecrawl_context": firecrawl_context,
                 "research_pass": pass_name,
                 "research_task": research_task,
             },
@@ -196,6 +209,44 @@ class EvidenceCollector:
             if order.get(value, 0) > order[best]:
                 best = value
         return best
+
+    async def _firecrawl_context(self, match: Match, markets: list[Market]) -> str:
+        if (
+            not self.firecrawl
+            or not self.settings.use_firecrawl_retrieval
+            or self.settings.firecrawl_search_queries <= 0
+        ):
+            return ""
+        queries = self._firecrawl_queries(match, markets)[: self.settings.firecrawl_search_queries]
+        contexts: list[str] = []
+        total_credits = 0
+        for query in queries:
+            try:
+                results, credits = await self.firecrawl.search(
+                    query,
+                    limit=self.settings.firecrawl_search_limit,
+                    sources=("web",),
+                    tbs="qdr:w,sbd:1",
+                )
+            except Exception as exc:
+                contexts.append(f"Firecrawl query failed for {query!r}: {exc}")
+                continue
+            total_credits += credits
+            rendered = "\n".join(result.compact() for result in results[: self.settings.firecrawl_search_limit])
+            if rendered:
+                contexts.append(f"Firecrawl query: {query}\n{rendered}")
+        if not contexts:
+            return ""
+        return f"Firecrawl credits used: {total_credits}\n" + "\n\n".join(contexts)
+
+    @staticmethod
+    def _firecrawl_queries(match: Match, markets: list[Market]) -> list[str]:
+        market_terms = " ".join(market.question for market in markets[:8])
+        return [
+            f"{match.name} confirmed lineup injuries suspensions team news weather",
+            f"{match.name} odds preview goals cards corners shots player props {market_terms}",
+            f"{match.name} soccer statistics xG team strength recent form base rates",
+        ]
 
     async def _odds_context(self, match: Match) -> str:
         if not self.settings.odds_api_key:

@@ -60,4 +60,24 @@ def test_forecaster_builds_cross_provider_specs() -> None:
         ("base_rate_frequency",),
         ("base_rate_frequency",),
     ]
-    assert [spec.weight for spec in specs] == [1.0, 0.35, 0.35, 1.0, 1.0]
+    assert [spec.weight for spec in specs] == [1.0, 0.4, 0.6, 0.7, 0.8]
+
+
+def test_forecaster_applies_calibration_multipliers() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+        xai_api_key="xai_test_key",
+        anthropic_api_key="anthropic_test_key",
+    )
+    forecaster = MatchForecaster(
+        settings,
+        openai=FakeAdapter("openai"),
+        grok=FakeAdapter("xai"),
+        anthropic=FakeAdapter("anthropic"),
+        calibration_multipliers={"gpt-5": 0.9, "grok-4.20-0309-reasoning": 1.1},
+    )
+
+    specs = forecaster._forecast_model_specs()
+
+    assert [spec.weight for spec in specs] == [0.9, 0.4, 0.66, 0.7, 0.8]
