@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
 from probability_cup_bot.config import Settings
 from probability_cup_bot.forecaster import MatchForecaster
-from probability_cup_bot.models import ForecastBatch, Market, MarketForecast, MarketMatch
+from probability_cup_bot.models import ForecastBatch, Market, MarketForecast, MarketMatch, Match, MatchEvidence
 
 
 T = TypeVar("T", bound=BaseModel)
@@ -28,6 +29,74 @@ class FakeAdapter:
         tools: list[dict[str, Any]] | None = None,
     ) -> T:
         raise AssertionError("not called")
+
+
+class SuccessfulAdapter:
+    provider = "openai"
+
+    async def structured_response(
+        self,
+        *,
+        model: str,
+        instructions: str,
+        user_input: str,
+        schema_model: type[T],
+        schema_name: str,
+        reasoning_effort: str = "medium",
+        tools: list[dict[str, Any]] | None = None,
+    ) -> T:
+        return schema_model.model_validate(
+            {
+                "match_id": "match",
+                "match_name": "A vs B",
+                "model": model,
+                "prompt_variant": "base_rate_frequency",
+                "provider": self.provider,
+                "forecasts": [
+                    {
+                        "market_id": "market",
+                        "question": "Will A win?",
+                        "reference_class": "Even soccer match favorite win rates.",
+                        "probability": 0.58,
+                        "confidence": "medium",
+                        "evidence_quality": "medium",
+                    }
+                ],
+            }
+        )
+
+
+async def test_forecast_match_logs_variant_progress_without_evidence_text(caplog) -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+        use_grok_forecast=False,
+        use_claude_forecast=False,
+    )
+    forecaster = MatchForecaster(settings, openai=SuccessfulAdapter())
+    match = Match(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z")
+    market = Market(
+        id="market",
+        question="Will A win?",
+        status="open",
+        match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+        lobby_id="lobby",
+    )
+    evidence = MatchEvidence(
+        match_id="match",
+        match_name="A vs B",
+        generated_at="2026-06-16T00:00:00Z",
+        query_summary="private evidence summary",
+        key_facts=["private evidence fact"],
+    )
+    caplog.set_level(logging.INFO, logger="probability_cup_bot.forecaster")
+
+    forecasts = await forecaster.forecast_match(match=match, markets=[market], evidence=evidence)
+
+    assert forecasts[0].market_id == "market"
+    assert "Forecast variant start match_id=match provider=openai model=gpt-5" in caplog.text
+    assert "Forecast variant end match_id=match provider=openai model=gpt-5" in caplog.text
+    assert "private evidence" not in caplog.text
 
 
 def test_forecaster_builds_cross_provider_specs() -> None:
