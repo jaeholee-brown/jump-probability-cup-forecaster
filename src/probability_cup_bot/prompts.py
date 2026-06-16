@@ -41,7 +41,9 @@ Output reasoning:
   resolution_interpretation, reference_class, base_rate, base_rate_rationale, yes_reasons,
   no_reasons, and probability_rationale.
 - The probability_rationale should explain the path from base rate to final probability in 2-4
-  compact sentences. Do not expose hidden chain-of-thought or add free-form text outside JSON.
+  compact sentences and end with the exact text "Final probability: 0.xx" using the same decimal
+  value as the probability field. Do not expose hidden chain-of-thought or add free-form text
+  outside JSON.
 - The base_rate_rationale should name the reference class, the source/stat if known, and any
   adjustment for team strength, opponent, expected minutes, or lineup uncertainty.
 - For yes_reasons and no_reasons, include concrete evidence or base-rate considerations that

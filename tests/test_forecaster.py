@@ -236,3 +236,84 @@ def test_aggregate_preserves_component_reasoning_metadata() -> None:
     assert forecast.metadata["base_rate_rationales"] == [
         "Similar favorites win slightly more often than not."
     ]
+
+
+def test_aggregate_repairs_grok_boundary_probability_from_rationale() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+    )
+    forecaster = MatchForecaster(settings)
+    market = Market(
+        id="market",
+        question="Will A win?",
+        status="open",
+        match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+        lobby_id="lobby",
+    )
+    batch = ForecastBatch(
+        match_id="match",
+        match_name="A vs B",
+        model="grok-4.3",
+        prompt_variant="base_rate_frequency",
+        provider="grok",
+        weight=1.0,
+        forecasts=[
+            MarketForecast(
+                market_id="market",
+                question="Will A win?",
+                reference_class="Similar favorites.",
+                probability_rationale="Base 0.55 lifted by team strength. Final probability: 0.61",
+                probability=0.01,
+                confidence="medium",
+                evidence_quality="medium",
+            )
+        ],
+    )
+
+    [forecast] = forecaster._aggregate([market], [batch])
+
+    assert forecast.component_probabilities == [0.61]
+    assert forecast.metadata["raw_component_probabilities"] == [0.01]
+    assert forecast.metadata["probability_repairs"][0]["raw_probability"] == 0.01
+    assert forecast.metadata["probability_repairs"][0]["probability"] == 0.61
+    assert forecast.probability_int > 55
+
+
+def test_aggregate_leaves_grok_boundary_probability_when_rationale_has_no_number() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+    )
+    forecaster = MatchForecaster(settings)
+    market = Market(
+        id="market",
+        question="Will A win?",
+        status="open",
+        match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+        lobby_id="lobby",
+    )
+    batch = ForecastBatch(
+        match_id="match",
+        match_name="A vs B",
+        model="grok-4.3",
+        prompt_variant="base_rate_frequency",
+        provider="grok",
+        weight=1.0,
+        forecasts=[
+            MarketForecast(
+                market_id="market",
+                question="Will A win?",
+                reference_class="Unavailable player prop.",
+                probability_rationale="Player excluded from the squad; probability near minimum.",
+                probability=0.01,
+                confidence="high",
+                evidence_quality="high",
+            )
+        ],
+    )
+
+    [forecast] = forecaster._aggregate([market], [batch])
+
+    assert forecast.component_probabilities == [0.01]
+    assert forecast.metadata["probability_repairs"] == []

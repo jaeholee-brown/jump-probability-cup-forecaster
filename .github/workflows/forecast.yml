@@ -11,6 +11,10 @@ on:
         description: "List current matches/questions only; no LLM calls or submissions"
         required: false
         default: "false"
+      repair_boundary_forecasts:
+        description: "Repair saved Grok boundary probabilities from state/latest-run.json and submit updates; no LLM calls"
+        required: false
+        default: "false"
       inspect_max_questions:
         description: "Maximum questions to print when inspect_docket is true"
         required: false
@@ -114,14 +118,15 @@ jobs:
         id: forecast_secrets
         env:
           INPUT_INSPECT_DOCKET: ${{ github.event.inputs.inspect_docket }}
+          INPUT_REPAIR_BOUNDARY_FORECASTS: ${{ github.event.inputs.repair_boundary_forecasts }}
         run: |
-          if [ "$INPUT_INSPECT_DOCKET" = "true" ] && [ -n "$SPORTSPREDICT_API_KEY" ]; then
+          if { [ "$INPUT_INSPECT_DOCKET" = "true" ] || [ "$INPUT_REPAIR_BOUNDARY_FORECASTS" = "true" ]; } && [ -n "$SPORTSPREDICT_API_KEY" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           elif [ -n "$SPORTSPREDICT_API_KEY" ] && { [ -n "$OPENAI_API_KEY" ] || [ -n "$XAI_API_KEY" ] || [ -n "$ANTHROPIC_API_KEY" ]; }; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping forecast: set SPORTSPREDICT_API_KEY plus at least one model API key, or set inspect_docket=true with SPORTSPREDICT_API_KEY."
+            echo "Skipping forecast: set SPORTSPREDICT_API_KEY plus at least one model API key, or use inspect/repair mode with SPORTSPREDICT_API_KEY."
           fi
 
       - name: Forecast
@@ -129,12 +134,20 @@ jobs:
         env:
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
           INPUT_INSPECT_DOCKET: ${{ github.event.inputs.inspect_docket }}
+          INPUT_REPAIR_BOUNDARY_FORECASTS: ${{ github.event.inputs.repair_boundary_forecasts }}
           INPUT_INSPECT_MAX_QUESTIONS: ${{ github.event.inputs.inspect_max_questions }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
           if [ "$INPUT_INSPECT_DOCKET" = "true" ]; then
             echo "Forecast workflow mode=inspect_docket schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot inspect-docket --max-questions "${INPUT_INSPECT_MAX_QUESTIONS:-2000}"
+          elif [ "$INPUT_REPAIR_BOUNDARY_FORECASTS" = "true" ]; then
+            echo "Forecast workflow mode=repair_boundary_forecasts schedule='${EVENT_SCHEDULE}'"
+            python scripts/repair_boundary_forecasts.py \
+              --artifact state/latest-run.json \
+              --submit \
+              --output "logs/repair-boundary-$(date -u +%Y%m%dT%H%M%SZ).json" \
+              --corrected-run-output state/latest-run-repaired.json
           elif [ "$EVENT_SCHEDULE" = "17 */6 * * *" ]; then
             echo "Forecast workflow mode=news_monitor_only schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot run --news-monitor-only

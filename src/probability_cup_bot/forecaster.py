@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 QUALITY_WEIGHT = {"low": 0.7, "medium": 1.0, "high": 1.25}
 CONFIDENCE_WEIGHT = {"low": 0.85, "medium": 1.0, "high": 1.15}
 T = TypeVar("T", bound=BaseModel)
+BOUNDARY_REPAIR_MODELS = {"grok"}
 
 
 class StructuredAdapter(Protocol):
@@ -305,7 +307,10 @@ class MatchForecaster:
             components = by_market.get(market.id, [])
             if not components:
                 continue
-            probabilities = [forecast.probability for _, forecast in components]
+            probability_repairs = [
+                self._repair_boundary_probability(batch, forecast) for batch, forecast in components
+            ]
+            probabilities = [repair["probability"] for repair in probability_repairs]
             weights = [
                 batch.weight
                 * QUALITY_WEIGHT.get(forecast.evidence_quality, 1.0)
@@ -353,10 +358,71 @@ class MatchForecaster:
                         ],
                         "calibration_notes": [forecast.calibration_notes for _, forecast in components],
                         "consistency_notes": [forecast.consistency_notes for _, forecast in components],
+                        "raw_component_probabilities": [
+                            repair["raw_probability"] for repair in probability_repairs
+                        ],
+                        "probability_repairs": [
+                            repair for repair in probability_repairs if repair["repaired"]
+                        ],
                     },
                 )
             )
         return output
+
+    @staticmethod
+    def _repair_boundary_probability(batch: ForecastBatch, forecast: MarketForecast) -> dict[str, Any]:
+        probability = float(forecast.probability)
+        repair = {
+            "provider": batch.provider,
+            "model": batch.model,
+            "variant": batch.prompt_variant,
+            "raw_probability": probability,
+            "probability": probability,
+            "repaired": False,
+            "source": "",
+        }
+        if batch.provider not in BOUNDARY_REPAIR_MODELS:
+            return repair
+        if 0.02 < probability < 0.98:
+            return repair
+
+        recovered = MatchForecaster._extract_final_probability(forecast.probability_rationale)
+        if recovered is None:
+            return repair
+        if abs(recovered - probability) < 0.025:
+            return repair
+
+        repair.update(
+            {
+                "probability": recovered,
+                "repaired": True,
+                "source": "probability_rationale",
+            }
+        )
+        logger.warning(
+            "Repaired boundary probability provider=%s model=%s market_id=%s old=%.3f new=%.3f",
+            batch.provider,
+            batch.model,
+            forecast.market_id,
+            probability,
+            recovered,
+        )
+        return repair
+
+    @staticmethod
+    def _extract_final_probability(text: str) -> float | None:
+        candidates: list[tuple[int, float]] = []
+        for match in re.finditer(r"(?<!\d)(?:0?\.\d{1,3}|1\.0+)(?!\d)", text or ""):
+            probability = float(match.group(0))
+            if 0.01 <= probability <= 0.99:
+                candidates.append((match.start(), probability))
+        for match in re.finditer(r"(?<!\d)([1-9]\d?)(?:\.\d+)?\s*%", text or ""):
+            probability = float(match.group(0).replace("%", "")) / 100.0
+            if 0.01 <= probability <= 0.99:
+                candidates.append((match.start(), probability))
+        if not candidates:
+            return None
+        return sorted(candidates, key=lambda item: item[0])[-1][1]
 
     @staticmethod
     def _mode(values: list[str]) -> str:
