@@ -16,13 +16,18 @@ Repo consequence: docs and defaults now describe Grok multi-agent as primary. Op
 
 ## 2. Prompt Variants and Ensemble Ranking
 
-Current prompt variants:
+Current forecast ensemble:
 
 - `base_rate_frequency`: force outside-view base rates and frequency reasoning first.
 - `balanced_scratchpad`: rephrase, consider yes/no cases, and do a calibration check.
 - `late_information`: overweight late-breaking lineups, injuries, odds shifts, tactical news, and weather.
 - `coherence_checker`: check related markets on the same match for obvious probability inconsistency.
-- `grok_multi_agent_check`: added only when both OpenAI and Grok are available, giving Grok an independent challenge/search role.
+
+Each configured forecast provider now runs all four variants. With all keys present, that is 12 independent forecast batches per match-cycle:
+
+- OpenAI `gpt-5.5` x 4 variants.
+- xAI `grok-4.20-multi-agent-0309` x 4 variants.
+- Anthropic `claude-opus-4-6` x 4 variants.
 
 Stack ranking:
 
@@ -40,12 +45,12 @@ Recommended Jump stack:
 
 - Grok multi-agent primary research for every selected match.
 - Grok-only fallback mode if no OpenAI key exists.
-- If OpenAI budget is acceptable, use GPT-5.5 for four prompt variants and Grok as an independent check.
-- If OpenAI budget is constrained, use Grok-only with the four prompt variants, then add one small OpenAI/Gemini/Claude check only on high-disagreement or high-value matches.
+- If OpenAI and Claude budget are acceptable, run all four variants on GPT-5.5, Grok 4.20 Multi-Agent, and Claude Opus 4.6.
+- If paid budget gets tight, keep Grok on every selected match and reserve GPT-5.5/Claude for close-to-kickoff, high-disagreement, or high-value matches.
 
 ## 3. Blind Reruns vs Cheap Update Gate
 
-Use a gate. Do not blindly full-reforecast every open match every run unless using Grok-only and deliberately spending the free credit aggressively.
+Use a gate. Do not blindly full-reforecast every open match every run with the full OpenAI/Grok/Claude ensemble.
 
 The literature and public bot practice favor selective updating:
 
@@ -58,13 +63,15 @@ Best execution for Jump:
 
 1. Always forecast new markets immediately.
 2. Always refresh inside the final pre-kickoff window because lineups, injuries, weather, and odds are most valuable then.
-3. Outside that window, refresh stale forecasts on a fixed cadence.
-4. Add a cheap Grok change detector for all open matches if we want maximum quality with controlled cost:
-   - Inputs: match, markets, existing probabilities, last update time, time to close.
+3. Outside that window, refresh stale forecasts on a cadence that depends on time-to-close.
+4. Shorten cadence for matches with high model disagreement, low confidence, low evidence quality, or volatile market families such as player goals, cards, shots, and lineup-sensitive props.
+5. Preserve `state/forecast-history.json` across GitHub Action runs so the gate can use its own prior component spread and evidence quality.
+6. Add a cheap Grok change detector later for all open matches if we want maximum quality with controlled cost:
+   - Inputs: match, markets, existing probabilities, last update time, time to close, last evidence summary, last component spread.
    - Tools: `web_search` plus `x_search`, date-restricted to recent days where possible.
    - Output: `should_reforecast`, `estimated_delta_points`, `new_evidence_summary`, `sources`, `reason`.
    - Trigger full forecast if new material evidence appears, estimated move is at least 2 points, kickoff is close, or current prediction is stale.
-5. Reuse the change detector's evidence summary in the full forecast to avoid doing two totally independent research passes.
+7. Reuse the change detector's evidence summary in the full forecast to avoid doing two totally independent research passes.
 
 Implemented now:
 
@@ -72,7 +79,7 @@ Implemented now:
 - `MAX_PREDICTION_AGE_HOURS=12`
 - `FORCE_REFORECAST_WITHIN_HOURS=6`
 
-This deterministic gate is deliberately conservative. It avoids suppressing new markets, refreshes stale matches, and refreshes every selected run in the final six hours.
+This gate is now stateful and slightly smarter than a fixed timer. It avoids suppressing new markets, refreshes every selected run in the final six hours, refreshes stable far-future matches slowly, and refreshes uncertain or volatile matches faster. It records per-market probability, component count, component spread, evidence quality, confidence, and per-match worst-case summaries.
 
 Recommended next implementation:
 
@@ -83,10 +90,12 @@ Recommended next implementation:
 
 ## 4. Platform Facts That Shape the System
 
-The attached SportsPredict API docs say:
+Public Jump/SportsPredict pages and the attached API docs say:
 
 - Probability Cup event: `2026-06-11T15:00:00Z` to `2026-07-19T22:00:00Z`, about 38.3 days or 919 hours.
-- About 72 matches and about 10 binary markets per match.
+- Jump's public announcement says the competition begins June 11, 2026 and runs through July 19, 2026.
+- Public SportsPredict/LinkedIn campaign copy says 104 matches and 1,000+ probability questions.
+- The API docs' older examples mention about 72 matches and about 720 group-stage-scale markets; the live public tournament framing is broader, so cost estimates use 104 matches and 1,000 markets.
 - Markets close at match start.
 - The API exposes event, lobby, matches, markets, predictions, and results.
 - It does not expose current market price, crowd forecast, bookmaker line, leaderboard aggregate/RBP, market history, or webhooks.
@@ -103,41 +112,42 @@ Prices checked 2026-06-16:
 - OpenAI `gpt-5.4-mini`: $0.75 / 1M input tokens, $4.50 / 1M output tokens.
 - OpenAI web search: $10 / 1k calls, search content tokens free.
 - xAI `grok-4.20-multi-agent-0309`: $1.25 / 1M input tokens, $2.50 / 1M output tokens.
-- xAI `web_search` and `x_search`: $5 / 1k calls each.
+- xAI `web_search` and `x_search`: $5 / 1k calls each. xAI explicitly bills reasoning tokens, completion tokens, and tool invocations.
+- Anthropic `claude-opus-4-6`: $5 / 1M input tokens, $25 / 1M output tokens. Anthropic bills full thinking tokens, not just visible summaries.
 
 Assumptions:
 
-- One full match-cycle forecasts all markets for one match.
-- Grok-only full cycle: one Grok research call plus four Grok forecast variants.
-- OpenAI-only full cycle: one GPT-5.4-mini research call plus four GPT-5.5 forecast variants.
-- Both-model cycle: Grok research, four GPT-5.5 variants, one Grok check.
-- Average full cycle: about 52K input tokens, 7.8K output tokens, and 2-4 search/X tool invocations for Grok-only; OpenAI costs are dominated by GPT-5.5 forecast outputs.
+- One full match-cycle forecasts all markets for one match, about 9-10 markets.
+- Grok research call: 12K input tokens, 2K visible output tokens, 6K hidden reasoning tokens, and 3 web/X tool invocations.
+- Each forecast variant call: 14K input tokens and 4.2K billed output tokens, consisting of about 1.2K visible JSON/reasoning plus about 3K hidden reasoning tokens.
+- Full OpenAI/Grok/Claude cycle: one Grok research call plus 12 forecast calls.
+- Per match-cycle cost estimate: xAI research plus Grok forecasts about $0.162; OpenAI forecasts about $0.784; Claude forecasts about $0.700; full three-provider ensemble about $1.646.
 - Bot considers matches within the default 168-hour close window, not the full 919-hour event window.
 
 Approximate costs:
 
-| Scenario | Match full cycles | xAI-only | OpenAI-only | OpenAI + Grok |
-|---|---:|---:|---:|---:|
-| Forecast once per match | 72 | $8 | $25 | $27 |
-| Blind hourly full reforecast, 168h window | 12,096 | $1,270 | $4,149 | $4,476 |
-| Blind half-hour full reforecast, 168h window | 24,192 | $2,540 | $8,298 | $8,951 |
-| Deterministic gate: 12h cadence plus final 6h hourly | 1,512 | $159 | $519 | $559 |
-| Grok change detector hourly plus about 10 full refreshes per match | 720 full + 12,096 checks | $269 | $440 if full forecasts use OpenAI | about $460-$500 |
+| Scenario | Match full cycles | xAI-only | Full OpenAI/Grok/Claude | OpenAI share | Claude share | xAI share |
+|---|---:|---:|---:|---:|---:|---:|
+| Forecast once per match | 104 | $17 | $171 | $82 | $73 | $17 |
+| Blind hourly full reforecast, 168h window | 17,472 | $2,830 | $28,759 | $13,698 | $12,230 | $2,830 |
+| Blind half-hour full reforecast, 168h window | 34,944 | $5,661 | $57,518 | $27,396 | $24,461 | $5,661 |
+| Stateful gate upper bound: 168h window, 12h/8h/3h/final-hour cadence | 2,704 | $438 | $4,451 | $2,120 | $1,893 | $438 |
+| Selective strong-ensemble: about 10 full refreshes per match | 1,040 | $168 | $1,712 | $815 | $728 | $168 |
 
 Interpretation:
 
-- With the user's xAI free credit, blind hourly Grok-only is financially tolerable and likely under the $2,500 credit under these assumptions.
-- Blind half-hour Grok-only is right on the edge and can exceed the credit if Grok uses more search/tool calls than assumed.
-- OpenAI blind reruns are not cost-rational.
-- The best quality/cost compromise is Grok change detection plus forced late-window full refreshes.
-- If using OpenAI GPT-5.5 forecasts, gate aggressively.
+- With $2,500 of xAI credit, Grok-only blind hourly is possible but not comfortably robust if reasoning/tool usage runs high.
+- With $500 of Claude credit, about 714 full Claude match-cycles are covered under the concrete token assumptions above. That is enough for once-per-match plus several selective refreshes, not enough for the stateful-gate upper bound across all 104 matches.
+- OpenAI remains the limiting marginal cost.
+- The best quality/cost compromise is stateful gating plus full OpenAI/Grok/Claude ensembling for new, uncertain, volatile, stale, and close-to-kickoff matches.
+- If costs climb, degrade gracefully by keeping Grok on all selected matches and using OpenAI/Claude only on high-value refreshes.
 
 ## Recommendation
 
-Use Grok multi-agent as the research engine, keep direct odds as an anchor, ensemble both prompts and models when OpenAI budget is acceptable, and gate reforecasts. For this tournament, the highest expected-value architecture is:
+Use Grok multi-agent as the research engine, keep direct odds as an anchor, ensemble both prompts and models when paid budget is acceptable, and gate reforecasts. For this tournament, the highest expected-value architecture is:
 
 1. Hourly GitHub Action.
-2. Deterministic gate on by default.
-3. Add Grok change detector for non-stale, non-closing matches.
+2. Stateful gate on by default.
+3. Full OpenAI/Grok/Claude ensemble on selected matches.
 4. Full forecast on new markets, stale markets, material evidence changes, and all matches inside six hours to close.
 5. Aggregate in log-odds space, mildly extremize, and patch only changes of at least 2 points.

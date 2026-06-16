@@ -24,16 +24,23 @@ jobs:
       SPORTSPREDICT_API_KEY: ${{ secrets.SPORTSPREDICT_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
       SUBMIT: "true"
       FORECAST_MODEL: gpt-5.5
       RESEARCH_MODEL: gpt-5.4-mini
       GROK_RESEARCH_MODEL: grok-4.20-multi-agent-0309
       GROK_FORECAST_MODEL: grok-4.20-multi-agent-0309
+      CLAUDE_FORECAST_MODEL: claude-opus-4-6
+      USE_OPENAI_FORECAST: "true"
       USE_GROK_RESEARCH: "true"
       USE_GROK_FORECAST: "true"
+      USE_CLAUDE_FORECAST: "true"
       REASONING_EFFORT: medium
       MAX_HOURS_TO_CLOSE: "168"
+      ENABLE_UPDATE_GATE: "true"
+      MAX_PREDICTION_AGE_HOURS: "12"
+      FORCE_REFORECAST_WITHIN_HOURS: "6"
       UPDATE_THRESHOLD_POINTS: "2"
       CONCURRENCY: "4"
     steps:
@@ -51,14 +58,22 @@ jobs:
       - name: Test
         run: pytest
 
+      - name: Restore forecast state
+        uses: actions/cache/restore@v4
+        with:
+          path: state/
+          key: forecast-state-${{ github.run_id }}
+          restore-keys: |
+            forecast-state-
+
       - name: Check forecast secrets
         id: forecast_secrets
         run: |
-          if [ -n "$SPORTSPREDICT_API_KEY" ] && { [ -n "$OPENAI_API_KEY" ] || [ -n "$XAI_API_KEY" ]; }; then
+          if [ -n "$SPORTSPREDICT_API_KEY" ] && { [ -n "$OPENAI_API_KEY" ] || [ -n "$XAI_API_KEY" ] || [ -n "$ANTHROPIC_API_KEY" ]; }; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping forecast: set SPORTSPREDICT_API_KEY plus OPENAI_API_KEY or XAI_API_KEY."
+            echo "Skipping forecast: set SPORTSPREDICT_API_KEY plus at least one model API key."
           fi
 
       - name: Forecast
@@ -81,3 +96,10 @@ jobs:
             logs/
             state/
           if-no-files-found: ignore
+
+      - name: Save forecast state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state/
+          key: forecast-state-${{ github.run_id }}

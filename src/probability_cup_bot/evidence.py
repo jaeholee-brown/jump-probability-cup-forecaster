@@ -30,7 +30,7 @@ class EvidenceCollector:
     def __init__(
         self,
         settings: Settings,
-        openai: OpenAIAdapter,
+        openai: OpenAIAdapter | None,
         grok: OpenAIAdapter | None = None,
     ) -> None:
         self.settings = settings
@@ -55,6 +55,17 @@ class EvidenceCollector:
         )
         try:
             adapter = self.grok if self.settings.use_grok_research and self.grok else self.openai
+            if adapter is None:
+                return MatchEvidence(
+                    match_id=match.id,
+                    match_name=match.name,
+                    generated_at=utcnow().isoformat(),
+                    query_summary="No OpenAI-compatible search adapter configured; using platform data only.",
+                    odds_context=odds_context,
+                    key_facts=[],
+                    items=[],
+                    evidence_quality="low",
+                )
             model = self.settings.grok_research_model if adapter.provider == "xai" else self.settings.research_model
             tools = [{"type": "web_search"}]
             if adapter.provider == "xai":

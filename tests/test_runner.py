@@ -145,3 +145,54 @@ def test_select_matches_forces_missing_and_close_markets() -> None:
 
     assert len(selected) == 1
     assert selected[0][0].id == "match"
+
+
+def test_select_matches_uses_history_to_accelerate_volatile_updates() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+        max_prediction_age_hours=12,
+        force_reforecast_within_hours=6,
+    )
+    runner = ForecastRunner(settings)
+    closing_time = (utcnow() + timedelta(days=2)).astimezone(timezone.utc).isoformat()
+    updated_date = (utcnow() - timedelta(hours=5)).astimezone(timezone.utc).isoformat()
+    match = Match(
+        id="match",
+        name="A vs B",
+        closing_time=closing_time,
+        open_market_count=1,
+    )
+    markets = [
+        Market(
+            id="market",
+            question="Will player X score a goal?",
+            status="open",
+            match=MarketMatch(id="match", name="A vs B", closing_time=closing_time),
+            lobby_id="lobby",
+        )
+    ]
+    existing = [
+        Prediction(
+            id="prediction",
+            market_id="market",
+            lobby_id="lobby",
+            probability=51,
+            market_status="open",
+            updated_date=updated_date,
+        )
+    ]
+    history = {
+        "matches": {
+            "match": {
+                "last_forecast_at": updated_date,
+                "max_component_spread_points": 25,
+                "worst_evidence_quality": "medium",
+                "worst_confidence": "medium",
+            }
+        }
+    }
+
+    selected = runner._select_matches([match], markets, existing, history)
+
+    assert len(selected) == 1

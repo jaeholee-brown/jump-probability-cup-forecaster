@@ -5,6 +5,7 @@ description = "Autonomous LLM forecasting bot for the Jump Trading Probability C
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "anthropic>=0.60.0",
   "httpx>=0.27.0",
   "openai>=1.93.0",
   "pydantic>=2.7.0",
@@ -29,4 +30,3 @@ asyncio_mode = "auto"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-

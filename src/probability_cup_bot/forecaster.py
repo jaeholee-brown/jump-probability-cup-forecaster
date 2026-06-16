@@ -3,7 +3,12 @@ from __future__ import annotations
 import asyncio
 import json
 from collections import defaultdict
+from dataclasses import dataclass
+from typing import Any, Protocol, TypeVar
 
+from pydantic import BaseModel
+
+from probability_cup_bot.anthropic_adapter import AnthropicAdapter
 from probability_cup_bot.config import Settings
 from probability_cup_bot.models import (
     AggregatedForecast,
@@ -19,18 +24,46 @@ from probability_cup_bot.scoring import aggregate_probabilities, probability_to_
 
 QUALITY_WEIGHT = {"low": 0.7, "medium": 1.0, "high": 1.25}
 CONFIDENCE_WEIGHT = {"low": 0.85, "medium": 1.0, "high": 1.15}
+T = TypeVar("T", bound=BaseModel)
+
+
+class StructuredAdapter(Protocol):
+    provider: str
+
+    async def structured_response(
+        self,
+        *,
+        model: str,
+        instructions: str,
+        user_input: str,
+        schema_model: type[T],
+        schema_name: str,
+        reasoning_effort: str = "medium",
+        tools: list[dict[str, Any]] | None = None,
+    ) -> T:
+        ...
+
+
+@dataclass(frozen=True)
+class ForecastModelSpec:
+    name: str
+    adapter: StructuredAdapter
+    model: str
+    tools: list[dict[str, str]] | None = None
 
 
 class MatchForecaster:
     def __init__(
         self,
         settings: Settings,
-        openai: OpenAIAdapter,
+        openai: OpenAIAdapter | None = None,
         grok: OpenAIAdapter | None = None,
+        anthropic: AnthropicAdapter | None = None,
     ) -> None:
         self.settings = settings
         self.openai = openai
         self.grok = grok
+        self.anthropic = anthropic
 
     async def forecast_match(
         self,
@@ -39,39 +72,23 @@ class MatchForecaster:
         markets: list[Market],
         evidence: MatchEvidence,
     ) -> list[AggregatedForecast]:
-        primary_model = (
-            self.settings.forecast_model
-            if self.openai.provider == "openai"
-            else self.settings.grok_forecast_model
-        )
+        specs = self._forecast_model_specs()
+        if not specs:
+            raise RuntimeError("Set at least one forecast model API key before running forecasts.")
         tasks = [
             self._forecast_variant(
                 match,
                 markets,
                 evidence,
-                variant,
+                f"{spec.name}_{variant}",
                 variant_instruction,
-                adapter=self.openai,
-                model=primary_model,
+                adapter=spec.adapter,
+                model=spec.model,
+                tools=spec.tools,
             )
+            for spec in specs
             for variant, variant_instruction in PROMPT_VARIANTS.items()
         ]
-        if self.settings.use_grok_forecast and self.grok and self.grok is not self.openai:
-            tasks.append(
-                self._forecast_variant(
-                    match,
-                    markets,
-                    evidence,
-                    "grok_multi_agent_check",
-                    (
-                        "Use Grok multi-agent research strengths to independently challenge the "
-                        "evidence, find missing current information, and produce calibrated forecasts."
-                    ),
-                    adapter=self.grok,
-                    model=self.settings.grok_forecast_model,
-                    tools=[{"type": "web_search"}, {"type": "x_search"}],
-                )
-            )
         batches = await asyncio.gather(*tasks, return_exceptions=True)
         valid_batches = [batch for batch in batches if isinstance(batch, ForecastBatch)]
         if not valid_batches:
@@ -86,7 +103,7 @@ class MatchForecaster:
         variant: str,
         variant_instruction: str,
         *,
-        adapter: OpenAIAdapter,
+        adapter: StructuredAdapter,
         model: str,
         tools: list[dict[str, str]] | None = None,
     ) -> ForecastBatch:
@@ -123,6 +140,34 @@ class MatchForecaster:
         batch.prompt_variant = variant
         batch.model = model
         return batch
+
+    def _forecast_model_specs(self) -> list[ForecastModelSpec]:
+        specs: list[ForecastModelSpec] = []
+        if self.settings.use_openai_forecast and self.openai and self.openai.provider == "openai":
+            specs.append(
+                ForecastModelSpec(
+                    name="openai",
+                    adapter=self.openai,
+                    model=self.settings.forecast_model,
+                )
+            )
+        if self.settings.use_grok_forecast and self.grok:
+            specs.append(
+                ForecastModelSpec(
+                    name="grok",
+                    adapter=self.grok,
+                    model=self.settings.grok_forecast_model,
+                )
+            )
+        if self.settings.use_claude_forecast and self.anthropic:
+            specs.append(
+                ForecastModelSpec(
+                    name="claude",
+                    adapter=self.anthropic,
+                    model=self.settings.claude_forecast_model,
+                )
+            )
+        return specs
 
     def _aggregate(
         self,
@@ -179,6 +224,7 @@ class MatchForecaster:
                     notes=f"Aggregated {len(components)} variants by log-odds mean.",
                     metadata={
                         "variants": [batch.prompt_variant for batch, _, _, _ in components],
+                        "models": [batch.model for batch, _, _, _ in components],
                         "weights": weights,
                     },
                 )

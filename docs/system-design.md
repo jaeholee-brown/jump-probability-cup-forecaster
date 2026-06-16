@@ -40,7 +40,7 @@ Important limitations:
    - optional The Odds API lookup;
    - xAI/Grok multi-agent web/X-search evidence summary when `XAI_API_KEY` exists;
    - OpenAI web-search evidence summary as fallback when Grok is unavailable;
-   - four independent forecasting variants;
+   - four forecasting variants per configured forecast provider;
    - log-odds aggregation;
    - mild extremization and evidence-quality shrinkage;
    - integer 1-99 conversion.
@@ -54,8 +54,9 @@ Default:
 
 - Primary high-volume research model: `grok-4.20-multi-agent-0309` via xAI when `XAI_API_KEY` is set.
 - Grok forecast model: `grok-4.20-multi-agent-0309`.
+- OpenAI forecast model: `gpt-5.5`.
+- Claude forecast model: `claude-opus-4-6`.
 - Fallback research/evidence model with OpenAI key: `gpt-5.4-mini`.
-- Fallback/secondary forecast model with OpenAI key: `gpt-5.5`.
 - Grok-only mode is supported if `OPENAI_API_KEY` is absent.
 - Not used: `gpt-5.5-pro`.
 
@@ -73,11 +74,17 @@ xAI docs checked for current API behavior:
 - The [multi-agent guide](https://docs.x.ai/developers/model-capabilities/text/multi-agent) recommends `grok-4.20-multi-agent` for coordinated research.
 - The [xAI web search docs](https://docs.x.ai/developers/tools/web-search) and [X search docs](https://docs.x.ai/developers/tools/x-search) list `web_search` and `x_search` tools for OpenAI-compatible Responses API calls.
 
+Anthropic docs checked for current API behavior:
+
+- The [Claude Opus 4.6 announcement](https://www.anthropic.com/news/claude-opus-4-6) lists `claude-opus-4-6` as the Claude API model name and gives standard pricing of $5/$25 per million input/output tokens.
+- Anthropic's extended thinking docs state that thinking tokens are billed as output tokens, so cost estimates treat hidden reasoning as billed output.
+
 ## Why This Architecture Matches the Literature
 
 - Halawi et al. show that retrieval plus reasoning scaffolding beats raw model prompting by a large Brier margin.
 - ForecastBench and Silicon Crowd show that aggregation and external crowd/market context are strong.
 - Prompt-engineering studies show base-rate/frequency/step-back prompts are the only prompt-only components worth keeping, and even those are modest.
+- ForecastBench and Silicon Crowd support cross-model aggregation more directly than prompt-variant-only ensembling, so the bot now runs prompt variants across OpenAI, Grok, and Claude when all three keys exist.
 - Baron/Satopaa-style extremization motivates a mild log-odds extremization after aggregation.
 - Pitfalls papers warn against overfitting backtests and correlated bets, so live logs and per-market calibration matter.
 
@@ -93,6 +100,7 @@ Repository secrets:
 
 - `SPORTSPREDICT_API_KEY`
 - `OPENAI_API_KEY` or `XAI_API_KEY`
+- optional `ANTHROPIC_API_KEY`
 - optional `ODDS_API_KEY`
 
 Key environment controls:
@@ -105,7 +113,9 @@ Key environment controls:
 - `UPDATE_THRESHOLD_POINTS=2`: avoid noisy one-point updates.
 - `CONCURRENCY=4`: bound concurrent match forecasts.
 - `USE_GROK_RESEARCH=true`: use xAI multi-agent search for evidence when `XAI_API_KEY` exists.
-- `USE_GROK_FORECAST=true`: add one Grok forecast variant to the ensemble when `XAI_API_KEY` exists.
+- `USE_OPENAI_FORECAST=true`: run all prompt variants with `gpt-5.5` when `OPENAI_API_KEY` exists.
+- `USE_GROK_FORECAST=true`: run all prompt variants with `grok-4.20-multi-agent-0309` when `XAI_API_KEY` exists.
+- `USE_CLAUDE_FORECAST=true`: run all prompt variants with `claude-opus-4-6` when `ANTHROPIC_API_KEY` exists.
 - `EXTREMIZE_ALPHA=1.05`: mild log-odds extremization.
 - `BASE_SHRINKAGE=0.04`: mild shrinkage toward 50.
 - `LOW_EVIDENCE_SHRINKAGE=0.12`: stronger shrinkage when evidence is weak.
