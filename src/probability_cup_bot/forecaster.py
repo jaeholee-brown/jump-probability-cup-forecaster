@@ -39,6 +39,11 @@ class MatchForecaster:
         markets: list[Market],
         evidence: MatchEvidence,
     ) -> list[AggregatedForecast]:
+        primary_model = (
+            self.settings.forecast_model
+            if self.openai.provider == "openai"
+            else self.settings.grok_forecast_model
+        )
         tasks = [
             self._forecast_variant(
                 match,
@@ -47,11 +52,11 @@ class MatchForecaster:
                 variant,
                 variant_instruction,
                 adapter=self.openai,
-                model=self.settings.forecast_model,
+                model=primary_model,
             )
             for variant, variant_instruction in PROMPT_VARIANTS.items()
         ]
-        if self.settings.use_grok_forecast and self.grok:
+        if self.settings.use_grok_forecast and self.grok and self.grok is not self.openai:
             tasks.append(
                 self._forecast_variant(
                     match,

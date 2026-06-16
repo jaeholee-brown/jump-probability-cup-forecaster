@@ -55,13 +55,9 @@ class EvidenceCollector:
         )
         try:
             adapter = self.grok if self.settings.use_grok_research and self.grok else self.openai
-            model = (
-                self.settings.grok_research_model
-                if adapter is self.grok
-                else self.settings.research_model
-            )
+            model = self.settings.grok_research_model if adapter.provider == "xai" else self.settings.research_model
             tools = [{"type": "web_search"}]
-            if adapter is self.grok:
+            if adapter.provider == "xai":
                 tools.append({"type": "x_search"})
             evidence = await adapter.structured_response(
                 model=model,

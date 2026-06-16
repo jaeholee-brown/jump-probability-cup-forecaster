@@ -51,9 +51,10 @@ Important limitations:
 
 Default:
 
-- Research/evidence model: `gpt-5.4-mini`.
-- Forecast model: `gpt-5.5`.
+- Research/evidence model with OpenAI key: `gpt-5.4-mini`.
+- Forecast model with OpenAI key: `gpt-5.5`.
 - Optional high-volume research/ensemble model: `grok-4.20-multi-agent-0309` via xAI when `XAI_API_KEY` is set.
+- Grok-only mode is supported if `OPENAI_API_KEY` is absent.
 - Not used: `gpt-5.5-pro`.
 
 OpenAI docs checked for current API behavior:
@@ -89,8 +90,7 @@ The workflow runs hourly at minute 7 UTC and also supports manual `workflow_disp
 Repository secrets:
 
 - `SPORTSPREDICT_API_KEY`
-- `OPENAI_API_KEY`
-- optional `XAI_API_KEY`
+- `OPENAI_API_KEY` or `XAI_API_KEY`
 - optional `ODDS_API_KEY`
 
 Key environment controls:

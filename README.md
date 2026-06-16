@@ -15,11 +15,10 @@ The bot:
 ## Quick Start
 
 1. Create a SportsPredict bot key in the Probability Cup UI.
-2. Create an OpenAI API key.
+2. Create an OpenAI API key, an xAI API key, or both. The default quality path uses OpenAI plus optional Grok; Grok-only runs are supported.
 3. Copy `.env.example` to `.env` for local runs, or add GitHub repository secrets:
    - `SPORTSPREDICT_API_KEY`
-   - `OPENAI_API_KEY`
-   - optional `XAI_API_KEY`
+   - `OPENAI_API_KEY` or `XAI_API_KEY`
    - optional `ODDS_API_KEY`
 4. Install and run:
 

@@ -26,7 +26,6 @@ class ForecastRunner:
             api_key=self.settings.sportspredict_api_key,
         )
         try:
-            openai = OpenAIAdapter(self.settings.openai_api_key, provider="openai")
             grok = (
                 OpenAIAdapter(
                     self.settings.xai_api_key,
@@ -36,6 +35,13 @@ class ForecastRunner:
                 if self.settings.xai_api_key
                 else None
             )
+            openai = (
+                OpenAIAdapter(self.settings.openai_api_key, provider="openai")
+                if self.settings.openai_api_key
+                else grok
+            )
+            if openai is None:
+                raise RuntimeError("Set OPENAI_API_KEY or XAI_API_KEY before running forecasts.")
             evidence_collector = EvidenceCollector(self.settings, openai, grok)
             forecaster = MatchForecaster(self.settings, openai, grok)
 
