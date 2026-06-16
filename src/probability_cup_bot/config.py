@@ -69,6 +69,8 @@ class Settings:
     grok_research_model: str = "grok-4.20-multi-agent-0309"
     grok_research_passes: tuple[str, ...] = ("overview", "base_rates", "late_news", "market_micro")
     grok_research_reasoning_effort: str = "medium"
+    grok_news_model: str = "grok-4.20-multi-agent-0309"
+    grok_news_reasoning_effort: str = "low"
     grok_forecast_model: str = "grok-4.3"
     grok_forecast_models: tuple[str, ...] = ("grok-4.3", "grok-4.20-0309-reasoning")
     claude_forecast_model: str = "claude-opus-4-8"
@@ -89,10 +91,18 @@ class Settings:
     apply_calibration_weights: bool = True
     calibration_learning_rate: float = 1.8
     calibration_prior_count: int = 20
+    use_grok_news_monitor: bool = True
+    news_monitor_max_hours_to_close: float = 168.0
+    news_monitor_materiality_threshold_points: int = 2
+    stale_reforecast_without_news: bool = False
     firecrawl_api_key: str = ""
     use_firecrawl_retrieval: bool = True
+    firecrawl_mode: str = "targeted"
     firecrawl_search_limit: int = 5
     firecrawl_search_queries: int = 2
+    firecrawl_force_within_hours: float = 2.0
+    firecrawl_volatile_within_hours: float = 24.0
+    firecrawl_disagreement_threshold_points: float = 20.0
     reasoning_effort: str = "medium"
     submit: bool = False
     max_matches_per_run: int = 0
@@ -100,7 +110,8 @@ class Settings:
     max_hours_to_close: float = 168.0
     enable_update_gate: bool = True
     max_prediction_age_hours: float = 12.0
-    force_reforecast_within_hours: float = 6.0
+    force_reforecast_within_hours: float = 1.5
+    final_reforecast_min_interval_minutes: float = 30.0
     update_threshold_points: int = 2
     extremize_alpha: float = 1.05
     base_shrinkage: float = 0.04
@@ -137,6 +148,8 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
             ("overview", "base_rates", "late_news", "market_micro"),
         ),
         grok_research_reasoning_effort=os.getenv("GROK_RESEARCH_REASONING_EFFORT", "medium"),
+        grok_news_model=os.getenv("GROK_NEWS_MODEL", "grok-4.20-multi-agent-0309"),
+        grok_news_reasoning_effort=os.getenv("GROK_NEWS_REASONING_EFFORT", "low"),
         grok_forecast_model=os.getenv("GROK_FORECAST_MODEL", "grok-4.3"),
         grok_forecast_models=_csv_env(
             "GROK_FORECAST_MODELS",
@@ -164,10 +177,18 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         apply_calibration_weights=_bool_env("APPLY_CALIBRATION_WEIGHTS", True),
         calibration_learning_rate=_float_env("CALIBRATION_LEARNING_RATE", 1.8),
         calibration_prior_count=_int_env("CALIBRATION_PRIOR_COUNT", 20),
+        use_grok_news_monitor=_bool_env("USE_GROK_NEWS_MONITOR", True),
+        news_monitor_max_hours_to_close=_float_env("NEWS_MONITOR_MAX_HOURS_TO_CLOSE", 168.0),
+        news_monitor_materiality_threshold_points=_int_env("NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS", 2),
+        stale_reforecast_without_news=_bool_env("STALE_REFORECAST_WITHOUT_NEWS", False),
         firecrawl_api_key=os.getenv("FIRECRAWL_API_KEY", ""),
         use_firecrawl_retrieval=_bool_env("USE_FIRECRAWL_RETRIEVAL", True),
+        firecrawl_mode=os.getenv("FIRECRAWL_MODE", "targeted"),
         firecrawl_search_limit=_int_env("FIRECRAWL_SEARCH_LIMIT", 5),
         firecrawl_search_queries=max(0, _int_env("FIRECRAWL_SEARCH_QUERIES", 2)),
+        firecrawl_force_within_hours=_float_env("FIRECRAWL_FORCE_WITHIN_HOURS", 2.0),
+        firecrawl_volatile_within_hours=_float_env("FIRECRAWL_VOLATILE_WITHIN_HOURS", 24.0),
+        firecrawl_disagreement_threshold_points=_float_env("FIRECRAWL_DISAGREEMENT_THRESHOLD_POINTS", 20.0),
         reasoning_effort=os.getenv("REASONING_EFFORT", "medium"),
         submit=submit,
         max_matches_per_run=_int_env("MAX_MATCHES_PER_RUN", 0),
@@ -175,7 +196,8 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         max_hours_to_close=_float_env("MAX_HOURS_TO_CLOSE", 168.0),
         enable_update_gate=_bool_env("ENABLE_UPDATE_GATE", True),
         max_prediction_age_hours=_float_env("MAX_PREDICTION_AGE_HOURS", 12.0),
-        force_reforecast_within_hours=_float_env("FORCE_REFORECAST_WITHIN_HOURS", 6.0),
+        force_reforecast_within_hours=_float_env("FORCE_REFORECAST_WITHIN_HOURS", 1.5),
+        final_reforecast_min_interval_minutes=_float_env("FINAL_REFORECAST_MIN_INTERVAL_MINUTES", 30.0),
         update_threshold_points=_int_env("UPDATE_THRESHOLD_POINTS", 2),
         extremize_alpha=_float_env("EXTREMIZE_ALPHA", 1.05),
         base_shrinkage=_float_env("BASE_SHRINKAGE", 0.04),

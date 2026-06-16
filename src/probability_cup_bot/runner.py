@@ -12,7 +12,8 @@ from probability_cup_bot.config import Settings
 from probability_cup_bot.evidence import EvidenceCollector
 from probability_cup_bot.firecrawl import FirecrawlClient
 from probability_cup_bot.forecaster import MatchForecaster
-from probability_cup_bot.models import AggregatedForecast, Market, Match, Prediction, parse_dt, utcnow
+from probability_cup_bot.models import AggregatedForecast, Market, Match, NewsCheck, Prediction, parse_dt, utcnow
+from probability_cup_bot.news_monitor import GrokNewsMonitor
 from probability_cup_bot.openai_adapter import OpenAIAdapter
 from probability_cup_bot.sportspredict import SportsPredictClient, chunks
 from probability_cup_bot.state import ensure_dirs, read_json, timestamp_slug, write_json
@@ -91,12 +92,30 @@ class ForecastRunner:
             all_markets = await sp.list_markets(lobby.id)
             existing_predictions = await sp.list_predictions(lobby.id)
             history = read_json(self.settings.state_dir / "forecast-history.json", {})
+            news_cache = read_json(self.settings.state_dir / "news-cache.json", {"matches": {}})
 
             selected = self._select_matches(matches, all_markets, existing_predictions, history)
+            news_monitor = (
+                GrokNewsMonitor(self.settings, grok)
+                if self.settings.use_grok_news_monitor and grok is not None
+                else None
+            )
+            selected, news_cache, news_checks = await self._augment_selected_with_news_monitor(
+                selected=selected,
+                matches=matches,
+                markets=all_markets,
+                existing_predictions=existing_predictions,
+                history=history,
+                news_cache=news_cache,
+                news_monitor=news_monitor,
+                firecrawl=firecrawl,
+            )
             forecast_results = await self._forecast_selected(
                 selected=selected,
                 evidence_collector=evidence_collector,
                 forecaster=forecaster,
+                history=history,
+                news_cache=news_cache,
             )
             plan = self._plan_writes(
                 forecasts=forecast_results,
@@ -124,6 +143,10 @@ class ForecastRunner:
                     "force_reforecast_within_hours": self.settings.force_reforecast_within_hours,
                 },
                 "forecast_count": len(forecast_results),
+                "news_monitor": {
+                    "enabled": bool(news_monitor),
+                    "checks": news_checks,
+                },
                 "plan": plan,
                 "submission_results": submission_results,
                 "calibration": {
@@ -134,6 +157,7 @@ class ForecastRunner:
                 "forecasts": [forecast.model_dump() for forecast in forecast_results],
             }
             write_json(self.settings.state_dir / "forecast-history.json", history)
+            write_json(self.settings.state_dir / "news-cache.json", news_cache)
             write_json(self.settings.state_dir / "calibration-report.json", calibration_report)
             write_json(self.settings.logs_dir / f"calibration-{timestamp_slug()}.json", calibration_report)
             write_json(self.settings.logs_dir / f"run-{timestamp_slug()}.json", run_log)
@@ -151,20 +175,37 @@ class ForecastRunner:
         existing_predictions: list[Prediction] | None = None,
         history: dict[str, Any] | None = None,
     ) -> list[tuple[Match, list[Market]]]:
+        now = utcnow()
+        selected: list[tuple[Match, list[Market]]] = []
+        existing_by_market = {
+            prediction.market_id: prediction
+            for prediction in existing_predictions or []
+            if not prediction.market_status or prediction.market_status == "open"
+        }
+        for match, match_markets in self._eligible_match_groups(matches, markets, now):
+            if not self._should_forecast_match(match, match_markets, existing_by_market, now, history or {}):
+                continue
+            selected.append((match, match_markets))
+
+        selected.sort(key=lambda item: item[0].closes_at or utcnow())
+        if self.settings.max_matches_per_run > 0:
+            selected = selected[: self.settings.max_matches_per_run]
+        return selected
+
+    def _eligible_match_groups(
+        self,
+        matches: list[Match],
+        markets: list[Market],
+        now: datetime,
+    ) -> list[tuple[Match, list[Market]]]:
         markets_by_match: dict[str, list[Market]] = defaultdict(list)
         for market in markets:
             if market.status != "open":
                 continue
             markets_by_match[market.match.id].append(market)
 
-        now = utcnow()
-        selected: list[tuple[Match, list[Market]]] = []
+        groups: list[tuple[Match, list[Market]]] = []
         match_lookup = {match.id: match for match in matches}
-        existing_by_market = {
-            prediction.market_id: prediction
-            for prediction in existing_predictions or []
-            if not prediction.market_status or prediction.market_status == "open"
-        }
         for match_id, match_markets in markets_by_match.items():
             match = match_lookup.get(match_id) or Match(
                 id=match_id,
@@ -180,14 +221,9 @@ class ForecastRunner:
                     continue
                 if self.settings.max_hours_to_close and hours > self.settings.max_hours_to_close:
                     continue
-            if not self._should_forecast_match(match, match_markets, existing_by_market, now, history or {}):
-                continue
-            selected.append((match, match_markets))
-
-        selected.sort(key=lambda item: item[0].closes_at or utcnow())
-        if self.settings.max_matches_per_run > 0:
-            selected = selected[: self.settings.max_matches_per_run]
-        return selected
+            groups.append((match, match_markets))
+        groups.sort(key=lambda item: item[0].closes_at or utcnow())
+        return groups
 
     def _should_forecast_match(
         self,
@@ -203,10 +239,9 @@ class ForecastRunner:
             return True
 
         closes_at = match.closes_at or markets[0].closes_at
+        hours_to_close = 9999.0
         if closes_at is not None and self.settings.force_reforecast_within_hours >= 0:
             hours_to_close = (closes_at.astimezone(timezone.utc) - now).total_seconds() / 3600
-            if hours_to_close <= self.settings.force_reforecast_within_hours:
-                return True
 
         match_history = (history.get("matches") or {}).get(match.id, {})
         history_updated_at = parse_dt(match_history.get("last_forecast_at"))
@@ -223,6 +258,13 @@ class ForecastRunner:
 
         oldest_update = min(updated_at for updated_at in updated_times if updated_at is not None)
         age_hours = (now - oldest_update.astimezone(timezone.utc)).total_seconds() / 3600
+        if hours_to_close <= self.settings.force_reforecast_within_hours:
+            min_interval_hours = self.settings.final_reforecast_min_interval_minutes / 60
+            return age_hours >= min_interval_hours
+
+        if not self.settings.stale_reforecast_without_news:
+            return False
+
         cadence_hours = self._cadence_hours(match, markets, history, now)
         return age_hours >= cadence_hours
 
@@ -261,6 +303,222 @@ class ForecastRunner:
     def _is_volatile_market(question: str) -> bool:
         lowered = question.lower()
         return any(term in lowered for term in VOLATILE_MARKET_TERMS)
+
+    async def _augment_selected_with_news_monitor(
+        self,
+        *,
+        selected: list[tuple[Match, list[Market]]],
+        matches: list[Match],
+        markets: list[Market],
+        existing_predictions: list[Prediction],
+        history: dict[str, Any],
+        news_cache: dict[str, Any],
+        news_monitor: GrokNewsMonitor | None,
+        firecrawl: FirecrawlClient | None,
+    ) -> tuple[list[tuple[Match, list[Market]]], dict[str, Any], list[dict[str, Any]]]:
+        if news_monitor is None:
+            return selected, news_cache, []
+        now = utcnow()
+        selected_ids = {match.id for match, _ in selected}
+        existing_by_market = {
+            prediction.market_id: prediction
+            for prediction in existing_predictions
+            if not prediction.market_status or prediction.market_status == "open"
+        }
+        candidates = [
+            (match, match_markets)
+            for match, match_markets in self._eligible_match_groups(matches, markets, now)
+            if match.id not in selected_ids
+            and self._should_news_monitor_match(match, match_markets, existing_by_market, history, news_cache, now)
+        ]
+        if self.settings.max_matches_per_run > 0:
+            remaining = max(0, self.settings.max_matches_per_run - len(selected))
+            candidates = candidates[:remaining]
+
+        news_cache.setdefault("matches", {})
+        checks: list[dict[str, Any]] = []
+        promoted: list[tuple[Match, list[Market]]] = []
+        semaphore = asyncio.Semaphore(self.settings.concurrency)
+
+        async def check_one(match: Match, match_markets: list[Market]) -> tuple[Match, list[Market], NewsCheck | Exception, str]:
+            async with semaphore:
+                firecrawl_context = ""
+                if self._should_use_firecrawl(match, match_markets, history, news_cache, now, for_monitor=True):
+                    firecrawl_context = await self._firecrawl_context_for_monitor(firecrawl, match, match_markets)
+                try:
+                    news_check = await news_monitor.check_match(
+                        match=match,
+                        markets=match_markets,
+                        match_history=(history.get("matches") or {}).get(match.id, {}),
+                        cached_news=(news_cache.get("matches") or {}).get(match.id, {}),
+                        firecrawl_context=firecrawl_context,
+                    )
+                    return match, match_markets, news_check, firecrawl_context
+                except Exception as exc:
+                    return match, match_markets, exc, firecrawl_context
+
+        for match, match_markets, result, firecrawl_context in await asyncio.gather(
+            *(check_one(match, match_markets) for match, match_markets in candidates)
+        ):
+            if isinstance(result, Exception):
+                checks.append({"match_id": match.id, "match_name": match.name, "error": str(result)})
+                continue
+            cache_entry = self._news_cache_entry(match, result, firecrawl_context)
+            news_cache["matches"][match.id] = cache_entry
+            row = result.model_dump()
+            row["used_firecrawl"] = bool(firecrawl_context)
+            checks.append(row)
+            if (
+                result.should_reforecast
+                and result.estimated_delta_points >= self.settings.news_monitor_materiality_threshold_points
+            ):
+                promoted.append((match, match_markets))
+
+        output = selected + promoted
+        output.sort(key=lambda item: item[0].closes_at or utcnow())
+        return output, news_cache, checks
+
+    def _should_news_monitor_match(
+        self,
+        match: Match,
+        markets: list[Market],
+        existing_by_market: dict[str, Prediction],
+        history: dict[str, Any],
+        news_cache: dict[str, Any],
+        now: datetime,
+    ) -> bool:
+        if not self.settings.use_grok_news_monitor:
+            return False
+        if any(market.id not in existing_by_market for market in markets):
+            return False
+        closes_at = match.closes_at or markets[0].closes_at
+        if closes_at is None:
+            return True
+        hours_to_close = (closes_at.astimezone(timezone.utc) - now).total_seconds() / 3600
+        if hours_to_close < self.settings.min_hours_to_close:
+            return False
+        if hours_to_close > self.settings.news_monitor_max_hours_to_close:
+            return False
+        cache_entry = (news_cache.get("matches") or {}).get(match.id, {})
+        last_checked_at = parse_dt(cache_entry.get("last_checked_at"))
+        if last_checked_at is None:
+            return True
+        age_hours = (now - last_checked_at.astimezone(timezone.utc)).total_seconds() / 3600
+        interval_hours = self._news_monitor_interval_hours(match, markets, history, hours_to_close)
+        return age_hours >= interval_hours
+
+    def _news_monitor_interval_hours(
+        self,
+        match: Match,
+        markets: list[Market],
+        history: dict[str, Any],
+        hours_to_close: float,
+    ) -> float:
+        if hours_to_close <= 2:
+            interval = 0.25
+        elif hours_to_close <= 6:
+            interval = 0.5
+        elif hours_to_close <= 24:
+            interval = 1.0
+        elif hours_to_close <= 72:
+            interval = 3.0
+        else:
+            interval = 6.0
+        match_history = (history.get("matches") or {}).get(match.id, {})
+        spread = float(match_history.get("max_component_spread_points") or 0)
+        low_quality = str(match_history.get("worst_evidence_quality") or "") == "low"
+        volatile = any(self._is_volatile_market(market.question) for market in markets)
+        if spread >= self.settings.firecrawl_disagreement_threshold_points or low_quality or volatile:
+            interval *= 0.5
+        return max(0.25, interval)
+
+    def _should_use_firecrawl(
+        self,
+        match: Match,
+        markets: list[Market],
+        history: dict[str, Any],
+        news_cache: dict[str, Any],
+        now: datetime,
+        *,
+        for_monitor: bool = False,
+    ) -> bool:
+        if not self.settings.use_firecrawl_retrieval:
+            return False
+        if self.settings.firecrawl_mode == "always":
+            return True
+        if self.settings.firecrawl_mode == "off":
+            return False
+        closes_at = match.closes_at or markets[0].closes_at
+        hours_to_close = 9999.0
+        if closes_at is not None:
+            hours_to_close = (closes_at.astimezone(timezone.utc) - now).total_seconds() / 3600
+        match_history = (history.get("matches") or {}).get(match.id, {})
+        cache_entry = (news_cache.get("matches") or {}).get(match.id, {})
+        spread = float(match_history.get("max_component_spread_points") or 0)
+        low_quality = str(match_history.get("worst_evidence_quality") or "") == "low"
+        volatile = any(self._is_volatile_market(market.question) for market in markets)
+        material_cached_news = int(cache_entry.get("estimated_delta_points") or 0) >= (
+            self.settings.news_monitor_materiality_threshold_points
+        )
+        if hours_to_close <= self.settings.firecrawl_force_within_hours:
+            return True
+        if volatile and hours_to_close <= self.settings.firecrawl_volatile_within_hours:
+            return True
+        if spread >= self.settings.firecrawl_disagreement_threshold_points or low_quality or material_cached_news:
+            return True
+        return for_monitor and hours_to_close <= 6
+
+    async def _firecrawl_context_for_monitor(
+        self,
+        firecrawl: FirecrawlClient | None,
+        match: Match,
+        markets: list[Market],
+    ) -> str:
+        if firecrawl is None:
+            return ""
+        contexts: list[str] = []
+        total_credits = 0
+        market_terms = " ".join(market.question for market in markets[:6])
+        queries = [
+            f"{match.name} confirmed lineup injury suspension team news",
+            f"{match.name} late news X lineup weather odds {market_terms}",
+        ][: self.settings.firecrawl_search_queries]
+        for query in queries:
+            try:
+                results, credits = await firecrawl.search(
+                    query,
+                    limit=self.settings.firecrawl_search_limit,
+                    sources=("web",),
+                    tbs="qdr:d,sbd:1",
+                )
+            except Exception as exc:
+                contexts.append(f"Firecrawl monitor query failed for {query!r}: {exc}")
+                continue
+            total_credits += credits
+            rendered = "\n".join(result.compact() for result in results[: self.settings.firecrawl_search_limit])
+            if rendered:
+                contexts.append(f"Firecrawl monitor query: {query}\n{rendered}")
+        if not contexts:
+            return ""
+        return f"Firecrawl monitor credits used: {total_credits}\n" + "\n\n".join(contexts)
+
+    @staticmethod
+    def _news_cache_entry(match: Match, news_check: NewsCheck, firecrawl_context: str) -> dict[str, Any]:
+        return {
+            "match_id": match.id,
+            "match_name": match.name,
+            "closing_time": match.closing_time,
+            "last_checked_at": news_check.checked_at,
+            "summary": news_check.summary,
+            "new_developments": news_check.new_developments,
+            "sources": [source.model_dump() for source in news_check.sources],
+            "should_reforecast": news_check.should_reforecast,
+            "estimated_delta_points": news_check.estimated_delta_points,
+            "materiality": news_check.materiality,
+            "evidence_quality": news_check.evidence_quality,
+            "reason": news_check.reason,
+            "firecrawl_context": firecrawl_context,
+        }
 
     def _update_history(
         self,
@@ -398,13 +656,23 @@ class ForecastRunner:
         selected: list[tuple[Match, list[Market]]],
         evidence_collector: EvidenceCollector,
         forecaster: MatchForecaster,
+        history: dict[str, Any],
+        news_cache: dict[str, Any],
     ) -> list[AggregatedForecast]:
         semaphore = asyncio.Semaphore(self.settings.concurrency)
         outputs: list[AggregatedForecast] = []
 
         async def forecast_one(match: Match, markets: list[Market]) -> list[AggregatedForecast]:
             async with semaphore:
-                evidence = await evidence_collector.collect(match, markets)
+                use_firecrawl = self._should_use_firecrawl(match, markets, history, news_cache, utcnow())
+                cached_news = (news_cache.get("matches") or {}).get(match.id, {})
+                cached_news_context = self._cached_news_context(cached_news)
+                evidence = await evidence_collector.collect(
+                    match,
+                    markets,
+                    use_firecrawl=use_firecrawl,
+                    cached_news_context=cached_news_context,
+                )
                 return await forecaster.forecast_match(match=match, markets=markets, evidence=evidence)
 
         tasks = [forecast_one(match, markets) for match, markets in selected]
@@ -425,6 +693,33 @@ class ForecastRunner:
             else:
                 outputs.extend(result)
         return [forecast for forecast in outputs if forecast.market_id != "error"]
+
+    @staticmethod
+    def _cached_news_context(cached_news: dict[str, Any]) -> str:
+        if not cached_news:
+            return ""
+        parts = [
+            f"Cached news checked at: {cached_news.get('last_checked_at', '')}",
+            f"Cached news materiality: {cached_news.get('materiality', '')}",
+            f"Cached news estimated delta points: {cached_news.get('estimated_delta_points', '')}",
+            f"Cached news summary: {cached_news.get('summary', '')}",
+        ]
+        developments = cached_news.get("new_developments") or []
+        if developments:
+            parts.append("New developments:\n" + "\n".join(f"- {item}" for item in developments))
+        sources = cached_news.get("sources") or []
+        if sources:
+            rendered_sources = []
+            for source in sources[:8]:
+                rendered_sources.append(
+                    f"- {source.get('title', '')} ({source.get('source', '')}) "
+                    f"{source.get('url', '')}: {source.get('summary', '')}"
+                )
+            parts.append("News monitor sources:\n" + "\n".join(rendered_sources))
+        firecrawl_context = cached_news.get("firecrawl_context") or ""
+        if firecrawl_context:
+            parts.append("Cached Firecrawl snippets:\n" + firecrawl_context[:12000])
+        return "\n\n".join(parts)
 
     def _plan_writes(
         self,

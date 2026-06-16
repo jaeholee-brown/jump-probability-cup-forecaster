@@ -66,9 +66,16 @@ class EvidenceCollector:
         self.grok = grok
         self.firecrawl = firecrawl
 
-    async def collect(self, match: Match, markets: list[Market]) -> MatchEvidence:
+    async def collect(
+        self,
+        match: Match,
+        markets: list[Market],
+        *,
+        use_firecrawl: bool = True,
+        cached_news_context: str = "",
+    ) -> MatchEvidence:
         odds_context = await self._odds_context(match)
-        firecrawl_context = await self._firecrawl_context(match, markets)
+        firecrawl_context = await self._firecrawl_context(match, markets) if use_firecrawl else ""
         adapter = self.grok if self.settings.use_grok_research and self.grok else self.openai
         if adapter is None:
             return MatchEvidence(
@@ -93,6 +100,7 @@ class EvidenceCollector:
                     markets=markets,
                     odds_context=odds_context,
                     firecrawl_context=firecrawl_context,
+                    cached_news_context=cached_news_context,
                     pass_name=pass_name,
                 )
                 for pass_name in pass_names
@@ -123,6 +131,7 @@ class EvidenceCollector:
         markets: list[Market],
         odds_context: str,
         firecrawl_context: str,
+        cached_news_context: str,
         pass_name: str,
     ) -> MatchEvidence:
         research_task = RESEARCH_PASS_TASKS.get(pass_name, pass_name)
@@ -133,6 +142,7 @@ class EvidenceCollector:
                 "markets": [market.model_dump() for market in markets],
                 "odds_context": odds_context,
                 "firecrawl_context": firecrawl_context,
+                "cached_news_context": cached_news_context,
                 "research_pass": pass_name,
                 "research_task": research_task,
             },

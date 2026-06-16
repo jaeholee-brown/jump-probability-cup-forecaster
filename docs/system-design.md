@@ -2,7 +2,7 @@
 
 ## Goal
 
-Run an LLM forecasting bot for the Jump Trading Probability Cup from GitHub Actions every hour or half-hour. The bot should discover new, stale, or closing-soon questions, gather fresh context with Grok multi-agent research as the primary path, forecast with the optimized prompt, aggregate multiple LLM calls, and submit or update predictions through the SportsPredict REST API.
+Run an LLM forecasting bot for the Jump Trading Probability Cup from GitHub Actions every 15 minutes. SportsPredict scores the latest prediction submitted before market close, not a time-weighted forecast path, so the bot should submit a baseline for coverage, use cheap Grok news monitoring between updates, and concentrate the paid OpenAI/Grok/Claude ensemble near kickoff or on material news.
 
 ## SportsPredict API Surface
 
@@ -38,7 +38,8 @@ Important limitations:
    - set `MAX_HOURS_TO_CLOSE=0` to remove this filter.
 6. For each selected match:
    - optional The Odds API lookup;
-   - optional Firecrawl search+scrape snippets when `FIRECRAWL_API_KEY` exists;
+   - optional cached Grok news-monitor summary;
+   - targeted Firecrawl search+scrape snippets when `FIRECRAWL_API_KEY` exists and the match is close, volatile, low-evidence, or high-disagreement;
    - four xAI/Grok multi-agent web/X-search evidence passes when `XAI_API_KEY` exists;
    - OpenAI web-search evidence summary as fallback when Grok is unavailable;
    - configurable forecasting variants per configured forecast provider;
@@ -47,8 +48,9 @@ Important limitations:
    - integer 1-99 conversion.
 7. Compare with existing predictions.
 8. Submit creates in batches of 50 and PATCH material updates.
-9. Fetch settled results and update calibration telemetry.
-10. Write `logs/run-*.json`, `logs/calibration-*.json`, `state/latest-run.json`, and `state/calibration-report.json`.
+9. For skipped-but-open matches, run a Grok-only news monitor with web/X search. Promote a match to the full ensemble only if credible news is likely to move a market by at least the threshold.
+10. Fetch settled results and update calibration telemetry.
+11. Write `logs/run-*.json`, `logs/calibration-*.json`, `state/latest-run.json`, `state/news-cache.json`, and `state/calibration-report.json`.
 
 ## Model Strategy
 
@@ -56,7 +58,8 @@ Default:
 
 - Primary high-volume research model: `grok-4.20-multi-agent-0309` via xAI when `XAI_API_KEY` is set.
 - Research passes: `overview`, `base_rates`, `late_news`, and `market_micro`.
-- Optional Firecrawl retrieval: two web-only searches per match-cycle, five scraped results per search, fed into Grok research as source context.
+- Grok news monitor: `grok-4.20-multi-agent-0309` with low reasoning, `web_search`, and `x_search`, used as a cheap change detector before spending on the full ensemble.
+- Optional Firecrawl retrieval: targeted web-only searches, five scraped results per search, fed into Grok monitor/research as source context.
 - Grok forecast models: `grok-4.3` and `grok-4.20-0309-reasoning`.
 - OpenAI forecast model: `gpt-5`.
 - Claude forecast models: `claude-opus-4-8` and `claude-opus-4-6`.
@@ -99,6 +102,7 @@ Anthropic docs checked for current API behavior:
 - Baron/Satopaa-style extremization motivates a mild log-odds extremization after aggregation.
 - Brier score is a strictly proper scoring rule, so settled results can support conservative online reweighting without inventing an untested sports model layer.
 - Pitfalls papers warn against overfitting backtests and correlated bets, so live logs and per-market calibration matter.
+- X/Twitter search is not treated as a proven forecasting edge by itself; it is a late-breaking discovery channel for lineups, injuries, suspensions, weather disruption, and beat-reporting signals that should be corroborated or discounted by the research prompt.
 
 ## Similar Competition Signals
 
@@ -106,7 +110,7 @@ ForecastBench's current tournament leaderboard, checked June 16, 2026, is domina
 
 ## GitHub Action Operation
 
-The workflow runs hourly at minute 7 UTC and also supports manual `workflow_dispatch`.
+The workflow runs every 15 minutes and also supports manual `workflow_dispatch`.
 
 Repository secrets:
 
@@ -121,15 +125,23 @@ Key environment controls:
 - `SUBMIT=true`: actually writes predictions.
 - `MAX_HOURS_TO_CLOSE=168`: forecast next seven days by default.
 - `ENABLE_UPDATE_GATE=true`: skip full reforecasting of already-fresh matches.
-- `MAX_PREDICTION_AGE_HOURS=12`: outside the force window, refresh a fully predicted match after this many hours.
-- `FORCE_REFORECAST_WITHIN_HOURS=6`: refresh every selected run inside the final pre-kickoff window.
+- `STALE_REFORECAST_WITHOUT_NEWS=false`: do not rerun the paid ensemble just because an existing forecast is old.
+- `MAX_PREDICTION_AGE_HOURS=12`: fallback stale cadence if `STALE_REFORECAST_WITHOUT_NEWS=true`.
+- `FORCE_REFORECAST_WITHIN_HOURS=1.5`: full ensemble enters mandatory final-window cadence 90 minutes before kickoff.
+- `FINAL_REFORECAST_MIN_INTERVAL_MINUTES=30`: avoid paid-model spam inside the final window while still catching confirmed lineups.
 - `UPDATE_THRESHOLD_POINTS=2`: avoid noisy one-point updates.
 - `CONCURRENCY=4`: bound concurrent match forecasts.
+- `USE_GROK_NEWS_MONITOR=true`: run cheap Grok web/X checks on otherwise-skipped matches.
+- `NEWS_MONITOR_MAX_HOURS_TO_CLOSE=168`: news-monitor eligible matches within the same close window.
+- `NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS=2`: promote to full ensemble only when expected movement clears the update threshold.
 - `USE_GROK_RESEARCH=true`: use xAI multi-agent search for evidence when `XAI_API_KEY` exists.
 - `GROK_RESEARCH_PASSES=overview,base_rates,late_news,market_micro`: specialized xAI research passes to run and merge.
 - `GROK_RESEARCH_REASONING_EFFORT=medium`: xAI research effort.
-- `USE_FIRECRAWL_RETRIEVAL=true`: prepend Firecrawl search+scrape snippets to Grok research when `FIRECRAWL_API_KEY` exists.
+- `GROK_NEWS_MODEL=grok-4.20-multi-agent-0309`, `GROK_NEWS_REASONING_EFFORT=low`: default news monitor model/effort.
+- `USE_FIRECRAWL_RETRIEVAL=true`: allow Firecrawl snippets when targeted gate says they are useful.
+- `FIRECRAWL_MODE=targeted`: use Firecrawl for close, volatile, low-evidence, high-disagreement, or material-news cases, not every run.
 - `FIRECRAWL_SEARCH_QUERIES=2`, `FIRECRAWL_SEARCH_LIMIT=5`: default Firecrawl budget controls.
+- `FIRECRAWL_FORCE_WITHIN_HOURS=2`, `FIRECRAWL_VOLATILE_WITHIN_HOURS=24`, `FIRECRAWL_DISAGREEMENT_THRESHOLD_POINTS=20`: Firecrawl gate controls.
 - `USE_OPENAI_FORECAST=true`: run configured variants with `gpt-5` when `OPENAI_API_KEY` exists.
 - `USE_GROK_FORECAST=true`: run configured variants with `GROK_FORECAST_MODELS` when `XAI_API_KEY` exists.
 - `USE_CLAUDE_FORECAST=true`: run configured variants with `CLAUDE_FORECAST_MODELS` when `ANTHROPIC_API_KEY` exists.
@@ -151,5 +163,5 @@ Key environment controls:
 2. Add hard coherence repair for mutually exclusive markets and monotone totals.
 3. Learn calibration by market family once enough settled results exist.
 4. Persist historical odds snapshots and detect meaningful odds moves before updating.
-5. Add a second bot key with an intentionally different strategy if platform rules allow two bots per user.
-6. Add a nightly calibration report that decomposes Brier score by confidence bin and market type.
+5. Add domain-targeted Firecrawl allowlists for official team, tournament, weather, and lineup sources.
+6. Add a second bot key with an intentionally different strategy if platform rules allow two bots per user.

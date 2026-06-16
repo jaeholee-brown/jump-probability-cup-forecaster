@@ -125,6 +125,28 @@ class MatchEvidence(BaseModel):
         return "\n\n".join(parts)
 
 
+class NewsSource(BaseModel):
+    title: str = ""
+    url: str = ""
+    source: str = ""
+    published_at: str = ""
+    summary: str = ""
+
+
+class NewsCheck(BaseModel):
+    match_id: str
+    match_name: str
+    checked_at: str
+    should_reforecast: bool
+    estimated_delta_points: int = Field(default=0, ge=0, le=50)
+    materiality: str = Field(pattern="^(none|low|medium|high)$")
+    evidence_quality: str = Field(pattern="^(low|medium|high)$")
+    reason: str
+    summary: str
+    new_developments: list[str] = Field(default_factory=list)
+    sources: list[NewsSource] = Field(default_factory=list)
+
+
 class MarketForecast(BaseModel):
     market_id: str
     question: str

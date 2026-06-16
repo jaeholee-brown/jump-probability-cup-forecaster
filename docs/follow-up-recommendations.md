@@ -61,6 +61,8 @@ Recommended Jump stack:
 
 Use a gate. Do not blindly full-reforecast every open match every run with the full OpenAI/Grok/Claude ensemble.
 
+SportsPredict is latest-only, not Metaculus time-weighted. The attached API docs say `closing_time` matches match start and the latest value at market close is scored. Early forecasts are therefore operational insurance and context-building, not scoring alpha by themselves. The scoring target is the best reliable pre-kickoff update.
+
 The literature and public bot practice favor selective updating:
 
 - Halawi et al. gain from fresh retrieval, but their system is a research-and-ensemble pipeline, not a constant blind rerun loop.
@@ -70,37 +72,31 @@ The literature and public bot practice favor selective updating:
 
 Best execution for Jump:
 
-1. Always forecast new markets immediately.
-2. Always refresh inside the final pre-kickoff window because lineups, injuries, weather, and odds are most valuable then.
-3. Outside that window, refresh stale forecasts on a cadence that depends on time-to-close.
-4. Shorten cadence for matches with high model disagreement, low confidence, low evidence quality, or volatile market families such as player goals, cards, shots, and lineup-sensitive props.
-5. Preserve `state/forecast-history.json` across GitHub Action runs so the gate can use its own prior component spread and evidence quality.
-6. Add a cheap Grok change detector later for all open matches if we want maximum quality with controlled cost:
-   - Inputs: match, markets, existing probabilities, last update time, time to close, last evidence summary, last component spread.
-   - Tools: `web_search` plus `x_search`, date-restricted to recent days where possible.
-   - Output: `should_reforecast`, `estimated_delta_points`, `new_evidence_summary`, `sources`, `reason`.
-   - Trigger full forecast if new material evidence appears, estimated move is at least 2 points, kickoff is close, or current prediction is stale.
+1. Forecast new markets immediately to avoid missing coverage and to create fallback predictions if providers fail near kickoff.
+2. Run the workflow every 15 minutes, but do not run the full paid ensemble every time.
+3. Use Grok web/X monitoring for already-covered matches. Promote to the full ensemble only if new evidence is credible and likely to move at least one market by 2+ points.
+4. Enter mandatory full-ensemble cadence in the final 90 minutes, with a 30-minute minimum interval. This catches confirmed lineups without paying for every 15-minute tick.
+5. Shorten Grok monitor cadence for matches with high model disagreement, low confidence, low evidence quality, or volatile market families such as player goals, cards, shots, and lineup-sensitive props.
+6. Preserve `state/forecast-history.json` and `state/news-cache.json` across GitHub Action runs so the gates can use prior component spread, evidence quality, cached news, and raw Firecrawl snippets.
 7. Reuse the change detector's evidence summary in the full forecast to avoid doing two totally independent research passes.
 
 Implemented now:
 
 - `ENABLE_UPDATE_GATE=true`
 - `MAX_PREDICTION_AGE_HOURS=12`
-- `FORCE_REFORECAST_WITHIN_HOURS=6`
+- `STALE_REFORECAST_WITHOUT_NEWS=false`
+- `FORCE_REFORECAST_WITHIN_HOURS=1.5`
+- `FINAL_REFORECAST_MIN_INTERVAL_MINUTES=30`
+- `USE_GROK_NEWS_MONITOR=true`
 - Five-attempt exponential retry around OpenAI, Anthropic, xAI, and Firecrawl calls.
 - If a forecast component still fails, aggregate over the surviving components with the configured weights renormalized implicitly by weighted log-odds averaging.
 - Settled-result calibration through `GET /results`, written to `state/calibration-report.json` and timestamped `logs/calibration-*.json`.
 
-This gate is now stateful and slightly smarter than a fixed timer. It avoids suppressing new markets, refreshes every selected run in the final six hours, refreshes stable far-future matches slowly, and refreshes uncertain or volatile matches faster. It records per-market probability, component count, component spread, evidence quality, confidence, and per-match worst-case summaries.
+This gate is now stateful and latest-only. It avoids suppressing new markets, avoids paid stale refreshes without news, refreshes on a controlled final-window cadence, and uses Grok news monitoring to promote material changes. It records per-market probability, component count, component spread, evidence quality, confidence, and per-match worst-case summaries.
 
 Calibration is deliberately conservative. The SportsPredict results endpoint returns settled Brier scores and submitted probabilities, but not explicit outcomes. The outcome is inferable because Brier is either `p^2` for a no-resolution or `(1-p)^2` for a yes-resolution. The bot scores each saved model component against the inferred outcome, compares each model's mean Brier to the ensemble mean, and proposes multiplicative weight updates using an exponentially weighted regret rule with prior-count shrinkage. This is rooted in proper scoring and online aggregation theory, but it avoids overfitting a tiny early sample. The report is designed for a daily coding-agent review: model/provider Brier, sample counts, current multipliers, suggested multipliers, and per-market component records are all visible.
 
-Recommended next implementation:
-
-- Add `GROK_CHANGE_DETECTOR=true`.
-- Run a low-effort Grok multi-agent check for open matches that already have predictions and are outside the force window.
-- Save the change-detector evidence into `logs/run-*.json`.
-- Pass that evidence into the full forecaster when a reforecast is triggered.
+Firecrawl is now targeted. Use it for close matches, volatile markets, low-evidence or high-disagreement forecasts, and material Grok-news cases. Its raw snippets are cached in `state/news-cache.json` for auditability when used by the monitor.
 
 ## 4. Platform Facts That Shape the System
 
@@ -148,12 +144,13 @@ Approximate costs:
 | Scenario | Match cycles | xAI share | OpenAI share | Claude share | Total | Firecrawl credits |
 |---|---:|---:|---:|---:|---:|---:|
 | Forecast once per match | 104 | $20 | $5 | $20 | $46 | 1,456 |
-| Selective: 10 refreshes per match | 1,040 | $200 | $52 | $203 | $455 | 14,560 |
-| Expected stateful gate: 20 refreshes per match | 2,080 | $400 | $104 | $406 | $910 | 29,120 |
-| Stateful gate planning upper bound: about 26 refreshes per match | 2,704 | $521 | $135 | $527 | $1,183 | 37,856 |
+| Latest-only expected: initial + 2 final + 1 material-news average | 416 | $80 | $21 | $81 | $182 | 5,824 |
+| Latest-only high-activity: initial + 4 final + 3 material-news average | 832 | $160 | $42 | $162 | $364 | 11,648 |
+| Legacy selective: 10 refreshes per match | 1,040 | $200 | $52 | $203 | $455 | 14,560 |
+| Legacy stateful planning upper bound: about 26 refreshes per match | 2,704 | $521 | $135 | $527 | $1,183 | 37,856 |
 | Blind hourly within 168h window | 17,472 | $3,363 | $874 | $3,407 | $7,644 | 244,608 |
 
-The user's $2,500 xAI credit covers about 13,000 default xAI match-cycles under these assumptions. The user's $500 Claude credit covers about 2,560 default cycles with two Claude calls, or about 1,690 cycles under the higher hidden-output sensitivity case. The hypothetical 50,000 Firecrawl credits cover the planning upper bound, but not blind hourly refreshes for every eligible match.
+The user's $2,500 xAI credit covers about 13,000 default xAI match-cycles under these assumptions. The user's $500 Claude credit covers about 2,560 default cycles with two Claude calls, or about 1,690 cycles under the higher hidden-output sensitivity case. The hypothetical 50,000 Firecrawl credits comfortably covers the latest-only plan and the old planning upper bound, but not blind hourly refreshes for every eligible match.
 
 Interpretation:
 
@@ -165,8 +162,8 @@ Interpretation:
 
 Use Grok multi-agent as the research engine, keep direct odds as an anchor, ensemble both prompts and models when paid budget is acceptable, and gate reforecasts. For this tournament, the highest expected-value architecture is:
 
-1. Hourly GitHub Action.
-2. Stateful gate on by default.
-3. Default hybrid OpenAI/Grok/Claude ensemble on selected matches.
-4. Full forecast on new markets, stale markets, material evidence changes, and all matches inside six hours to close.
+1. 15-minute GitHub Action.
+2. Stateful latest-only gate on by default.
+3. Grok news monitor on already-covered matches.
+4. Default hybrid OpenAI/Grok/Claude ensemble on new markets, material-news promotions, and the final 90-minute pre-kickoff cadence.
 5. Aggregate in log-odds space, mildly extremize, and patch only changes of at least 2 points.
