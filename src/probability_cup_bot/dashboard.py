@@ -312,8 +312,8 @@ def _render_index_html(data: dict[str, Any]) -> str:
         <tr>
           <th>Match</th>
           <th class="question">Question</th>
-          <th class="num">Platform</th>
-          <th class="num">Bot</th>
+          <th class="num">Platform API</th>
+          <th class="num">Bot State</th>
           <th>Status</th>
           <th class="num">Hrs</th>
           <th>Schedule</th>
@@ -349,6 +349,7 @@ def _render_index_html(data: dict[str, Any]) -> str:
       const s = data.summary || {{}};
       summary.innerHTML = [
         `<span>Generated <b>${{shortTime(data.generated_at)}}</b></span>`,
+        `<span>Platform source <b>SportsPredict /predictions</b></span>`,
         `<span>Predictions <b>${{s.prediction_count || 0}}</b></span>`,
         `<span>Open <b>${{s.open_prediction_count || 0}}</b></span>`,
         `<span>Matches <b>${{s.match_count || 0}}</b></span>`,

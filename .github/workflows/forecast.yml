@@ -31,7 +31,7 @@ on:
     # Poll for newly posted games every 6 hours.
     - cron: "17 */6 * * *"
     # Cheap due-checker. It only spends model credits when a match hits its scheduled window.
-    - cron: "*/5 * * * *"
+    - cron: "2-59/5 * * * *"
 
 concurrency:
   group: probability-cup-forecaster
@@ -133,7 +133,7 @@ jobs:
         run: |
           if { [ "$INPUT_INSPECT_DOCKET" = "true" ] || [ "$INPUT_REPAIR_BOUNDARY_FORECASTS" = "true" ] || [ "$INPUT_SCHEDULE_MODE" = "refresh" ] || [ "$INPUT_SCHEDULE_MODE" = "due" ] || [ "$INPUT_DASHBOARD_SNAPSHOT" = "true" ] || [ "$EVENT_SCHEDULE" = "17 */6 * * *" ]; } && [ -n "$SPORTSPREDICT_API_KEY" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
-          elif [ "$EVENT_SCHEDULE" = "*/5 * * * *" ] && [ -n "$SPORTSPREDICT_API_KEY" ]; then
+          elif [ "$EVENT_SCHEDULE" = "2-59/5 * * * *" ] && [ -n "$SPORTSPREDICT_API_KEY" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           elif [ -n "$SPORTSPREDICT_API_KEY" ] && { [ -n "$OPENAI_API_KEY" ] || [ -n "$XAI_API_KEY" ] || [ -n "$ANTHROPIC_API_KEY" ]; }; then
             echo "available=true" >> "$GITHUB_OUTPUT"
@@ -175,7 +175,7 @@ jobs:
           elif [ "$EVENT_SCHEDULE" = "17 */6 * * *" ]; then
             echo "Forecast workflow mode=schedule_refresh schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot schedule --refresh-only
-          elif [ "$EVENT_SCHEDULE" = "*/5 * * * *" ]; then
+          elif [ "$EVENT_SCHEDULE" = "2-59/5 * * * *" ]; then
             echo "Forecast workflow mode=schedule_due_check schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot schedule --run-due
           elif [ "$INPUT_DRY_RUN" = "true" ]; then
