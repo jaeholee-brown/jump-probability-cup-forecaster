@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import html
 import json
 import logging
 import threading
@@ -190,7 +189,7 @@ def serve_dashboard(
 
 
 def _render_index_html(data: dict[str, Any]) -> str:
-    payload = html.escape(json.dumps(data, ensure_ascii=False))
+    payload = _json_script_payload(data)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -419,3 +418,14 @@ def _render_index_html(data: dict[str, Any]) -> str:
 </body>
 </html>
 """
+
+
+def _json_script_payload(data: dict[str, Any]) -> str:
+    return (
+        json.dumps(data, ensure_ascii=False)
+        .replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )

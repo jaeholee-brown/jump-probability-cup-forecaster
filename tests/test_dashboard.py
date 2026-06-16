@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from probability_cup_bot.dashboard import build_dashboard_data
+from probability_cup_bot.dashboard import _json_script_payload, build_dashboard_data
 from probability_cup_bot.models import Market, MarketMatch, Match, Prediction
 from probability_cup_bot.state import write_json
 
@@ -53,3 +53,11 @@ def test_dashboard_data_joins_platform_predictions_to_bot_forecasts(tmp_path) ->
     assert data["rows"][0]["question"] == "Will A win?"
     assert data["rows"][0]["probability"] == 61
     assert data["rows"][0]["latest_bot_probability"] == 63
+
+
+def test_json_script_payload_is_parseable_json_without_html_entities() -> None:
+    payload = _json_script_payload({"question": 'A "quoted" <script> & value'})
+
+    assert "&quot;" not in payload
+    assert "\\u003cscript\\u003e" in payload
+    assert payload.startswith("{")
