@@ -51,7 +51,18 @@ jobs:
       - name: Test
         run: pytest
 
+      - name: Check forecast secrets
+        id: forecast_secrets
+        run: |
+          if [ -n "$SPORTSPREDICT_API_KEY" ] && { [ -n "$OPENAI_API_KEY" ] || [ -n "$XAI_API_KEY" ]; }; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping forecast: set SPORTSPREDICT_API_KEY plus OPENAI_API_KEY or XAI_API_KEY."
+          fi
+
       - name: Forecast
+        if: steps.forecast_secrets.outputs.available == 'true'
         env:
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
