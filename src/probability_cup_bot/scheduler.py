@@ -102,11 +102,9 @@ class MatchScheduler:
 
     async def run_due(self) -> dict[str, Any]:
         ensure_dirs(self.settings.state_dir, self.settings.logs_dir)
+        logger.info("Refreshing schedule before due check")
+        await self.refresh()
         state = read_json(self.schedule_path, {"matches": {}})
-        if self._schedule_is_stale(state):
-            logger.info("Schedule stale or missing; refreshing before due check")
-            await self.refresh()
-            state = read_json(self.schedule_path, {"matches": {}})
 
         now = utcnow()
         due = build_due_actions(state, now=now)
