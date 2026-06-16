@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import timezone
 from difflib import SequenceMatcher
@@ -11,6 +12,25 @@ from probability_cup_bot.config import Settings
 from probability_cup_bot.models import Match, MatchEvidence, Market, utcnow
 from probability_cup_bot.openai_adapter import OpenAIAdapter
 from probability_cup_bot.prompts import RESEARCH_INSTRUCTIONS
+
+
+RESEARCH_PASS_TASKS: dict[str, str] = {
+    "overview": (
+        "Build the stable outside-view picture for this match: team strength, recent form, "
+        "tournament incentives, likely tactical setup, historical/base rates for the listed "
+        "market families, and any reliable public odds context."
+    ),
+    "late_news": (
+        "Search specifically for current lineups, injuries, suspensions, player availability, "
+        "manager comments, weather, travel/rest issues, and credible late-breaking news. Use "
+        "recent web/X evidence and prefer timestamped sources."
+    ),
+    "market_micro": (
+        "Work market by market. For every listed question, find the most decision-relevant "
+        "public facts, especially for player props, cards, shots, corners, goals, penalties, "
+        "and other volatile soccer markets."
+    ),
+}
 
 
 def split_match_name(match_name: str) -> tuple[str, str] | None:
@@ -39,64 +59,143 @@ class EvidenceCollector:
 
     async def collect(self, match: Match, markets: list[Market]) -> MatchEvidence:
         odds_context = await self._odds_context(match)
+        adapter = self.grok if self.settings.use_grok_research and self.grok else self.openai
+        if adapter is None:
+            return MatchEvidence(
+                match_id=match.id,
+                match_name=match.name,
+                generated_at=utcnow().isoformat(),
+                query_summary="No OpenAI-compatible search adapter configured; using platform data only.",
+                odds_context=odds_context,
+                key_facts=[],
+                items=[],
+                evidence_quality="low",
+            )
+
+        pass_names = self.settings.grok_research_passes if adapter.provider == "xai" else ("overview",)
+        if not pass_names:
+            pass_names = ("overview",)
+        results = await asyncio.gather(
+            *[
+                self._research_pass(
+                    adapter=adapter,
+                    match=match,
+                    markets=markets,
+                    odds_context=odds_context,
+                    pass_name=pass_name,
+                )
+                for pass_name in pass_names
+            ],
+            return_exceptions=True,
+        )
+        evidences = [result for result in results if isinstance(result, MatchEvidence)]
+        if evidences:
+            return self._merge_evidence(match, odds_context, evidences)
+
+        failures = "; ".join(str(result)[:300] for result in results if isinstance(result, Exception))
+        return MatchEvidence(
+            match_id=match.id,
+            match_name=match.name,
+            generated_at=utcnow().isoformat(),
+            query_summary=f"Evidence collection failed; using platform data only: {failures}",
+            odds_context=odds_context,
+            key_facts=[],
+            items=[],
+            evidence_quality="low",
+        )
+
+    async def _research_pass(
+        self,
+        *,
+        adapter: OpenAIAdapter,
+        match: Match,
+        markets: list[Market],
+        odds_context: str,
+        pass_name: str,
+    ) -> MatchEvidence:
+        research_task = RESEARCH_PASS_TASKS.get(pass_name, pass_name)
         user_input = json.dumps(
             {
                 "today_utc": utcnow().astimezone(timezone.utc).isoformat(),
                 "match": match.model_dump(),
                 "markets": [market.model_dump() for market in markets],
                 "odds_context": odds_context,
-                "research_task": (
-                    "Gather compact current evidence for forecasting these Jump Probability Cup "
-                    "markets. Focus on match result, goals, cards, player/team props, injuries, "
-                    "lineups, odds, weather, and tournament incentives when relevant."
-                ),
+                "research_pass": pass_name,
+                "research_task": research_task,
             },
             ensure_ascii=True,
         )
-        try:
-            adapter = self.grok if self.settings.use_grok_research and self.grok else self.openai
-            if adapter is None:
-                return MatchEvidence(
-                    match_id=match.id,
-                    match_name=match.name,
-                    generated_at=utcnow().isoformat(),
-                    query_summary="No OpenAI-compatible search adapter configured; using platform data only.",
-                    odds_context=odds_context,
-                    key_facts=[],
-                    items=[],
-                    evidence_quality="low",
-                )
-            model = self.settings.grok_research_model if adapter.provider == "xai" else self.settings.research_model
-            tools = [{"type": "web_search"}]
-            if adapter.provider == "xai":
-                tools.append({"type": "x_search"})
-            evidence = await adapter.structured_response(
-                model=model,
-                instructions=RESEARCH_INSTRUCTIONS,
-                user_input=user_input,
-                schema_model=MatchEvidence,
-                schema_name="match_evidence",
-                reasoning_effort="low",
-                tools=tools,
-            )
-        except Exception as exc:
-            evidence = MatchEvidence(
-                match_id=match.id,
-                match_name=match.name,
-                generated_at=utcnow().isoformat(),
-                query_summary=f"Evidence collection failed; using platform data only: {exc}",
-                odds_context=odds_context,
-                key_facts=[],
-                items=[],
-                evidence_quality="low",
-            )
+        model = self.settings.grok_research_model if adapter.provider == "xai" else self.settings.research_model
+        tools = [{"type": "web_search"}]
+        if adapter.provider == "xai":
+            tools.append({"type": "x_search"})
+        reasoning_effort = (
+            self.settings.grok_research_reasoning_effort if adapter.provider == "xai" else "low"
+        )
+        evidence = await adapter.structured_response(
+            model=model,
+            instructions=f"{RESEARCH_INSTRUCTIONS}\n\nResearch pass focus:\n{research_task}",
+            user_input=user_input,
+            schema_model=MatchEvidence,
+            schema_name="match_evidence",
+            reasoning_effort=reasoning_effort,
+            tools=tools,
+        )
         if not evidence.match_id:
             evidence.match_id = match.id
         if not evidence.match_name:
             evidence.match_name = match.name
         if odds_context and not evidence.odds_context:
             evidence.odds_context = odds_context
+        evidence.query_summary = f"[{pass_name}] {evidence.query_summary}"
         return evidence
+
+    def _merge_evidence(
+        self,
+        match: Match,
+        odds_context: str,
+        evidences: list[MatchEvidence],
+    ) -> MatchEvidence:
+        key_facts: list[str] = []
+        seen_facts: set[str] = set()
+        for evidence in evidences:
+            for fact in evidence.key_facts:
+                normalized = " ".join(fact.lower().split())
+                if normalized and normalized not in seen_facts:
+                    seen_facts.add(normalized)
+                    key_facts.append(fact)
+
+        items = []
+        seen_items: set[str] = set()
+        for evidence in evidences:
+            for item in evidence.items:
+                key = item.url or f"{item.title.lower()}::{item.summary[:80].lower()}"
+                if key and key not in seen_items:
+                    seen_items.add(key)
+                    items.append(item)
+        items = sorted(items, key=lambda item: item.relevance, reverse=True)[:18]
+
+        query_summary = "\n".join(evidence.query_summary for evidence in evidences if evidence.query_summary)
+        quality = self._best_evidence_quality(evidence.evidence_quality for evidence in evidences)
+        return MatchEvidence(
+            match_id=match.id,
+            match_name=match.name,
+            generated_at=utcnow().isoformat(),
+            query_summary=f"Merged {len(evidences)} research passes.\n{query_summary}",
+            key_facts=key_facts[:30],
+            odds_context=odds_context or next((e.odds_context for e in evidences if e.odds_context), ""),
+            items=items,
+            evidence_quality=quality,
+        )
+
+    @staticmethod
+    def _best_evidence_quality(values: Any) -> str:
+        order = {"low": 0, "medium": 1, "high": 2}
+        best = "low"
+        for value in values:
+            if order.get(value, 0) > order[best]:
+                best = value
+        return best
 
     async def _odds_context(self, match: Match) -> str:
         if not self.settings.odds_api_key:

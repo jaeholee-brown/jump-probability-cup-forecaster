@@ -144,6 +144,8 @@ class ForecastBatch(BaseModel):
     match_name: str
     model: str
     prompt_variant: str
+    provider: str = ""
+    weight: float = 1.0
     forecasts: list[MarketForecast]
 
 
@@ -157,4 +159,3 @@ class AggregatedForecast(BaseModel):
     evidence_quality: str
     notes: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
-

@@ -40,23 +40,25 @@ class Settings:
     xai_base_url: str = "https://api.x.ai/v1"
     sportspredict_base_url: str = "https://api.sportspredict.com/api/v1"
     event_title: str = "Probability Cup"
-    forecast_model: str = "gpt-5.5"
+    forecast_model: str = "gpt-5"
     research_model: str = "gpt-5.4-mini"
     grok_research_model: str = "grok-4.20-multi-agent-0309"
-    grok_forecast_model: str = "grok-4.20-multi-agent-0309"
-    claude_forecast_model: str = "claude-opus-4-6"
+    grok_research_passes: tuple[str, ...] = ("overview", "late_news", "market_micro")
+    grok_research_reasoning_effort: str = "medium"
+    grok_forecast_model: str = "grok-4.3"
+    grok_forecast_models: tuple[str, ...] = ("grok-4.3", "grok-4.20-0309-reasoning")
+    claude_forecast_model: str = "claude-opus-4-8"
+    claude_forecast_models: tuple[str, ...] = ("claude-opus-4-8", "claude-opus-4-6")
     use_openai_forecast: bool = True
     use_grok_research: bool = True
     use_grok_forecast: bool = True
     use_claude_forecast: bool = True
     openai_forecast_variants: tuple[str, ...] = ("base_rate_frequency",)
-    grok_forecast_variants: tuple[str, ...] = (
-        "base_rate_frequency",
-        "balanced_scratchpad",
-        "late_information",
-        "coherence_checker",
-    )
+    grok_forecast_variants: tuple[str, ...] = ("base_rate_frequency",)
     claude_forecast_variants: tuple[str, ...] = ("base_rate_frequency",)
+    openai_forecast_weight: float = 1.0
+    grok_forecast_weight: float = 0.35
+    claude_forecast_weight: float = 1.0
     reasoning_effort: str = "medium"
     submit: bool = False
     max_matches_per_run: int = 0
@@ -93,26 +95,34 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
             "SPORTSPREDICT_BASE_URL", "https://api.sportspredict.com/api/v1"
         ).rstrip("/"),
         event_title=os.getenv("EVENT_TITLE", "Probability Cup"),
-        forecast_model=os.getenv("FORECAST_MODEL", "gpt-5.5"),
+        forecast_model=os.getenv("FORECAST_MODEL", "gpt-5"),
         research_model=os.getenv("RESEARCH_MODEL", "gpt-5.4-mini"),
         grok_research_model=os.getenv("GROK_RESEARCH_MODEL", "grok-4.20-multi-agent-0309"),
-        grok_forecast_model=os.getenv("GROK_FORECAST_MODEL", "grok-4.20-multi-agent-0309"),
-        claude_forecast_model=os.getenv("CLAUDE_FORECAST_MODEL", "claude-opus-4-6"),
+        grok_research_passes=_csv_env(
+            "GROK_RESEARCH_PASSES",
+            ("overview", "late_news", "market_micro"),
+        ),
+        grok_research_reasoning_effort=os.getenv("GROK_RESEARCH_REASONING_EFFORT", "medium"),
+        grok_forecast_model=os.getenv("GROK_FORECAST_MODEL", "grok-4.3"),
+        grok_forecast_models=_csv_env(
+            "GROK_FORECAST_MODELS",
+            (os.getenv("GROK_FORECAST_MODEL") or "grok-4.3", "grok-4.20-0309-reasoning"),
+        ),
+        claude_forecast_model=os.getenv("CLAUDE_FORECAST_MODEL", "claude-opus-4-8"),
+        claude_forecast_models=_csv_env(
+            "CLAUDE_FORECAST_MODELS",
+            (os.getenv("CLAUDE_FORECAST_MODEL") or "claude-opus-4-8", "claude-opus-4-6"),
+        ),
         use_openai_forecast=_bool_env("USE_OPENAI_FORECAST", True),
         use_grok_research=_bool_env("USE_GROK_RESEARCH", True),
         use_grok_forecast=_bool_env("USE_GROK_FORECAST", True),
         use_claude_forecast=_bool_env("USE_CLAUDE_FORECAST", True),
         openai_forecast_variants=_csv_env("OPENAI_FORECAST_VARIANTS", ("base_rate_frequency",)),
-        grok_forecast_variants=_csv_env(
-            "GROK_FORECAST_VARIANTS",
-            (
-                "base_rate_frequency",
-                "balanced_scratchpad",
-                "late_information",
-                "coherence_checker",
-            ),
-        ),
+        grok_forecast_variants=_csv_env("GROK_FORECAST_VARIANTS", ("base_rate_frequency",)),
         claude_forecast_variants=_csv_env("CLAUDE_FORECAST_VARIANTS", ("base_rate_frequency",)),
+        openai_forecast_weight=_float_env("OPENAI_FORECAST_WEIGHT", 1.0),
+        grok_forecast_weight=_float_env("GROK_FORECAST_WEIGHT", 0.35),
+        claude_forecast_weight=_float_env("CLAUDE_FORECAST_WEIGHT", 1.0),
         reasoning_effort=os.getenv("REASONING_EFFORT", "medium"),
         submit=submit,
         max_matches_per_run=_int_env("MAX_MATCHES_PER_RUN", 0),

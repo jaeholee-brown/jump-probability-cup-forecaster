@@ -45,14 +45,19 @@ def test_forecaster_builds_cross_provider_specs() -> None:
 
     specs = forecaster._forecast_model_specs()
 
-    assert [spec.name for spec in specs] == ["openai", "grok", "claude"]
+    assert [spec.provider for spec in specs] == ["openai", "grok", "grok", "claude", "claude"]
     assert [spec.model for spec in specs] == [
-        "gpt-5.5",
-        "grok-4.20-multi-agent-0309",
+        "gpt-5",
+        "grok-4.3",
+        "grok-4.20-0309-reasoning",
+        "claude-opus-4-8",
         "claude-opus-4-6",
     ]
     assert [spec.variants for spec in specs] == [
         ("base_rate_frequency",),
-        ("base_rate_frequency", "balanced_scratchpad", "late_information", "coherence_checker"),
+        ("base_rate_frequency",),
+        ("base_rate_frequency",),
+        ("base_rate_frequency",),
         ("base_rate_frequency",),
     ]
+    assert [spec.weight for spec in specs] == [1.0, 0.35, 0.35, 1.0, 1.0]

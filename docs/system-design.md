@@ -38,7 +38,7 @@ Important limitations:
    - set `MAX_HOURS_TO_CLOSE=0` to remove this filter.
 6. For each selected match:
    - optional The Odds API lookup;
-   - xAI/Grok multi-agent web/X-search evidence summary when `XAI_API_KEY` exists;
+   - three xAI/Grok multi-agent web/X-search evidence passes when `XAI_API_KEY` exists;
    - OpenAI web-search evidence summary as fallback when Grok is unavailable;
    - configurable forecasting variants per configured forecast provider;
    - log-odds aggregation;
@@ -53,18 +53,21 @@ Important limitations:
 Default:
 
 - Primary high-volume research model: `grok-4.20-multi-agent-0309` via xAI when `XAI_API_KEY` is set.
-- Grok forecast model: `grok-4.20-multi-agent-0309`.
-- OpenAI forecast model: `gpt-5.5`.
-- Claude forecast model: `claude-opus-4-6`.
+- Research passes: `overview`, `late_news`, and `market_micro`.
+- Grok forecast models: `grok-4.3` and `grok-4.20-0309-reasoning`.
+- OpenAI forecast model: `gpt-5`.
+- Claude forecast models: `claude-opus-4-8` and `claude-opus-4-6`.
 - Fallback research/evidence model with OpenAI key: `gpt-5.4-mini`.
-- Default forecast variants: OpenAI x 1, Grok x 4, Claude x 1.
-- Full prompt-ensemble mode: set `OPENAI_FORECAST_VARIANTS=all` and/or `CLAUDE_FORECAST_VARIANTS=all`.
+- Default forecast variants: one `base_rate_frequency` call per configured forecast model.
+- Default forecast weights: OpenAI 1.0, Claude 1.0 per model, Grok 0.35 per model.
+- Full prompt-ensemble mode: set `OPENAI_FORECAST_VARIANTS=all`, `GROK_FORECAST_VARIANTS=all`, and/or `CLAUDE_FORECAST_VARIANTS=all`.
 - Grok-only mode is supported if `OPENAI_API_KEY` is absent.
 - Not used: `gpt-5.5-pro`.
 
 OpenAI docs checked for current API behavior:
 
-- The [models docs](https://developers.openai.com/api/docs/models) list `gpt-5.5` as the flagship model and `gpt-5.4-mini` as the cheaper/lower-latency option.
+- The [GPT-5 model docs](https://developers.openai.com/api/docs/models/gpt-5) list `gpt-5` as a reasoning model with configurable reasoning effort at $1.25/$10 per million input/output tokens.
+- The [pricing docs](https://developers.openai.com/api/docs/pricing) list `gpt-5.5` as substantially more expensive, which is why the workflow now uses `gpt-5` by default.
 - The [Responses API docs](https://developers.openai.com/api/reference/responses/overview/) describe direct text/structured/tool-using requests.
 - The [structured outputs docs](https://developers.openai.com/api/docs/guides/structured-outputs) recommend Structured Outputs over JSON mode when schema adherence matters.
 - The [web search tool docs](https://developers.openai.com/api/docs/guides/tools-web-search) show `tools: [{"type": "web_search"}]` for current Responses integrations.
@@ -72,13 +75,15 @@ OpenAI docs checked for current API behavior:
 xAI docs checked for current API behavior:
 
 - The [xAI quickstart](https://docs.x.ai/developers/quickstart) documents OpenAI-compatible SDK usage with `base_url="https://api.x.ai/v1"`.
+- The [xAI models page](https://docs.x.ai/developers/models) recommends `grok-4.3` for general text work and lists Grok 4.20 variants for multi-agent/reasoning use.
 - The [Grok 4.20 Multi-Agent model page](https://docs.x.ai/developers/models/grok-4.20-multi-agent-beta-0309) lists the multi-agent model as a deep-research model with a 1M context window and structured outputs.
 - The [multi-agent guide](https://docs.x.ai/developers/model-capabilities/text/multi-agent) recommends `grok-4.20-multi-agent` for coordinated research.
 - The [xAI web search docs](https://docs.x.ai/developers/tools/web-search) and [X search docs](https://docs.x.ai/developers/tools/x-search) list `web_search` and `x_search` tools for OpenAI-compatible Responses API calls.
 
 Anthropic docs checked for current API behavior:
 
-- The [Claude Opus 4.6 announcement](https://www.anthropic.com/news/claude-opus-4-6) lists `claude-opus-4-6` as the Claude API model name and gives standard pricing of $5/$25 per million input/output tokens.
+- The [Claude Opus 4.8 docs](https://www.anthropic.com/claude/opus) list `claude-opus-4-8` as the API model name, with standard pricing of $5/$25 per million input/output tokens.
+- The [Claude models overview](https://platform.claude.com/docs/en/about-claude/models/overview) lists `claude-opus-4-8` as Anthropic's strongest Opus-tier model and keeps earlier Opus IDs available.
 - Anthropic's extended thinking docs state that thinking tokens are billed as output tokens, so cost estimates treat hidden reasoning as billed output.
 
 ## Why This Architecture Matches the Literature
@@ -86,7 +91,7 @@ Anthropic docs checked for current API behavior:
 - Halawi et al. show that retrieval plus reasoning scaffolding beats raw model prompting by a large Brier margin.
 - ForecastBench and Silicon Crowd show that aggregation and external crowd/market context are strong.
 - Prompt-engineering studies show base-rate/frequency/step-back prompts are the only prompt-only components worth keeping, and even those are modest.
-- ForecastBench and Silicon Crowd support cross-model aggregation more directly than prompt-variant-only ensembling, so the bot defaults to cross-model diversity and spends extra prompt variants mainly on Grok, where the marginal cost is low.
+- ForecastBench and Silicon Crowd support cross-model aggregation more directly than prompt-variant-only ensembling, so the bot defaults to model diversity, explicit component weights, and better retrieval instead of many same-family forecast votes.
 - Baron/Satopaa-style extremization motivates a mild log-odds extremization after aggregation.
 - Pitfalls papers warn against overfitting backtests and correlated bets, so live logs and per-market calibration matter.
 
@@ -115,12 +120,17 @@ Key environment controls:
 - `UPDATE_THRESHOLD_POINTS=2`: avoid noisy one-point updates.
 - `CONCURRENCY=4`: bound concurrent match forecasts.
 - `USE_GROK_RESEARCH=true`: use xAI multi-agent search for evidence when `XAI_API_KEY` exists.
-- `USE_OPENAI_FORECAST=true`: run configured variants with `gpt-5.5` when `OPENAI_API_KEY` exists.
-- `USE_GROK_FORECAST=true`: run configured variants with `grok-4.20-multi-agent-0309` when `XAI_API_KEY` exists.
-- `USE_CLAUDE_FORECAST=true`: run configured variants with `claude-opus-4-6` when `ANTHROPIC_API_KEY` exists.
+- `GROK_RESEARCH_PASSES=overview,late_news,market_micro`: specialized xAI research passes to run and merge.
+- `GROK_RESEARCH_REASONING_EFFORT=medium`: xAI research effort.
+- `USE_OPENAI_FORECAST=true`: run configured variants with `gpt-5` when `OPENAI_API_KEY` exists.
+- `USE_GROK_FORECAST=true`: run configured variants with `GROK_FORECAST_MODELS` when `XAI_API_KEY` exists.
+- `USE_CLAUDE_FORECAST=true`: run configured variants with `CLAUDE_FORECAST_MODELS` when `ANTHROPIC_API_KEY` exists.
+- `GROK_FORECAST_MODELS=grok-4.3,grok-4.20-0309-reasoning`: comma-separated xAI forecast models.
+- `CLAUDE_FORECAST_MODELS=claude-opus-4-8,claude-opus-4-6`: comma-separated Claude forecast models.
 - `OPENAI_FORECAST_VARIANTS=base_rate_frequency`: comma-separated OpenAI variants, or `all`.
-- `GROK_FORECAST_VARIANTS=base_rate_frequency,balanced_scratchpad,late_information,coherence_checker`: comma-separated Grok variants, or `all`.
+- `GROK_FORECAST_VARIANTS=base_rate_frequency`: comma-separated Grok variants, or `all`.
 - `CLAUDE_FORECAST_VARIANTS=base_rate_frequency`: comma-separated Claude variants, or `all`.
+- `OPENAI_FORECAST_WEIGHT=1.0`, `GROK_FORECAST_WEIGHT=0.35`, `CLAUDE_FORECAST_WEIGHT=1.0`: component weights before confidence/evidence adjustments.
 - `EXTREMIZE_ALPHA=1.05`: mild log-odds extremization.
 - `BASE_SHRINKAGE=0.04`: mild shrinkage toward 50.
 - `LOW_EVIDENCE_SHRINKAGE=0.12`: stronger shrinkage when evidence is weak.

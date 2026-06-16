@@ -5,7 +5,7 @@ Autonomous forecasting system for the Jump Trading Probability Cup / SportsPredi
 The bot:
 
 - discovers the Probability Cup event, lobby, open matches, and open markets;
-- gathers fresh public evidence with xAI/Grok multi-agent web/X search when `XAI_API_KEY` is available, with OpenAI web search as fallback;
+- gathers fresh public evidence with multiple xAI/Grok multi-agent web/X research passes when `XAI_API_KEY` is available, with OpenAI web search as fallback;
 - can add optional structured bookmaker odds context before LLM research;
 - forecasts each match's markets with a configurable OpenAI/xAI/Claude ensemble when keys are available;
 - aggregates forecasts in log-odds space, applies configurable calibration, and outputs 1-99 integer probabilities;

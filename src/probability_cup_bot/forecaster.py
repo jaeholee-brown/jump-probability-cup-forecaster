@@ -19,7 +19,7 @@ from probability_cup_bot.models import (
 )
 from probability_cup_bot.openai_adapter import OpenAIAdapter
 from probability_cup_bot.prompts import FORECASTING_INSTRUCTIONS, PROMPT_VARIANTS
-from probability_cup_bot.scoring import aggregate_probabilities, probability_to_int
+from probability_cup_bot.scoring import probability_to_int
 
 
 QUALITY_WEIGHT = {"low": 0.7, "medium": 1.0, "high": 1.25}
@@ -47,9 +47,11 @@ class StructuredAdapter(Protocol):
 @dataclass(frozen=True)
 class ForecastModelSpec:
     name: str
+    provider: str
     adapter: StructuredAdapter
     model: str
     variants: tuple[str, ...]
+    weight: float
     tools: list[dict[str, str]] | None = None
 
 
@@ -85,6 +87,8 @@ class MatchForecaster:
                 variant_instruction,
                 adapter=spec.adapter,
                 model=spec.model,
+                provider=spec.provider,
+                weight=spec.weight,
                 tools=spec.tools,
             )
             for spec in specs
@@ -106,6 +110,8 @@ class MatchForecaster:
         *,
         adapter: StructuredAdapter,
         model: str,
+        provider: str,
+        weight: float,
         tools: list[dict[str, str]] | None = None,
     ) -> ForecastBatch:
         instructions = f"{FORECASTING_INSTRUCTIONS}\n\nVariant emphasis:\n{variant_instruction}"
@@ -140,6 +146,8 @@ class MatchForecaster:
         )
         batch.prompt_variant = variant
         batch.model = model
+        batch.provider = provider
+        batch.weight = weight
         return batch
 
     def _forecast_model_specs(self) -> list[ForecastModelSpec]:
@@ -147,31 +155,54 @@ class MatchForecaster:
         if self.settings.use_openai_forecast and self.openai and self.openai.provider == "openai":
             specs.append(
                 ForecastModelSpec(
-                    name="openai",
+                    name=self._spec_name("openai", self.settings.forecast_model),
+                    provider="openai",
                     adapter=self.openai,
                     model=self.settings.forecast_model,
                     variants=self.settings.openai_forecast_variants,
+                    weight=self.settings.openai_forecast_weight,
                 )
             )
         if self.settings.use_grok_forecast and self.grok:
-            specs.append(
-                ForecastModelSpec(
-                    name="grok",
-                    adapter=self.grok,
-                    model=self.settings.grok_forecast_model,
-                    variants=self.settings.grok_forecast_variants,
+            for model in self._unique_models(self.settings.grok_forecast_models):
+                specs.append(
+                    ForecastModelSpec(
+                        name=self._spec_name("grok", model),
+                        provider="grok",
+                        adapter=self.grok,
+                        model=model,
+                        variants=self.settings.grok_forecast_variants,
+                        weight=self.settings.grok_forecast_weight,
+                    )
                 )
-            )
         if self.settings.use_claude_forecast and self.anthropic:
-            specs.append(
-                ForecastModelSpec(
-                    name="claude",
-                    adapter=self.anthropic,
-                    model=self.settings.claude_forecast_model,
-                    variants=self.settings.claude_forecast_variants,
+            for model in self._unique_models(self.settings.claude_forecast_models):
+                specs.append(
+                    ForecastModelSpec(
+                        name=self._spec_name("claude", model),
+                        provider="claude",
+                        adapter=self.anthropic,
+                        model=model,
+                        variants=self.settings.claude_forecast_variants,
+                        weight=self.settings.claude_forecast_weight,
+                    )
                 )
-            )
         return specs
+
+    @staticmethod
+    def _unique_models(models: tuple[str, ...]) -> tuple[str, ...]:
+        seen: set[str] = set()
+        unique: list[str] = []
+        for model in models:
+            if model and model not in seen:
+                seen.add(model)
+                unique.append(model)
+        return tuple(unique)
+
+    @staticmethod
+    def _spec_name(provider: str, model: str) -> str:
+        safe_model = model.replace(".", "_").replace("-", "_")
+        return f"{provider}_{safe_model}"
 
     @staticmethod
     def _variant_items(spec: ForecastModelSpec) -> list[tuple[str, str]]:
@@ -202,8 +233,10 @@ class MatchForecaster:
                 continue
             probabilities = [p for _, p, _, _ in components]
             weights = [
-                QUALITY_WEIGHT.get(quality, 1.0) * CONFIDENCE_WEIGHT.get(confidence, 1.0)
-                for _, _, confidence, quality in components
+                batch.weight
+                * QUALITY_WEIGHT.get(quality, 1.0)
+                * CONFIDENCE_WEIGHT.get(confidence, 1.0)
+                for batch, _, confidence, quality in components
             ]
             evidence_quality = self._mode([quality for _, _, _, quality in components])
             confidence = self._mode([confidence for _, _, confidence, _ in components])
@@ -212,20 +245,12 @@ class MatchForecaster:
                 if evidence_quality == "low"
                 else self.settings.base_shrinkage
             )
-            p = aggregate_probabilities(
-                probabilities,
-                alpha=self.settings.extremize_alpha,
-                shrinkage=shrinkage,
-            )
-            # Recompute with explicit weights if there are only a few components. This keeps strong
-            # evidence/confidence from being ignored while still using robust trimming for larger sets.
-            if len(probabilities) < 5:
-                from probability_cup_bot.scoring import extremize, log_odds_mean, shrink_toward_half
+            from probability_cup_bot.scoring import extremize, log_odds_mean, shrink_toward_half
 
-                p = shrink_toward_half(
-                    extremize(log_odds_mean(probabilities, weights), self.settings.extremize_alpha),
-                    shrinkage,
-                )
+            p = shrink_toward_half(
+                extremize(log_odds_mean(probabilities, weights), self.settings.extremize_alpha),
+                shrinkage,
+            )
             output.append(
                 AggregatedForecast(
                     market_id=market.id,
@@ -239,6 +264,7 @@ class MatchForecaster:
                     metadata={
                         "variants": [batch.prompt_variant for batch, _, _, _ in components],
                         "models": [batch.model for batch, _, _, _ in components],
+                        "providers": [batch.provider for batch, _, _, _ in components],
                         "weights": weights,
                     },
                 )

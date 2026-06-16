@@ -23,13 +23,15 @@ Current forecast ensemble:
 - `late_information`: overweight late-breaking lineups, injuries, odds shifts, tactical news, and weather.
 - `coherence_checker`: check related markets on the same match for obvious probability inconsistency.
 
-Default configured forecast providers do not all run all variants. The evidence says model diversity is more valuable than prompt-only diversity, so the workflow defaults to:
+Default configured forecast providers do not all run all variants. The evidence says model diversity is more valuable than prompt-only diversity, and xAI forecast calls are more correlated with each other than OpenAI/Anthropic calls. The workflow now defaults to:
 
-- OpenAI `gpt-5.5` x 1 variant: `base_rate_frequency`.
-- xAI `grok-4.20-multi-agent-0309` x 4 variants.
-- Anthropic `claude-opus-4-6` x 1 variant: `base_rate_frequency`.
+- OpenAI `gpt-5` x 1 variant: `base_rate_frequency`, weight 1.0.
+- xAI `grok-4.3` x 1 variant: `base_rate_frequency`, weight 0.35.
+- xAI `grok-4.20-0309-reasoning` x 1 variant: `base_rate_frequency`, weight 0.35.
+- Anthropic `claude-opus-4-8` x 1 variant: `base_rate_frequency`, weight 1.0.
+- Anthropic `claude-opus-4-6` x 1 variant: `base_rate_frequency`, weight 1.0.
 
-Set `OPENAI_FORECAST_VARIANTS=all` or `CLAUDE_FORECAST_VARIANTS=all` for expensive full prompt ensembling when desired. With all keys present, the default is 6 forecast batches per match-cycle; full strong mode is 12.
+Set `OPENAI_FORECAST_VARIANTS=all`, `GROK_FORECAST_VARIANTS=all`, or `CLAUDE_FORECAST_VARIANTS=all` for full prompt ensembling when desired. With all keys present, the default is 5 forecast batches per match-cycle.
 
 Stack ranking:
 
@@ -47,9 +49,9 @@ Recommended Jump stack:
 
 - Grok multi-agent primary research for every selected match.
 - Grok-only fallback mode if no OpenAI key exists.
-- Default: run one high-quality `base_rate_frequency` forecast on GPT-5.5 and Claude Opus 4.6, plus all four Grok variants. This keeps model diversity while avoiding 4x paid-provider prompt costs.
-- Full strong mode: run all four variants on GPT-5.5, Grok 4.20 Multi-Agent, and Claude Opus 4.6 only for close-to-kickoff, high-disagreement, low-evidence, or manual high-value refreshes.
-- If paid budget gets tight, keep Grok on every selected match and reserve GPT-5.5/Claude for close-to-kickoff, high-disagreement, or high-value matches.
+- Default: use GPT-5, two Claude Opus generations, and two lightly weighted Grok forecast models. This keeps model diversity while preventing xAI from overruling OpenAI/Anthropic through volume.
+- Spend the xAI surplus on three specialized Grok research passes: stable overview, late-news/lineups, and market-specific micro evidence.
+- If paid budget gets tight, keep Grok research and one Grok forecast on every selected match, then reserve GPT-5/Claude for close-to-kickoff, high-disagreement, or high-value matches.
 
 ## 3. Blind Reruns vs Cheap Update Gate
 
@@ -111,44 +113,43 @@ Those constraints mean the bot should forecast per match, submit in batches, pat
 
 Prices checked 2026-06-16:
 
-- OpenAI `gpt-5.5`: $5.00 / 1M input tokens, $30.00 / 1M output tokens.
+- OpenAI `gpt-5`: $1.25 / 1M input tokens, $10.00 / 1M output tokens.
 - OpenAI `gpt-5.4-mini`: $0.75 / 1M input tokens, $4.50 / 1M output tokens.
 - OpenAI web search: $10 / 1k calls, search content tokens free.
-- xAI `grok-4.20-multi-agent-0309`: $1.25 / 1M input tokens, $2.50 / 1M output tokens.
+- xAI `grok-4.3`, `grok-4.20-multi-agent-0309`, and `grok-4.20-0309-reasoning`: $1.25 / 1M input tokens, $2.50 / 1M output tokens.
 - xAI `web_search` and `x_search`: $5 / 1k calls each. xAI explicitly bills reasoning tokens, completion tokens, and tool invocations.
-- Anthropic `claude-opus-4-6`: $5 / 1M input tokens, $25 / 1M output tokens. Anthropic bills full thinking tokens, not just visible summaries.
+- Anthropic `claude-opus-4-8` and `claude-opus-4-6`: $5 / 1M input tokens, $25 / 1M output tokens. Anthropic bills full thinking tokens, not just visible summaries.
 
 Assumptions:
 
 - One full match-cycle forecasts all markets for one match, about 9-10 markets.
-- Grok research call: 12K billed input tokens, 8K billed reasoning/completion tokens, and 3 web/X tool invocations.
+- Three Grok research passes, each about 9K billed input tokens, 6K billed reasoning/completion tokens, and 2 web/X tool invocations.
 - Each forecast call: 12K billed input tokens. OpenAI and Grok forecast calls assume 3.5K billed reasoning/completion tokens at `REASONING_EFFORT=medium`; Claude defaults to no explicit extended-thinking parameter, so the base estimate uses 1.5K visible output tokens, with a sensitivity case of 3.5K if hidden/adaptive thinking is billed similarly.
-- xAI research cost: `12K * $1.25/M + 8K * $2.50/M + 3 * $5/1K = $0.050`.
-- OpenAI forecast call: `12K * $5/M + 3.5K * $30/M = $0.165`.
+- xAI research cost: `3 * (9K * $1.25/M + 6K * $2.50/M + 2 * $5/1K) = $0.109`.
+- OpenAI GPT-5 forecast call: `12K * $1.25/M + 3.5K * $10/M = $0.050`.
 - Grok forecast call: `12K * $1.25/M + 3.5K * $2.50/M = $0.0238`.
 - Claude forecast call: `12K * $5/M + 1.5K * $25/M = $0.0975`; sensitivity with 3.5K billed output is `$0.1475`.
-- Cross-model-only cycle: one Grok research call plus one forecast from each provider, about `$0.336`.
-- Default hybrid cycle: one Grok research call, four Grok variants, one OpenAI forecast, and one Claude forecast, about `$0.4075`.
-- Full strong cycle: one Grok research call plus four variants for all three providers, about `$1.195`.
+- Default cycle: three Grok research passes, two lightly weighted Grok forecasts, one GPT-5 forecast, and two Claude Opus forecasts, about `$0.401`.
+- Provider split per cycle: about `$0.156` xAI, `$0.050` OpenAI, and `$0.195` Anthropic.
 - Bot considers matches within the default 168-hour close window, not the full 919-hour event window.
 
 Approximate costs:
 
-| Scenario | Match cycles | Cross-model only | Default hybrid | Full strong mode |
-|---|---:|---:|---:|---:|
-| Forecast once per match | 104 | $35 | $42 | $124 |
-| Selective: 10 refreshes per match | 1,040 | $350 | $424 | $1,243 |
-| Expected stateful gate: 20 refreshes per match | 2,080 | $699 | $848 | $2,486 |
-| Stateful gate planning upper bound: about 26 refreshes per match | 2,704 | $909 | $1,102 | $3,231 |
-| Blind hourly within 168h window | 17,472 | $5,875 | $7,120 | $20,875 |
+| Scenario | Match cycles | xAI share | OpenAI share | Claude share | Total |
+|---|---:|---:|---:|---:|---:|
+| Forecast once per match | 104 | $16 | $5 | $20 | $42 |
+| Selective: 10 refreshes per match | 1,040 | $163 | $52 | $203 | $417 |
+| Expected stateful gate: 20 refreshes per match | 2,080 | $325 | $104 | $406 | $835 |
+| Stateful gate planning upper bound: about 26 refreshes per match | 2,704 | $422 | $135 | $527 | $1,085 |
+| Blind hourly within 168h window | 17,472 | $2,731 | $874 | $3,407 | $7,012 |
 
-Default hybrid per-cycle spend is approximately `$0.145` xAI, `$0.165` OpenAI, and `$0.098` Claude. The user's $2,500 xAI credit covers about 17,200 default-hybrid xAI match-cycles under these assumptions. The user's $500 Claude credit covers about 5,100 default Claude forecast calls, or about 3,400 calls under the higher hidden-output sensitivity case.
+The user's $2,500 xAI credit covers about 16,000 default xAI match-cycles under these assumptions. The user's $500 Claude credit covers about 2,560 default cycles with two Claude calls, or about 1,690 cycles under the higher hidden-output sensitivity case.
 
 Interpretation:
 
-- Prompt ensembling across OpenAI and Claude is the main marginal cost. Moving from cross-model-only to default hybrid costs only about `$0.071` per match-cycle because the extra variants are cheap Grok calls. Moving from default hybrid to full strong mode costs about `$0.788` more per match-cycle, mostly OpenAI and Claude.
-- Full strong mode needs to improve Brier enough to justify about 3x the default hybrid cost. The forecasting literature does not support that as a blanket default.
-- OpenAI remains the limiting paid marginal cost. The realistic default-hybrid stateful gate is likely a few hundred dollars of OpenAI spend over the tournament, not thousands, unless the gate is effectively disabled.
+- Replacing GPT-5.5 with GPT-5 cuts the OpenAI forecast call from about `$0.165` to about `$0.050`, making Claude the main paid marginal cost.
+- The two Grok forecasts have a combined raw weight of 0.70, so xAI can contribute useful disagreement without dominating two Claude components plus GPT-5.
+- The extra xAI budget is better spent on research decomposition than forecast over-voting because retrieval/evidence quality has the strongest measured effect in the forecasting literature.
 
 ## Recommendation
 
