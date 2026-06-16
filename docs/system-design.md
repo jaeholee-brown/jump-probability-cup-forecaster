@@ -159,6 +159,7 @@ Key environment controls:
 - `UPDATE_THRESHOLD_POINTS=2`: avoid noisy one-point updates.
 - `CONCURRENCY=8`: bound concurrent match forecasts. The bot is already async across matches, Grok research passes, Firecrawl requests, and forecast models; this value controls how many match pipelines run at once. Forecasting also emits one-minute heartbeat logs and refreshes `state/in-progress-run.json` so long provider calls remain visible in GitHub Actions artifacts.
 - `USE_GROK_NEWS_MONITOR=true`: run cheap Grok web/X checks on otherwise-skipped matches.
+- Scheduled GitHub runs are cost-guarded: the workflow skips the paid `Forecast` step on cron events unless repository variable `ENABLE_SCHEDULED_FORECAST=true` is set. Manual `workflow_dispatch` runs still execute normally.
 - `NEWS_MONITOR_MAX_HOURS_TO_CLOSE=168`: news-monitor eligible matches within the same close window.
 - `NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS=2`: promote to full ensemble only when expected movement clears the update threshold.
 - `USE_GROK_RESEARCH=true`: use xAI multi-agent search for evidence when `XAI_API_KEY` exists.

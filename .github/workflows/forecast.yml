@@ -114,7 +114,7 @@ jobs:
           fi
 
       - name: Forecast
-        if: steps.forecast_secrets.outputs.available == 'true'
+        if: steps.forecast_secrets.outputs.available == 'true' && (github.event_name != 'schedule' || vars.ENABLE_SCHEDULED_FORECAST == 'true')
         env:
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
           INPUT_INSPECT_DOCKET: ${{ github.event.inputs.inspect_docket }}

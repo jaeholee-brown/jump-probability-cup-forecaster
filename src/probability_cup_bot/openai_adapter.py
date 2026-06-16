@@ -111,6 +111,7 @@ class OpenAIAdapter:
             if reasoning_payload is not None:
                 request["reasoning"] = reasoning_payload
             response = await self.client.responses.create(**request)
+            self._log_usage(response, model=model, schema_name=schema_name)
             text = getattr(response, "output_text", None) or self._extract_text(response)
             data = json.loads(text)
             parsed = schema_model.model_validate(data)
@@ -143,10 +144,34 @@ class OpenAIAdapter:
         )
         return parsed
 
+    def _log_usage(self, response: Any, *, model: str, schema_name: str) -> None:
+        usage = getattr(response, "usage", None)
+        server_side_tool_usage = getattr(response, "server_side_tool_usage", None)
+        if usage is None and server_side_tool_usage is None:
+            return
+        logger.info(
+            "Model call usage provider=%s model=%s schema=%s usage=%s server_side_tool_usage=%s",
+            self.provider,
+            model,
+            schema_name,
+            self._jsonable(usage),
+            self._jsonable(server_side_tool_usage),
+        )
+
     def _reasoning_payload(self, model: str, reasoning_effort: str) -> dict[str, str] | None:
         if self.provider == "xai" and model.startswith("grok-4.20-0309-"):
             return None
         return {"effort": reasoning_effort}
+
+    @staticmethod
+    def _jsonable(value: Any) -> Any:
+        if value is None:
+            return None
+        if hasattr(value, "model_dump"):
+            return value.model_dump()
+        if isinstance(value, dict):
+            return value
+        return str(value)
 
     @staticmethod
     def _extract_text(response: Any) -> str:

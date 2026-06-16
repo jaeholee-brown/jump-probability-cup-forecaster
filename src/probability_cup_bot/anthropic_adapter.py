@@ -80,6 +80,7 @@ class AnthropicAdapter:
                 ),
                 messages=[{"role": "user", "content": user_input}],
             )
+            self._log_usage(response, model=model, schema_name=schema_name)
             text = self._extract_text(response)
             data = _load_json_object(text)
             if isinstance(data, dict) and isinstance(data.get(schema_name), dict):
@@ -113,6 +114,18 @@ class AnthropicAdapter:
             time.perf_counter() - started_at,
         )
         return parsed
+
+    def _log_usage(self, response: Any, *, model: str, schema_name: str) -> None:
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return
+        logger.info(
+            "Model call usage provider=%s model=%s schema=%s usage=%s",
+            self.provider,
+            model,
+            schema_name,
+            usage.model_dump() if hasattr(usage, "model_dump") else str(usage),
+        )
 
     @staticmethod
     def _extract_text(response: Any) -> str:
