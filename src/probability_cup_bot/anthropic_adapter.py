@@ -7,13 +7,30 @@ from typing import Any, TypeVar
 
 from anthropic import APIConnectionError, APIStatusError, APITimeoutError, AsyncAnthropic, RateLimitError
 from pydantic import BaseModel, ValidationError
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from probability_cup_bot.openai_adapter import ModelOutputError
 
 
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
+
+
+def _is_retryable_exception(exc: BaseException) -> bool:
+    if isinstance(exc, (APIConnectionError, APITimeoutError, RateLimitError, ModelOutputError, TimeoutError)):
+        return True
+    if isinstance(exc, APIStatusError):
+        return exc.status_code >= 500
+    return False
+
+
+def _status_code(exc: BaseException) -> int | None:
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        return status
+    response = getattr(exc, "response", None)
+    response_status = getattr(response, "status_code", None)
+    return response_status if isinstance(response_status, int) else None
 
 
 class AnthropicAdapter:
@@ -24,9 +41,7 @@ class AnthropicAdapter:
         self.client = AsyncAnthropic(api_key=api_key)
 
     @retry(
-        retry=retry_if_exception_type(
-            (APIConnectionError, APIStatusError, APITimeoutError, ModelOutputError, RateLimitError, TimeoutError)
-        ),
+        retry=retry_if_exception(_is_retryable_exception),
         wait=wait_exponential(multiplier=1, min=2, max=30),
         stop=stop_after_attempt(5),
         reraise=True,
@@ -57,7 +72,6 @@ class AnthropicAdapter:
             response = await self.client.messages.create(
                 model=model,
                 max_tokens=4096,
-                temperature=0.2,
                 system=(
                     f"{instructions}\n\n"
                     f"Return only a JSON object named {schema_name} matching this JSON Schema. "
@@ -80,11 +94,12 @@ class AnthropicAdapter:
             raise ModelOutputError(f"Could not parse {schema_name}: {exc}\n{text[:2000]}") from exc
         except Exception as exc:
             logger.warning(
-                "Model call failed provider=%s model=%s schema=%s error_type=%s elapsed=%.1fs",
+                "Model call failed provider=%s model=%s schema=%s error_type=%s status=%s elapsed=%.1fs",
                 self.provider,
                 model,
                 schema_name,
                 type(exc).__name__,
+                _status_code(exc),
                 time.perf_counter() - started_at,
             )
             raise
