@@ -11,6 +11,10 @@ on:
         description: "List current matches/questions only; no LLM calls or submissions"
         required: false
         default: "false"
+      inspect_max_questions:
+        description: "Maximum questions to print when inspect_docket is true"
+        required: false
+        default: "2000"
   schedule:
     # Cheap monitor-only pass every 6 hours.
     - cron: "17 */6 * * *"
@@ -125,11 +129,12 @@ jobs:
         env:
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
           INPUT_INSPECT_DOCKET: ${{ github.event.inputs.inspect_docket }}
+          INPUT_INSPECT_MAX_QUESTIONS: ${{ github.event.inputs.inspect_max_questions }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
           if [ "$INPUT_INSPECT_DOCKET" = "true" ]; then
             echo "Forecast workflow mode=inspect_docket schedule='${EVENT_SCHEDULE}'"
-            probability-cup-bot inspect-docket --max-questions 220
+            probability-cup-bot inspect-docket --max-questions "${INPUT_INSPECT_MAX_QUESTIONS:-2000}"
           elif [ "$EVENT_SCHEDULE" = "17 */6 * * *" ]; then
             echo "Forecast workflow mode=news_monitor_only schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot run --news-monitor-only
