@@ -40,7 +40,7 @@ Important limitations:
    - optional The Odds API lookup;
    - xAI/Grok multi-agent web/X-search evidence summary when `XAI_API_KEY` exists;
    - OpenAI web-search evidence summary as fallback when Grok is unavailable;
-   - four forecasting variants per configured forecast provider;
+   - configurable forecasting variants per configured forecast provider;
    - log-odds aggregation;
    - mild extremization and evidence-quality shrinkage;
    - integer 1-99 conversion.
@@ -57,6 +57,8 @@ Default:
 - OpenAI forecast model: `gpt-5.5`.
 - Claude forecast model: `claude-opus-4-6`.
 - Fallback research/evidence model with OpenAI key: `gpt-5.4-mini`.
+- Default forecast variants: OpenAI x 1, Grok x 4, Claude x 1.
+- Full prompt-ensemble mode: set `OPENAI_FORECAST_VARIANTS=all` and/or `CLAUDE_FORECAST_VARIANTS=all`.
 - Grok-only mode is supported if `OPENAI_API_KEY` is absent.
 - Not used: `gpt-5.5-pro`.
 
@@ -84,7 +86,7 @@ Anthropic docs checked for current API behavior:
 - Halawi et al. show that retrieval plus reasoning scaffolding beats raw model prompting by a large Brier margin.
 - ForecastBench and Silicon Crowd show that aggregation and external crowd/market context are strong.
 - Prompt-engineering studies show base-rate/frequency/step-back prompts are the only prompt-only components worth keeping, and even those are modest.
-- ForecastBench and Silicon Crowd support cross-model aggregation more directly than prompt-variant-only ensembling, so the bot now runs prompt variants across OpenAI, Grok, and Claude when all three keys exist.
+- ForecastBench and Silicon Crowd support cross-model aggregation more directly than prompt-variant-only ensembling, so the bot defaults to cross-model diversity and spends extra prompt variants mainly on Grok, where the marginal cost is low.
 - Baron/Satopaa-style extremization motivates a mild log-odds extremization after aggregation.
 - Pitfalls papers warn against overfitting backtests and correlated bets, so live logs and per-market calibration matter.
 
@@ -113,9 +115,12 @@ Key environment controls:
 - `UPDATE_THRESHOLD_POINTS=2`: avoid noisy one-point updates.
 - `CONCURRENCY=4`: bound concurrent match forecasts.
 - `USE_GROK_RESEARCH=true`: use xAI multi-agent search for evidence when `XAI_API_KEY` exists.
-- `USE_OPENAI_FORECAST=true`: run all prompt variants with `gpt-5.5` when `OPENAI_API_KEY` exists.
-- `USE_GROK_FORECAST=true`: run all prompt variants with `grok-4.20-multi-agent-0309` when `XAI_API_KEY` exists.
-- `USE_CLAUDE_FORECAST=true`: run all prompt variants with `claude-opus-4-6` when `ANTHROPIC_API_KEY` exists.
+- `USE_OPENAI_FORECAST=true`: run configured variants with `gpt-5.5` when `OPENAI_API_KEY` exists.
+- `USE_GROK_FORECAST=true`: run configured variants with `grok-4.20-multi-agent-0309` when `XAI_API_KEY` exists.
+- `USE_CLAUDE_FORECAST=true`: run configured variants with `claude-opus-4-6` when `ANTHROPIC_API_KEY` exists.
+- `OPENAI_FORECAST_VARIANTS=base_rate_frequency`: comma-separated OpenAI variants, or `all`.
+- `GROK_FORECAST_VARIANTS=base_rate_frequency,balanced_scratchpad,late_information,coherence_checker`: comma-separated Grok variants, or `all`.
+- `CLAUDE_FORECAST_VARIANTS=base_rate_frequency`: comma-separated Claude variants, or `all`.
 - `EXTREMIZE_ALPHA=1.05`: mild log-odds extremization.
 - `BASE_SHRINKAGE=0.04`: mild shrinkage toward 50.
 - `LOW_EVIDENCE_SHRINKAGE=0.12`: stronger shrinkage when evidence is weak.

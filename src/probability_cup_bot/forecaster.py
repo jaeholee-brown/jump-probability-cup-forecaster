@@ -49,6 +49,7 @@ class ForecastModelSpec:
     name: str
     adapter: StructuredAdapter
     model: str
+    variants: tuple[str, ...]
     tools: list[dict[str, str]] | None = None
 
 
@@ -87,7 +88,7 @@ class MatchForecaster:
                 tools=spec.tools,
             )
             for spec in specs
-            for variant, variant_instruction in PROMPT_VARIANTS.items()
+            for variant, variant_instruction in self._variant_items(spec)
         ]
         batches = await asyncio.gather(*tasks, return_exceptions=True)
         valid_batches = [batch for batch in batches if isinstance(batch, ForecastBatch)]
@@ -149,6 +150,7 @@ class MatchForecaster:
                     name="openai",
                     adapter=self.openai,
                     model=self.settings.forecast_model,
+                    variants=self.settings.openai_forecast_variants,
                 )
             )
         if self.settings.use_grok_forecast and self.grok:
@@ -157,6 +159,7 @@ class MatchForecaster:
                     name="grok",
                     adapter=self.grok,
                     model=self.settings.grok_forecast_model,
+                    variants=self.settings.grok_forecast_variants,
                 )
             )
         if self.settings.use_claude_forecast and self.anthropic:
@@ -165,9 +168,20 @@ class MatchForecaster:
                     name="claude",
                     adapter=self.anthropic,
                     model=self.settings.claude_forecast_model,
+                    variants=self.settings.claude_forecast_variants,
                 )
             )
         return specs
+
+    @staticmethod
+    def _variant_items(spec: ForecastModelSpec) -> list[tuple[str, str]]:
+        variant_names = tuple(PROMPT_VARIANTS) if spec.variants == ("all",) else spec.variants
+        items = [(name, PROMPT_VARIANTS[name]) for name in variant_names if name in PROMPT_VARIANTS]
+        if not items:
+            available = ", ".join(PROMPT_VARIANTS)
+            requested = ", ".join(spec.variants)
+            raise ValueError(f"No valid prompt variants for {spec.name}: {requested}. Use one of: {available}")
+        return items
 
     def _aggregate(
         self,

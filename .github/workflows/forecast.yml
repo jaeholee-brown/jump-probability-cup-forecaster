@@ -36,6 +36,9 @@ jobs:
       USE_GROK_RESEARCH: "true"
       USE_GROK_FORECAST: "true"
       USE_CLAUDE_FORECAST: "true"
+      OPENAI_FORECAST_VARIANTS: base_rate_frequency
+      GROK_FORECAST_VARIANTS: base_rate_frequency,balanced_scratchpad,late_information,coherence_checker
+      CLAUDE_FORECAST_VARIANTS: base_rate_frequency
       REASONING_EFFORT: medium
       MAX_HOURS_TO_CLOSE: "168"
       ENABLE_UPDATE_GATE: "true"

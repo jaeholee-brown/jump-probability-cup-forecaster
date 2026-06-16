@@ -7,7 +7,7 @@ The bot:
 - discovers the Probability Cup event, lobby, open matches, and open markets;
 - gathers fresh public evidence with xAI/Grok multi-agent web/X search when `XAI_API_KEY` is available, with OpenAI web search as fallback;
 - can add optional structured bookmaker odds context before LLM research;
-- forecasts each match's markets with OpenAI, xAI, and Claude prompt-variant ensembles when keys are available;
+- forecasts each match's markets with a configurable OpenAI/xAI/Claude ensemble when keys are available;
 - aggregates forecasts in log-odds space, applies configurable calibration, and outputs 1-99 integer probabilities;
 - submits new predictions in `/predictions/batch` chunks and updates existing predictions before close;
 - skips already-fresh predictions unless they are stale, new, or close to kickoff;

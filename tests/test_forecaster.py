@@ -51,3 +51,8 @@ def test_forecaster_builds_cross_provider_specs() -> None:
         "grok-4.20-multi-agent-0309",
         "claude-opus-4-6",
     ]
+    assert [spec.variants for spec in specs] == [
+        ("base_rate_frequency",),
+        ("base_rate_frequency", "balanced_scratchpad", "late_information", "coherence_checker"),
+        ("base_rate_frequency",),
+    ]

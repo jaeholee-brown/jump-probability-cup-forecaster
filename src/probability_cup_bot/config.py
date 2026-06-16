@@ -24,6 +24,13 @@ def _float_env(name: str, default: float) -> float:
     return default if value is None or value == "" else float(value)
 
 
+def _csv_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
 @dataclass(frozen=True)
 class Settings:
     sportspredict_api_key: str
@@ -42,6 +49,14 @@ class Settings:
     use_grok_research: bool = True
     use_grok_forecast: bool = True
     use_claude_forecast: bool = True
+    openai_forecast_variants: tuple[str, ...] = ("base_rate_frequency",)
+    grok_forecast_variants: tuple[str, ...] = (
+        "base_rate_frequency",
+        "balanced_scratchpad",
+        "late_information",
+        "coherence_checker",
+    )
+    claude_forecast_variants: tuple[str, ...] = ("base_rate_frequency",)
     reasoning_effort: str = "medium"
     submit: bool = False
     max_matches_per_run: int = 0
@@ -87,6 +102,17 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         use_grok_research=_bool_env("USE_GROK_RESEARCH", True),
         use_grok_forecast=_bool_env("USE_GROK_FORECAST", True),
         use_claude_forecast=_bool_env("USE_CLAUDE_FORECAST", True),
+        openai_forecast_variants=_csv_env("OPENAI_FORECAST_VARIANTS", ("base_rate_frequency",)),
+        grok_forecast_variants=_csv_env(
+            "GROK_FORECAST_VARIANTS",
+            (
+                "base_rate_frequency",
+                "balanced_scratchpad",
+                "late_information",
+                "coherence_checker",
+            ),
+        ),
+        claude_forecast_variants=_csv_env("CLAUDE_FORECAST_VARIANTS", ("base_rate_frequency",)),
         reasoning_effort=os.getenv("REASONING_EFFORT", "medium"),
         submit=submit,
         max_matches_per_run=_int_env("MAX_MATCHES_PER_RUN", 0),

@@ -23,11 +23,13 @@ Current forecast ensemble:
 - `late_information`: overweight late-breaking lineups, injuries, odds shifts, tactical news, and weather.
 - `coherence_checker`: check related markets on the same match for obvious probability inconsistency.
 
-Each configured forecast provider now runs all four variants. With all keys present, that is 12 independent forecast batches per match-cycle:
+Default configured forecast providers do not all run all variants. The evidence says model diversity is more valuable than prompt-only diversity, so the workflow defaults to:
 
-- OpenAI `gpt-5.5` x 4 variants.
+- OpenAI `gpt-5.5` x 1 variant: `base_rate_frequency`.
 - xAI `grok-4.20-multi-agent-0309` x 4 variants.
-- Anthropic `claude-opus-4-6` x 4 variants.
+- Anthropic `claude-opus-4-6` x 1 variant: `base_rate_frequency`.
+
+Set `OPENAI_FORECAST_VARIANTS=all` or `CLAUDE_FORECAST_VARIANTS=all` for expensive full prompt ensembling when desired. With all keys present, the default is 6 forecast batches per match-cycle; full strong mode is 12.
 
 Stack ranking:
 
@@ -45,7 +47,8 @@ Recommended Jump stack:
 
 - Grok multi-agent primary research for every selected match.
 - Grok-only fallback mode if no OpenAI key exists.
-- If OpenAI and Claude budget are acceptable, run all four variants on GPT-5.5, Grok 4.20 Multi-Agent, and Claude Opus 4.6.
+- Default: run one high-quality `base_rate_frequency` forecast on GPT-5.5 and Claude Opus 4.6, plus all four Grok variants. This keeps model diversity while avoiding 4x paid-provider prompt costs.
+- Full strong mode: run all four variants on GPT-5.5, Grok 4.20 Multi-Agent, and Claude Opus 4.6 only for close-to-kickoff, high-disagreement, low-evidence, or manual high-value refreshes.
 - If paid budget gets tight, keep Grok on every selected match and reserve GPT-5.5/Claude for close-to-kickoff, high-disagreement, or high-value matches.
 
 ## 3. Blind Reruns vs Cheap Update Gate
@@ -118,29 +121,34 @@ Prices checked 2026-06-16:
 Assumptions:
 
 - One full match-cycle forecasts all markets for one match, about 9-10 markets.
-- Grok research call: 12K input tokens, 2K visible output tokens, 6K hidden reasoning tokens, and 3 web/X tool invocations.
-- Each forecast variant call: 14K input tokens and 4.2K billed output tokens, consisting of about 1.2K visible JSON/reasoning plus about 3K hidden reasoning tokens.
-- Full OpenAI/Grok/Claude cycle: one Grok research call plus 12 forecast calls.
-- Per match-cycle cost estimate: xAI research plus Grok forecasts about $0.162; OpenAI forecasts about $0.784; Claude forecasts about $0.700; full three-provider ensemble about $1.646.
+- Grok research call: 12K billed input tokens, 8K billed reasoning/completion tokens, and 3 web/X tool invocations.
+- Each forecast call: 12K billed input tokens. OpenAI and Grok forecast calls assume 3.5K billed reasoning/completion tokens at `REASONING_EFFORT=medium`; Claude defaults to no explicit extended-thinking parameter, so the base estimate uses 1.5K visible output tokens, with a sensitivity case of 3.5K if hidden/adaptive thinking is billed similarly.
+- xAI research cost: `12K * $1.25/M + 8K * $2.50/M + 3 * $5/1K = $0.050`.
+- OpenAI forecast call: `12K * $5/M + 3.5K * $30/M = $0.165`.
+- Grok forecast call: `12K * $1.25/M + 3.5K * $2.50/M = $0.0238`.
+- Claude forecast call: `12K * $5/M + 1.5K * $25/M = $0.0975`; sensitivity with 3.5K billed output is `$0.1475`.
+- Cross-model-only cycle: one Grok research call plus one forecast from each provider, about `$0.336`.
+- Default hybrid cycle: one Grok research call, four Grok variants, one OpenAI forecast, and one Claude forecast, about `$0.4075`.
+- Full strong cycle: one Grok research call plus four variants for all three providers, about `$1.195`.
 - Bot considers matches within the default 168-hour close window, not the full 919-hour event window.
 
 Approximate costs:
 
-| Scenario | Match full cycles | xAI-only | Full OpenAI/Grok/Claude | OpenAI share | Claude share | xAI share |
-|---|---:|---:|---:|---:|---:|---:|
-| Forecast once per match | 104 | $17 | $171 | $82 | $73 | $17 |
-| Blind hourly full reforecast, 168h window | 17,472 | $2,830 | $28,759 | $13,698 | $12,230 | $2,830 |
-| Blind half-hour full reforecast, 168h window | 34,944 | $5,661 | $57,518 | $27,396 | $24,461 | $5,661 |
-| Stateful gate upper bound: 168h window, 12h/8h/3h/final-hour cadence | 2,704 | $438 | $4,451 | $2,120 | $1,893 | $438 |
-| Selective strong-ensemble: about 10 full refreshes per match | 1,040 | $168 | $1,712 | $815 | $728 | $168 |
+| Scenario | Match cycles | Cross-model only | Default hybrid | Full strong mode |
+|---|---:|---:|---:|---:|
+| Forecast once per match | 104 | $35 | $42 | $124 |
+| Selective: 10 refreshes per match | 1,040 | $350 | $424 | $1,243 |
+| Expected stateful gate: 20 refreshes per match | 2,080 | $699 | $848 | $2,486 |
+| Stateful gate planning upper bound: about 26 refreshes per match | 2,704 | $909 | $1,102 | $3,231 |
+| Blind hourly within 168h window | 17,472 | $5,875 | $7,120 | $20,875 |
+
+Default hybrid per-cycle spend is approximately `$0.145` xAI, `$0.165` OpenAI, and `$0.098` Claude. The user's $2,500 xAI credit covers about 17,200 default-hybrid xAI match-cycles under these assumptions. The user's $500 Claude credit covers about 5,100 default Claude forecast calls, or about 3,400 calls under the higher hidden-output sensitivity case.
 
 Interpretation:
 
-- With $2,500 of xAI credit, Grok-only blind hourly is possible but not comfortably robust if reasoning/tool usage runs high.
-- With $500 of Claude credit, about 714 full Claude match-cycles are covered under the concrete token assumptions above. That is enough for once-per-match plus several selective refreshes, not enough for the stateful-gate upper bound across all 104 matches.
-- OpenAI remains the limiting marginal cost.
-- The best quality/cost compromise is stateful gating plus full OpenAI/Grok/Claude ensembling for new, uncertain, volatile, stale, and close-to-kickoff matches.
-- If costs climb, degrade gracefully by keeping Grok on all selected matches and using OpenAI/Claude only on high-value refreshes.
+- Prompt ensembling across OpenAI and Claude is the main marginal cost. Moving from cross-model-only to default hybrid costs only about `$0.071` per match-cycle because the extra variants are cheap Grok calls. Moving from default hybrid to full strong mode costs about `$0.788` more per match-cycle, mostly OpenAI and Claude.
+- Full strong mode needs to improve Brier enough to justify about 3x the default hybrid cost. The forecasting literature does not support that as a blanket default.
+- OpenAI remains the limiting paid marginal cost. The realistic default-hybrid stateful gate is likely a few hundred dollars of OpenAI spend over the tournament, not thousands, unless the gate is effectively disabled.
 
 ## Recommendation
 
@@ -148,6 +156,6 @@ Use Grok multi-agent as the research engine, keep direct odds as an anchor, ense
 
 1. Hourly GitHub Action.
 2. Stateful gate on by default.
-3. Full OpenAI/Grok/Claude ensemble on selected matches.
+3. Default hybrid OpenAI/Grok/Claude ensemble on selected matches.
 4. Full forecast on new markets, stale markets, material evidence changes, and all matches inside six hours to close.
 5. Aggregate in log-odds space, mildly extremize, and patch only changes of at least 2 points.
