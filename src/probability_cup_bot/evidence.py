@@ -27,9 +27,15 @@ def _similar(a: str, b: str) -> float:
 
 
 class EvidenceCollector:
-    def __init__(self, settings: Settings, openai: OpenAIAdapter) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        openai: OpenAIAdapter,
+        grok: OpenAIAdapter | None = None,
+    ) -> None:
         self.settings = settings
         self.openai = openai
+        self.grok = grok
 
     async def collect(self, match: Match, markets: list[Market]) -> MatchEvidence:
         odds_context = await self._odds_context(match)
@@ -48,14 +54,23 @@ class EvidenceCollector:
             ensure_ascii=True,
         )
         try:
-            evidence = await self.openai.structured_response(
-                model=self.settings.research_model,
+            adapter = self.grok if self.settings.use_grok_research and self.grok else self.openai
+            model = (
+                self.settings.grok_research_model
+                if adapter is self.grok
+                else self.settings.research_model
+            )
+            tools = [{"type": "web_search"}]
+            if adapter is self.grok:
+                tools.append({"type": "x_search"})
+            evidence = await adapter.structured_response(
+                model=model,
                 instructions=RESEARCH_INSTRUCTIONS,
                 user_input=user_input,
                 schema_model=MatchEvidence,
                 schema_name="match_evidence",
                 reasoning_effort="low",
-                tools=[{"type": "web_search"}],
+                tools=tools,
             )
         except Exception as exc:
             evidence = MatchEvidence(
@@ -154,4 +169,3 @@ class EvidenceCollector:
             if markets:
                 parts.append(f"{bookmaker.get('title')}: " + " | ".join(markets))
         return "\n".join(parts)
-

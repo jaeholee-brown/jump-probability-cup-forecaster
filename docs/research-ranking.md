@@ -39,6 +39,8 @@ ForecastBench Appendix E aggregates top model forecasts and finds geometric/log-
 
 The bot therefore runs separate prompt variants and combines probabilities in log-odds space. It applies configurable mild extremization (`EXTREMIZE_ALPHA=1.05`) and shrinkage when evidence is weak.
 
+Given the available Grok API budget and high rate limits, the implementation adds Grok 4.20 Multi-Agent as an optional evidence and ensemble provider. This is not because there is direct evidence that that exact model wins forecasting contests, but because the literature rewards independent information gathering and model diversity, and xAI's multi-agent model is explicitly designed for parallel deep research.
+
 ### 4. Base rates are the best prompt-only ingredient
 
 Schoenegger, Jones, Tetlock, and Mellers, "Prompt Engineering Large Language Models' Forecasting Capabilities" ([arXiv:2506.01578](https://arxiv.org/abs/2506.01578)), is the most directly relevant prompt-only study. It tested 38 prompts in Study 1 across Claude 3.5 Sonnet, Claude 3.5 Haiku, GPT-4o, and Llama 3.1 405B on 100 ForecastBench questions. The strict mixed-effects model found only negative significant prompt effects; the simpler one-sample test found Frequency-Based Reasoning, Base Rate First, and Step-Back improved Brier after correction.
@@ -81,4 +83,3 @@ That is why the system forecasts per match, checks related markets, and should a
 - Self-consistency inside a single prompt.
 - Pure superforecaster persona without data.
 - Tipping, emotional stakes, deep-breath-only, or other weak prompt hacks.
-

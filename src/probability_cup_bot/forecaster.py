@@ -22,9 +22,15 @@ CONFIDENCE_WEIGHT = {"low": 0.85, "medium": 1.0, "high": 1.15}
 
 
 class MatchForecaster:
-    def __init__(self, settings: Settings, openai: OpenAIAdapter) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        openai: OpenAIAdapter,
+        grok: OpenAIAdapter | None = None,
+    ) -> None:
         self.settings = settings
         self.openai = openai
+        self.grok = grok
 
     async def forecast_match(
         self,
@@ -33,13 +39,35 @@ class MatchForecaster:
         markets: list[Market],
         evidence: MatchEvidence,
     ) -> list[AggregatedForecast]:
-        batches = await asyncio.gather(
-            *[
-                self._forecast_variant(match, markets, evidence, variant, variant_instruction)
-                for variant, variant_instruction in PROMPT_VARIANTS.items()
-            ],
-            return_exceptions=True,
-        )
+        tasks = [
+            self._forecast_variant(
+                match,
+                markets,
+                evidence,
+                variant,
+                variant_instruction,
+                adapter=self.openai,
+                model=self.settings.forecast_model,
+            )
+            for variant, variant_instruction in PROMPT_VARIANTS.items()
+        ]
+        if self.settings.use_grok_forecast and self.grok:
+            tasks.append(
+                self._forecast_variant(
+                    match,
+                    markets,
+                    evidence,
+                    "grok_multi_agent_check",
+                    (
+                        "Use Grok multi-agent research strengths to independently challenge the "
+                        "evidence, find missing current information, and produce calibrated forecasts."
+                    ),
+                    adapter=self.grok,
+                    model=self.settings.grok_forecast_model,
+                    tools=[{"type": "web_search"}, {"type": "x_search"}],
+                )
+            )
+        batches = await asyncio.gather(*tasks, return_exceptions=True)
         valid_batches = [batch for batch in batches if isinstance(batch, ForecastBatch)]
         if not valid_batches:
             raise RuntimeError(f"No valid forecasts produced for {match.name}")
@@ -52,6 +80,10 @@ class MatchForecaster:
         evidence: MatchEvidence,
         variant: str,
         variant_instruction: str,
+        *,
+        adapter: OpenAIAdapter,
+        model: str,
+        tools: list[dict[str, str]] | None = None,
     ) -> ForecastBatch:
         instructions = f"{FORECASTING_INSTRUCTIONS}\n\nVariant emphasis:\n{variant_instruction}"
         user_input = json.dumps(
@@ -74,16 +106,17 @@ class MatchForecaster:
             },
             ensure_ascii=True,
         )
-        batch = await self.openai.structured_response(
-            model=self.settings.forecast_model,
+        batch = await adapter.structured_response(
+            model=model,
             instructions=instructions,
             user_input=user_input,
             schema_model=ForecastBatch,
             schema_name="forecast_batch",
             reasoning_effort=self.settings.reasoning_effort,
+            tools=tools,
         )
         batch.prompt_variant = variant
-        batch.model = self.settings.forecast_model
+        batch.model = model
         return batch
 
     def _aggregate(
@@ -154,4 +187,3 @@ class MatchForecaster:
         order = {"low": 0, "medium": 1, "high": 2}
         counts = {value: values.count(value) for value in set(values)}
         return max(counts, key=lambda value: (counts[value], order.get(value, 1)))
-

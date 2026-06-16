@@ -23,10 +23,15 @@ jobs:
     env:
       SPORTSPREDICT_API_KEY: ${{ secrets.SPORTSPREDICT_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
       ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
       SUBMIT: "true"
       FORECAST_MODEL: gpt-5.5
       RESEARCH_MODEL: gpt-5.4-mini
+      GROK_RESEARCH_MODEL: grok-4.20-multi-agent-0309
+      GROK_FORECAST_MODEL: grok-4.20-multi-agent-0309
+      USE_GROK_RESEARCH: "true"
+      USE_GROK_FORECAST: "true"
       REASONING_EFFORT: medium
       MAX_HOURS_TO_CLOSE: "168"
       UPDATE_THRESHOLD_POINTS: "2"
@@ -65,4 +70,3 @@ jobs:
             logs/
             state/
           if-no-files-found: ignore
-

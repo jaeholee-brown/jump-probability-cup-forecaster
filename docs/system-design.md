@@ -53,6 +53,7 @@ Default:
 
 - Research/evidence model: `gpt-5.4-mini`.
 - Forecast model: `gpt-5.5`.
+- Optional high-volume research/ensemble model: `grok-4.20-multi-agent-0309` via xAI when `XAI_API_KEY` is set.
 - Not used: `gpt-5.5-pro`.
 
 OpenAI docs checked for current API behavior:
@@ -61,6 +62,13 @@ OpenAI docs checked for current API behavior:
 - The [Responses API docs](https://developers.openai.com/api/reference/responses/overview/) describe direct text/structured/tool-using requests.
 - The [structured outputs docs](https://developers.openai.com/api/docs/guides/structured-outputs) recommend Structured Outputs over JSON mode when schema adherence matters.
 - The [web search tool docs](https://developers.openai.com/api/docs/guides/tools-web-search) show `tools: [{"type": "web_search"}]` for current Responses integrations.
+
+xAI docs checked for current API behavior:
+
+- The [xAI quickstart](https://docs.x.ai/developers/quickstart) documents OpenAI-compatible SDK usage with `base_url="https://api.x.ai/v1"`.
+- The [Grok 4.20 Multi-Agent model page](https://docs.x.ai/developers/models/grok-4.20-multi-agent-beta-0309) lists the multi-agent model as a deep-research model with a 1M context window and structured outputs.
+- The [multi-agent guide](https://docs.x.ai/developers/model-capabilities/text/multi-agent) recommends `grok-4.20-multi-agent` for coordinated research.
+- The [xAI web search docs](https://docs.x.ai/developers/tools/web-search) and [X search docs](https://docs.x.ai/developers/tools/x-search) list `web_search` and `x_search` tools for OpenAI-compatible Responses API calls.
 
 ## Why This Architecture Matches the Literature
 
@@ -82,6 +90,7 @@ Repository secrets:
 
 - `SPORTSPREDICT_API_KEY`
 - `OPENAI_API_KEY`
+- optional `XAI_API_KEY`
 - optional `ODDS_API_KEY`
 
 Key environment controls:
@@ -90,6 +99,8 @@ Key environment controls:
 - `MAX_HOURS_TO_CLOSE=168`: forecast next seven days by default.
 - `UPDATE_THRESHOLD_POINTS=2`: avoid noisy one-point updates.
 - `CONCURRENCY=4`: bound concurrent match forecasts.
+- `USE_GROK_RESEARCH=true`: use xAI multi-agent search for evidence when `XAI_API_KEY` exists.
+- `USE_GROK_FORECAST=true`: add one Grok forecast variant to the ensemble when `XAI_API_KEY` exists.
 - `EXTREMIZE_ALPHA=1.05`: mild log-odds extremization.
 - `BASE_SHRINKAGE=0.04`: mild shrinkage toward 50.
 - `LOW_EVIDENCE_SHRINKAGE=0.12`: stronger shrinkage when evidence is weak.
@@ -102,4 +113,3 @@ Key environment controls:
 4. Persist historical odds snapshots and detect meaningful odds moves before updating.
 5. Add a second bot key with an intentionally different strategy if platform rules allow two bots per user.
 6. Add a nightly calibration report that decomposes Brier score by confidence bin and market type.
-

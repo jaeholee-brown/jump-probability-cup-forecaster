@@ -38,10 +38,11 @@ def _strict_schema(schema: dict[str, Any]) -> dict[str, Any]:
 
 
 class OpenAIAdapter:
-    def __init__(self, api_key: str) -> None:
+    def __init__(self, api_key: str, *, base_url: str | None = None, provider: str = "openai") -> None:
         if not api_key:
-            raise ModelOutputError("OPENAI_API_KEY is required")
-        self.client = AsyncOpenAI(api_key=api_key)
+            raise ModelOutputError(f"{provider} API key is required")
+        self.provider = provider
+        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     @retry(
         retry=retry_if_exception_type((ModelOutputError, TimeoutError)),
@@ -96,4 +97,3 @@ class OpenAIAdapter:
         if chunks:
             return "\n".join(chunks)
         return str(response)
-

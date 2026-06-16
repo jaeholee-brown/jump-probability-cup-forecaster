@@ -5,8 +5,8 @@ from probability_cup_bot.runner import ForecastRunner
 
 def test_plan_writes_creates_updates_and_skips() -> None:
     settings = Settings(
-        sportspredict_api_key="sp_live_test",
-        openai_api_key="sk_test",
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
         update_threshold_points=2,
     )
     runner = ForecastRunner(settings)
@@ -53,4 +53,3 @@ def test_plan_writes_creates_updates_and_skips() -> None:
     assert len(plan["updates"]) == 1
     assert plan["updates"][0]["prediction_id"] == "pred_update"
     assert len(plan["skips"]) == 1
-

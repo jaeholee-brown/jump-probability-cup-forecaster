@@ -26,9 +26,18 @@ class ForecastRunner:
             api_key=self.settings.sportspredict_api_key,
         )
         try:
-            openai = OpenAIAdapter(self.settings.openai_api_key)
-            evidence_collector = EvidenceCollector(self.settings, openai)
-            forecaster = MatchForecaster(self.settings, openai)
+            openai = OpenAIAdapter(self.settings.openai_api_key, provider="openai")
+            grok = (
+                OpenAIAdapter(
+                    self.settings.xai_api_key,
+                    base_url=self.settings.xai_base_url,
+                    provider="xai",
+                )
+                if self.settings.xai_api_key
+                else None
+            )
+            evidence_collector = EvidenceCollector(self.settings, openai, grok)
+            forecaster = MatchForecaster(self.settings, openai, grok)
 
             event = await sp.find_event(self.settings.event_title)
             lobby = await sp.ensure_lobby(event.id)
@@ -211,4 +220,3 @@ class ForecastRunner:
             update_results.append(updated.model_dump())
 
         return {"mode": "submitted", "creates": create_results, "updates": update_results}
-

@@ -6,6 +6,7 @@ The bot:
 
 - discovers the Probability Cup event, lobby, open matches, and open markets;
 - gathers fresh public evidence with OpenAI web search and optional odds data;
+- uses optional xAI/Grok multi-agent research and forecast calls when `XAI_API_KEY` is available;
 - forecasts each match's markets with multiple prompt variants;
 - aggregates forecasts in log-odds space, applies configurable calibration, and outputs 1-99 integer probabilities;
 - submits new predictions in `/predictions/batch` chunks and updates existing predictions before close;
@@ -18,6 +19,7 @@ The bot:
 3. Copy `.env.example` to `.env` for local runs, or add GitHub repository secrets:
    - `SPORTSPREDICT_API_KEY`
    - `OPENAI_API_KEY`
+   - optional `XAI_API_KEY`
    - optional `ODDS_API_KEY`
 4. Install and run:
 
@@ -37,6 +39,8 @@ SUBMIT=true probability-cup-bot run
 ## GitHub Action
 
 The workflow in `.github/workflows/forecast.yml` runs hourly and can also be started manually from the Actions tab. It dry-runs unless `SUBMIT=true` is set in the workflow environment and the required secrets exist.
+
+The SportsPredict key should be stored only as a repository secret. Do not put it in the repo or logs.
 
 ## Main Documents
 
