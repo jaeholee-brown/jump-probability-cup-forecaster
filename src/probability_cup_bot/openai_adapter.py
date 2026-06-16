@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import time
 from typing import Any, TypeVar
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI, RateLimitError
@@ -9,6 +11,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 
 T = TypeVar("T", bound=BaseModel)
+logger = logging.getLogger(__name__)
 
 
 class ModelOutputError(RuntimeError):
@@ -63,28 +66,63 @@ class OpenAIAdapter:
         reasoning_effort: str = "medium",
         tools: list[dict[str, Any]] | None = None,
     ) -> T:
-        schema = _strict_schema(schema_model.model_json_schema())
-        response = await self.client.responses.create(
-            model=model,
-            instructions=instructions,
-            input=user_input,
-            tools=tools or [],
-            reasoning={"effort": reasoning_effort},
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": schema_name,
-                    "schema": schema,
-                    "strict": True,
-                }
-            },
+        started_at = time.perf_counter()
+        tool_count = len(tools or [])
+        logger.info(
+            "Model call start provider=%s model=%s schema=%s tools=%d reasoning=%s",
+            self.provider,
+            model,
+            schema_name,
+            tool_count,
+            reasoning_effort,
         )
-        text = getattr(response, "output_text", None) or self._extract_text(response)
         try:
+            schema = _strict_schema(schema_model.model_json_schema())
+            response = await self.client.responses.create(
+                model=model,
+                instructions=instructions,
+                input=user_input,
+                tools=tools or [],
+                reasoning={"effort": reasoning_effort},
+                text={
+                    "format": {
+                        "type": "json_schema",
+                        "name": schema_name,
+                        "schema": schema,
+                        "strict": True,
+                    }
+                },
+            )
+            text = getattr(response, "output_text", None) or self._extract_text(response)
             data = json.loads(text)
-            return schema_model.model_validate(data)
+            parsed = schema_model.model_validate(data)
         except (json.JSONDecodeError, ValidationError) as exc:
+            logger.warning(
+                "Model call failed provider=%s model=%s schema=%s error_type=ModelOutputError elapsed=%.1fs",
+                self.provider,
+                model,
+                schema_name,
+                time.perf_counter() - started_at,
+            )
             raise ModelOutputError(f"Could not parse {schema_name}: {exc}\n{text[:2000]}") from exc
+        except Exception as exc:
+            logger.warning(
+                "Model call failed provider=%s model=%s schema=%s error_type=%s elapsed=%.1fs",
+                self.provider,
+                model,
+                schema_name,
+                type(exc).__name__,
+                time.perf_counter() - started_at,
+            )
+            raise
+        logger.info(
+            "Model call end provider=%s model=%s schema=%s elapsed=%.1fs",
+            self.provider,
+            model,
+            schema_name,
+            time.perf_counter() - started_at,
+        )
+        return parsed
 
     @staticmethod
     def _extract_text(response: Any) -> str:

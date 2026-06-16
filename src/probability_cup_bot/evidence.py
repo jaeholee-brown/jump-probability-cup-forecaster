@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import time
 from datetime import timezone
 from difflib import SequenceMatcher
 from typing import Any
@@ -14,6 +16,8 @@ from probability_cup_bot.models import Match, MatchEvidence, Market, utcnow
 from probability_cup_bot.openai_adapter import OpenAIAdapter
 from probability_cup_bot.prompts import RESEARCH_INSTRUCTIONS
 
+
+logger = logging.getLogger(__name__)
 
 RESEARCH_PASS_TASKS: dict[str, str] = {
     "overview": (
@@ -77,6 +81,15 @@ class EvidenceCollector:
         cached_news_context: str = "",
         firecrawl_context_override: str | None = None,
     ) -> MatchEvidence:
+        started_at = time.perf_counter()
+        logger.info(
+            "Evidence start match_id=%s match=%r markets=%d use_firecrawl=%s cached_news=%s",
+            match.id,
+            " ".join(match.name.split())[:120],
+            len(markets),
+            use_firecrawl and firecrawl_context_override is None,
+            bool(cached_news_context),
+        )
         odds_context = await self._odds_context(match)
         if firecrawl_context_override is not None:
             firecrawl_context = firecrawl_context_override
@@ -84,7 +97,7 @@ class EvidenceCollector:
             firecrawl_context = await self._firecrawl_context(match, markets) if use_firecrawl else ""
         adapter = self.grok if self.settings.use_grok_research and self.grok else self.openai
         if adapter is None:
-            return MatchEvidence(
+            evidence = MatchEvidence(
                 match_id=match.id,
                 match_name=match.name,
                 generated_at=utcnow().isoformat(),
@@ -94,10 +107,22 @@ class EvidenceCollector:
                 items=[],
                 evidence_quality="low",
             )
+            logger.info(
+                "Evidence end match_id=%s quality=low facts=0 items=0 reason=no_adapter elapsed=%.1fs",
+                match.id,
+                time.perf_counter() - started_at,
+            )
+            return evidence
 
         pass_names = self.settings.grok_research_passes if adapter.provider == "xai" else ("overview",)
         if not pass_names:
             pass_names = ("overview",)
+        logger.info(
+            "Evidence research passes match_id=%s provider=%s passes=%s",
+            match.id,
+            adapter.provider,
+            ",".join(pass_names),
+        )
         results = await asyncio.gather(
             *[
                 self._research_pass(
@@ -113,12 +138,24 @@ class EvidenceCollector:
             ],
             return_exceptions=True,
         )
+        failed_passes = sum(isinstance(result, Exception) for result in results)
         evidences = [result for result in results if isinstance(result, MatchEvidence)]
         if evidences:
-            return self._merge_evidence(match, odds_context, evidences)
+            evidence = self._merge_evidence(match, odds_context, evidences)
+            logger.info(
+                "Evidence end match_id=%s quality=%s facts=%d items=%d passes=%d failed_passes=%d elapsed=%.1fs",
+                match.id,
+                evidence.evidence_quality,
+                len(evidence.key_facts),
+                len(evidence.items),
+                len(evidences),
+                failed_passes,
+                time.perf_counter() - started_at,
+            )
+            return evidence
 
         failures = "; ".join(str(result)[:300] for result in results if isinstance(result, Exception))
-        return MatchEvidence(
+        evidence = MatchEvidence(
             match_id=match.id,
             match_name=match.name,
             generated_at=utcnow().isoformat(),
@@ -128,6 +165,13 @@ class EvidenceCollector:
             items=[],
             evidence_quality="low",
         )
+        logger.warning(
+            "Evidence end match_id=%s quality=low facts=0 items=0 passes=0 failed_passes=%d elapsed=%.1fs",
+            match.id,
+            failed_passes,
+            time.perf_counter() - started_at,
+        )
+        return evidence
 
     async def firecrawl_context(self, match: Match, markets: list[Market]) -> str:
         return await self._firecrawl_context(match, markets)
@@ -164,15 +208,36 @@ class EvidenceCollector:
         reasoning_effort = (
             self.settings.grok_research_reasoning_effort if adapter.provider == "xai" else "low"
         )
-        evidence = await adapter.structured_response(
-            model=model,
-            instructions=f"{RESEARCH_INSTRUCTIONS}\n\nResearch pass focus:\n{research_task}",
-            user_input=user_input,
-            schema_model=MatchEvidence,
-            schema_name="match_evidence",
-            reasoning_effort=reasoning_effort,
-            tools=tools,
+        started_at = time.perf_counter()
+        logger.info(
+            "Evidence research pass start match_id=%s pass=%s provider=%s model=%s tools=%d",
+            match.id,
+            pass_name,
+            adapter.provider,
+            model,
+            len(tools),
         )
+        try:
+            evidence = await adapter.structured_response(
+                model=model,
+                instructions=f"{RESEARCH_INSTRUCTIONS}\n\nResearch pass focus:\n{research_task}",
+                user_input=user_input,
+                schema_model=MatchEvidence,
+                schema_name="match_evidence",
+                reasoning_effort=reasoning_effort,
+                tools=tools,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Evidence research pass failed match_id=%s pass=%s provider=%s model=%s error_type=%s elapsed=%.1fs",
+                match.id,
+                pass_name,
+                adapter.provider,
+                model,
+                type(exc).__name__,
+                time.perf_counter() - started_at,
+            )
+            raise
         if not evidence.match_id:
             evidence.match_id = match.id
         if not evidence.match_name:
@@ -180,6 +245,15 @@ class EvidenceCollector:
         if odds_context and not evidence.odds_context:
             evidence.odds_context = odds_context
         evidence.query_summary = f"[{pass_name}] {evidence.query_summary}"
+        logger.info(
+            "Evidence research pass end match_id=%s pass=%s quality=%s facts=%d items=%d elapsed=%.1fs",
+            match.id,
+            pass_name,
+            evidence.evidence_quality,
+            len(evidence.key_facts),
+            len(evidence.items),
+            time.perf_counter() - started_at,
+        )
         return evidence
 
     def _merge_evidence(
@@ -239,7 +313,14 @@ class EvidenceCollector:
         queries = self._firecrawl_queries(match, markets)[: self.settings.firecrawl_search_queries]
         contexts: list[str] = []
         total_credits = 0
-        for query in queries:
+        logger.info("Firecrawl evidence start match_id=%s queries=%d", match.id, len(queries))
+        for index, query in enumerate(queries, start=1):
+            logger.info(
+                "Firecrawl evidence query start match_id=%s query=%d/%d",
+                match.id,
+                index,
+                len(queries),
+            )
             try:
                 results, credits = await self.firecrawl.search(
                     query,
@@ -248,14 +329,36 @@ class EvidenceCollector:
                     tbs="qdr:w,sbd:1",
                 )
             except Exception as exc:
+                logger.warning(
+                    "Firecrawl evidence query failed match_id=%s query=%d/%d error_type=%s",
+                    match.id,
+                    index,
+                    len(queries),
+                    type(exc).__name__,
+                )
                 contexts.append(f"Firecrawl query failed for {query!r}: {exc}")
                 continue
             total_credits += credits
+            logger.info(
+                "Firecrawl evidence query end match_id=%s query=%d/%d results=%d credits=%d",
+                match.id,
+                index,
+                len(queries),
+                len(results),
+                credits,
+            )
             rendered = "\n".join(result.compact() for result in results[: self.settings.firecrawl_search_limit])
             if rendered:
                 contexts.append(f"Firecrawl query: {query}\n{rendered}")
         if not contexts:
+            logger.info("Firecrawl evidence end match_id=%s contexts=0 credits=%d", match.id, total_credits)
             return ""
+        logger.info(
+            "Firecrawl evidence end match_id=%s contexts=%d credits=%d",
+            match.id,
+            len(contexts),
+            total_credits,
+        )
         return f"Firecrawl credits used: {total_credits}\n" + "\n\n".join(contexts)
 
     @staticmethod

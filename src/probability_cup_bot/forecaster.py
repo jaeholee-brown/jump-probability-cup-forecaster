@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Protocol, TypeVar
@@ -22,6 +24,8 @@ from probability_cup_bot.openai_adapter import OpenAIAdapter
 from probability_cup_bot.prompts import FORECASTING_INSTRUCTIONS, PROMPT_VARIANTS
 from probability_cup_bot.scoring import probability_to_int
 
+
+logger = logging.getLogger(__name__)
 
 QUALITY_WEIGHT = {"low": 0.7, "medium": 1.0, "high": 1.25}
 CONFIDENCE_WEIGHT = {"low": 0.85, "medium": 1.0, "high": 1.15}
@@ -78,9 +82,24 @@ class MatchForecaster:
         markets: list[Market],
         evidence: MatchEvidence,
     ) -> list[AggregatedForecast]:
+        started_at = time.perf_counter()
         specs = self._forecast_model_specs()
         if not specs:
             raise RuntimeError("Set at least one forecast model API key before running forecasts.")
+
+        call_specs = [
+            (spec, variant, variant_instruction)
+            for spec in specs
+            for variant, variant_instruction in self._variant_items(spec)
+        ]
+        logger.info(
+            "Forecast start match_id=%s match=%r markets=%d models=%d variant_calls=%d",
+            match.id,
+            " ".join(match.name.split())[:120],
+            len(markets),
+            len(specs),
+            len(call_specs),
+        )
         tasks = [
             self._forecast_variant(
                 match,
@@ -94,14 +113,29 @@ class MatchForecaster:
                 weight=spec.weight,
                 tools=spec.tools,
             )
-            for spec in specs
-            for variant, variant_instruction in self._variant_items(spec)
+            for spec, variant, variant_instruction in call_specs
         ]
         batches = await asyncio.gather(*tasks, return_exceptions=True)
         valid_batches = [batch for batch in batches if isinstance(batch, ForecastBatch)]
+        failed_calls = sum(isinstance(batch, Exception) for batch in batches)
         if not valid_batches:
+            logger.warning(
+                "Forecast failed match_id=%s valid_batches=0 failed_calls=%d elapsed=%.1fs",
+                match.id,
+                failed_calls,
+                time.perf_counter() - started_at,
+            )
             raise RuntimeError(f"No valid forecasts produced for {match.name}")
-        return self._aggregate(markets, valid_batches)
+        forecasts = self._aggregate(markets, valid_batches)
+        logger.info(
+            "Forecast end match_id=%s forecasts=%d valid_calls=%d failed_calls=%d elapsed=%.1fs",
+            match.id,
+            len(forecasts),
+            len(valid_batches),
+            failed_calls,
+            time.perf_counter() - started_at,
+        )
+        return forecasts
 
     async def _forecast_variant(
         self,
@@ -138,19 +172,49 @@ class MatchForecaster:
             },
             ensure_ascii=True,
         )
-        batch = await adapter.structured_response(
-            model=model,
-            instructions=instructions,
-            user_input=user_input,
-            schema_model=ForecastBatch,
-            schema_name="forecast_batch",
-            reasoning_effort=self.settings.reasoning_effort,
-            tools=tools,
+        started_at = time.perf_counter()
+        logger.info(
+            "Forecast variant start match_id=%s provider=%s model=%s variant=%s markets=%d",
+            match.id,
+            provider,
+            model,
+            variant,
+            len(markets),
         )
+        try:
+            batch = await adapter.structured_response(
+                model=model,
+                instructions=instructions,
+                user_input=user_input,
+                schema_model=ForecastBatch,
+                schema_name="forecast_batch",
+                reasoning_effort=self.settings.reasoning_effort,
+                tools=tools,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Forecast variant failed match_id=%s provider=%s model=%s variant=%s error_type=%s elapsed=%.1fs",
+                match.id,
+                provider,
+                model,
+                variant,
+                type(exc).__name__,
+                time.perf_counter() - started_at,
+            )
+            raise
         batch.prompt_variant = variant
         batch.model = model
         batch.provider = provider
         batch.weight = weight
+        logger.info(
+            "Forecast variant end match_id=%s provider=%s model=%s variant=%s forecasts=%d elapsed=%.1fs",
+            match.id,
+            provider,
+            model,
+            variant,
+            len(batch.forecasts),
+            time.perf_counter() - started_at,
+        )
         return batch
 
     def _forecast_model_specs(self) -> list[ForecastModelSpec]:

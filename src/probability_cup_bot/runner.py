@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from collections import defaultdict
 from dataclasses import asdict
@@ -20,6 +21,8 @@ from probability_cup_bot.sportspredict import SportsPredictClient, chunks
 from probability_cup_bot.state import ensure_dirs, read_json, timestamp_slug, write_json
 
 
+logger = logging.getLogger(__name__)
+
 VOLATILE_MARKET_TERMS = (
     "assist",
     "booking",
@@ -36,12 +39,23 @@ VOLATILE_MARKET_TERMS = (
 )
 
 
+def _safe_match_name(match: Match) -> str:
+    return " ".join(match.name.split())[:120]
+
+
 class ForecastRunner:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
     async def run(self) -> dict[str, Any]:
         ensure_dirs(self.settings.state_dir, self.settings.logs_dir)
+        logger.info(
+            "Run start event_title=%r dry_run=%s max_matches=%s concurrency=%d",
+            self.settings.event_title,
+            not self.settings.can_submit,
+            self.settings.max_matches_per_run or "unlimited",
+            self.settings.concurrency,
+        )
         sp = SportsPredictClient(
             base_url=self.settings.sportspredict_base_url,
             api_key=self.settings.sportspredict_api_key,
@@ -67,17 +81,29 @@ class ForecastRunner:
                 if self.settings.anthropic_api_key
                 else None
             )
+            logger.info(
+                "Model adapters configured openai=%s xai=%s anthropic=%s",
+                openai is not None,
+                grok is not None,
+                anthropic is not None,
+            )
             if openai is None and grok is None and anthropic is None:
                 raise RuntimeError(
                     "Set OPENAI_API_KEY, XAI_API_KEY, or ANTHROPIC_API_KEY before running forecasts."
                 )
             if self.settings.firecrawl_api_key and self.settings.use_firecrawl_retrieval:
                 firecrawl = FirecrawlClient(self.settings.firecrawl_api_key)
+            logger.info("Firecrawl retrieval enabled=%s", firecrawl is not None)
             previous_calibration = read_json(self.settings.state_dir / "calibration-report.json", {})
             if self.settings.apply_calibration_weights:
                 calibration_multipliers = previous_calibration.get("suggested_multipliers") or {}
             else:
                 calibration_multipliers = {}
+            logger.info(
+                "Loaded calibration multipliers enabled=%s count=%d",
+                self.settings.apply_calibration_weights,
+                len(calibration_multipliers),
+            )
             evidence_collector = EvidenceCollector(self.settings, openai, grok, firecrawl)
             forecaster = MatchForecaster(
                 self.settings,
@@ -87,20 +113,45 @@ class ForecastRunner:
                 calibration_multipliers=calibration_multipliers,
             )
 
+            logger.info("Fetching event")
             event = await sp.find_event(self.settings.event_title, self.settings.event_id)
+            logger.info("Fetched event id=%s title=%r", event.id, event.title)
+            logger.info("Fetching lobby event_id=%s", event.id)
             lobby = await sp.ensure_lobby(event.id)
+            logger.info("Fetched lobby id=%s joined=%s", lobby.id, lobby.joined)
+            logger.info("Fetching matches event_id=%s lobby_id=%s", event.id, lobby.id)
             matches = await sp.list_matches(event.id, lobby.id)
+            logger.info("Fetched matches count=%d", len(matches))
+            logger.info("Fetching markets lobby_id=%s", lobby.id)
             all_markets = await sp.list_markets(lobby.id)
+            logger.info(
+                "Fetched markets count=%d open=%d",
+                len(all_markets),
+                sum(1 for market in all_markets if market.status == "open"),
+            )
+            logger.info("Fetching predictions lobby_id=%s", lobby.id)
             existing_predictions = await sp.list_predictions(lobby.id)
+            logger.info("Fetched predictions count=%d", len(existing_predictions))
             history = read_json(self.settings.state_dir / "forecast-history.json", {})
             news_cache = read_json(self.settings.state_dir / "news-cache.json", {"matches": {}})
+            logger.info(
+                "Loaded state history_matches=%d news_cache_matches=%d",
+                len(history.get("matches") or {}),
+                len(news_cache.get("matches") or {}),
+            )
 
             selected = self._select_matches(matches, all_markets, existing_predictions, history)
+            logger.info(
+                "Selected matches count=%d markets=%d",
+                len(selected),
+                sum(len(markets) for _, markets in selected),
+            )
             news_monitor = (
                 GrokNewsMonitor(self.settings, grok)
                 if self.settings.use_grok_news_monitor and grok is not None
                 else None
             )
+            pre_news_selected_count = len(selected)
             selected, news_cache, news_checks = await self._augment_selected_with_news_monitor(
                 selected=selected,
                 matches=matches,
@@ -111,6 +162,12 @@ class ForecastRunner:
                 news_monitor=news_monitor,
                 firecrawl=firecrawl,
             )
+            logger.info(
+                "Selection after news monitor matches=%d promoted=%d checks=%d",
+                len(selected),
+                max(0, len(selected) - pre_news_selected_count),
+                len(news_checks),
+            )
             forecast_results = await self._forecast_selected(
                 selected=selected,
                 evidence_collector=evidence_collector,
@@ -118,6 +175,7 @@ class ForecastRunner:
                 history=history,
                 news_cache=news_cache,
             )
+            logger.info("Forecasting complete forecasts=%d", len(forecast_results))
             plan = self._plan_writes(
                 forecasts=forecast_results,
                 existing_predictions=existing_predictions,
@@ -157,13 +215,19 @@ class ForecastRunner:
                 },
                 "forecasts": [forecast.model_dump() for forecast in forecast_results],
             }
+            logger.info("Writing run artifacts logs_dir=%s state_dir=%s", self.settings.logs_dir, self.settings.state_dir)
             write_json(self.settings.state_dir / "forecast-history.json", history)
             write_json(self.settings.state_dir / "news-cache.json", news_cache)
             write_json(self.settings.state_dir / "calibration-report.json", calibration_report)
             write_json(self.settings.logs_dir / f"calibration-{timestamp_slug()}.json", calibration_report)
             write_json(self.settings.logs_dir / f"run-{timestamp_slug()}.json", run_log)
             write_json(self.settings.state_dir / "latest-run.json", run_log)
+            logger.info("Run artifacts written latest=%s", self.settings.state_dir / "latest-run.json")
+            logger.info("Run complete forecasts=%d mode=%s", len(forecast_results), submission_results["mode"])
             return run_log
+        except Exception as exc:
+            logger.error("Run failed error_type=%s", type(exc).__name__)
+            raise
         finally:
             if firecrawl is not None:
                 await firecrawl.aclose()
@@ -318,6 +382,7 @@ class ForecastRunner:
         firecrawl: FirecrawlClient | None,
     ) -> tuple[list[tuple[Match, list[Market]]], dict[str, Any], list[dict[str, Any]]]:
         if news_monitor is None:
+            logger.info("News monitor disabled")
             return selected, news_cache, []
         now = utcnow()
         selected_ids = {match.id for match, _ in selected}
@@ -336,6 +401,11 @@ class ForecastRunner:
             remaining = max(0, self.settings.max_matches_per_run - len(selected))
             candidates = candidates[:remaining]
 
+        logger.info(
+            "News monitor checks start candidates=%d already_selected=%d",
+            len(candidates),
+            len(selected),
+        )
         news_cache.setdefault("matches", {})
         checks: list[dict[str, Any]] = []
         promoted: list[tuple[Match, list[Market]]] = []
@@ -343,6 +413,12 @@ class ForecastRunner:
 
         async def check_one(match: Match, match_markets: list[Market]) -> tuple[Match, list[Market], NewsCheck | Exception, str]:
             async with semaphore:
+                logger.info(
+                    "News monitor check start match_id=%s match=%r markets=%d",
+                    match.id,
+                    _safe_match_name(match),
+                    len(match_markets),
+                )
                 firecrawl_context = ""
                 if self._should_use_firecrawl(match, match_markets, history, news_cache, now, for_monitor=True):
                     firecrawl_context = await self._firecrawl_context_for_monitor(firecrawl, match, match_markets)
@@ -356,6 +432,11 @@ class ForecastRunner:
                     )
                     return match, match_markets, news_check, firecrawl_context
                 except Exception as exc:
+                    logger.warning(
+                        "News monitor check failed match_id=%s error_type=%s",
+                        match.id,
+                        type(exc).__name__,
+                    )
                     return match, match_markets, exc, firecrawl_context
 
         for match, match_markets, result, firecrawl_context in await asyncio.gather(
@@ -369,6 +450,14 @@ class ForecastRunner:
             row = result.model_dump()
             row["used_firecrawl"] = bool(firecrawl_context)
             checks.append(row)
+            logger.info(
+                "News monitor check end match_id=%s should_reforecast=%s delta_points=%d materiality=%s used_firecrawl=%s",
+                match.id,
+                result.should_reforecast,
+                result.estimated_delta_points,
+                result.materiality,
+                bool(firecrawl_context),
+            )
             if (
                 result.should_reforecast
                 and result.estimated_delta_points >= self.settings.news_monitor_materiality_threshold_points
@@ -377,6 +466,7 @@ class ForecastRunner:
 
         output = selected + promoted
         output.sort(key=lambda item: item[0].closes_at or utcnow())
+        logger.info("News monitor checks complete checks=%d promoted=%d", len(checks), len(promoted))
         return output, news_cache, checks
 
     def _should_news_monitor_match(
@@ -484,7 +574,14 @@ class ForecastRunner:
             f"{match.name} confirmed lineup injury suspension team news",
             f"{match.name} late news X lineup weather odds {market_terms}",
         ][: self.settings.firecrawl_search_queries]
-        for query in queries:
+        logger.info("Firecrawl monitor start match_id=%s queries=%d", match.id, len(queries))
+        for index, query in enumerate(queries, start=1):
+            logger.info(
+                "Firecrawl monitor query start match_id=%s query=%d/%d",
+                match.id,
+                index,
+                len(queries),
+            )
             try:
                 results, credits = await firecrawl.search(
                     query,
@@ -493,14 +590,36 @@ class ForecastRunner:
                     tbs="qdr:d,sbd:1",
                 )
             except Exception as exc:
+                logger.warning(
+                    "Firecrawl monitor query failed match_id=%s query=%d/%d error_type=%s",
+                    match.id,
+                    index,
+                    len(queries),
+                    type(exc).__name__,
+                )
                 contexts.append(f"Firecrawl monitor query failed for {query!r}: {exc}")
                 continue
             total_credits += credits
+            logger.info(
+                "Firecrawl monitor query end match_id=%s query=%d/%d results=%d credits=%d",
+                match.id,
+                index,
+                len(queries),
+                len(results),
+                credits,
+            )
             rendered = "\n".join(result.compact() for result in results[: self.settings.firecrawl_search_limit])
             if rendered:
                 contexts.append(f"Firecrawl monitor query: {query}\n{rendered}")
         if not contexts:
+            logger.info("Firecrawl monitor end match_id=%s contexts=0 credits=%d", match.id, total_credits)
             return ""
+        logger.info(
+            "Firecrawl monitor end match_id=%s contexts=%d credits=%d",
+            match.id,
+            len(contexts),
+            total_credits,
+        )
         return f"Firecrawl monitor credits used: {total_credits}\n" + "\n\n".join(contexts)
 
     @staticmethod
@@ -644,9 +763,15 @@ class ForecastRunner:
         history: dict[str, Any],
         calibration_multipliers: dict[str, float],
     ) -> dict[str, Any]:
+        logger.info(
+            "Calibration start lobby_id=%s current_multipliers=%d",
+            lobby_id,
+            len(calibration_multipliers),
+        )
         try:
             results = await sp.list_results(lobby_id)
         except Exception as exc:
+            logger.warning("Calibration results fetch failed error_type=%s", type(exc).__name__)
             return {
                 "generated_at": utcnow().isoformat(),
                 "settled_market_count": 0,
@@ -654,13 +779,20 @@ class ForecastRunner:
                 "current_multipliers": calibration_multipliers,
                 "suggested_multipliers": calibration_multipliers,
             }
-        return build_calibration_report(
+        logger.info("Calibration fetched results=%d", len(results))
+        report = build_calibration_report(
             results=results,
             history=history,
             current_multipliers=calibration_multipliers,
             learning_rate=self.settings.calibration_learning_rate,
             prior_count=self.settings.calibration_prior_count,
         )
+        logger.info(
+            "Calibration complete settled_market_count=%d suggested_multipliers=%d",
+            report.get("settled_market_count", 0),
+            len(report.get("suggested_multipliers") or {}),
+        )
+        return report
 
     @staticmethod
     def _component_spread_points(probabilities: list[float]) -> float:
@@ -686,6 +818,12 @@ class ForecastRunner:
     ) -> list[AggregatedForecast]:
         semaphore = asyncio.Semaphore(self.settings.concurrency)
         outputs: list[AggregatedForecast] = []
+        logger.info(
+            "Forecast selected start matches=%d markets=%d concurrency=%d",
+            len(selected),
+            sum(len(markets) for _, markets in selected),
+            self.settings.concurrency,
+        )
 
         async def forecast_one(match: Match, markets: list[Market]) -> list[AggregatedForecast]:
             async with semaphore:
@@ -693,22 +831,46 @@ class ForecastRunner:
                 cached_news = (news_cache.get("matches") or {}).get(match.id, {})
                 cached_news_context = self._cached_news_context(cached_news)
                 firecrawl_context = ""
-                if use_firecrawl:
-                    firecrawl_context = await evidence_collector.firecrawl_context(match, markets)
-                    if firecrawl_context:
-                        self._record_forecast_firecrawl_context(news_cache, match, firecrawl_context)
-                evidence = await evidence_collector.collect(
-                    match,
-                    markets,
-                    use_firecrawl=False,
-                    cached_news_context=cached_news_context,
-                    firecrawl_context_override=firecrawl_context,
+                logger.info(
+                    "Match pipeline start match_id=%s match=%r markets=%d use_firecrawl=%s cached_news=%s",
+                    match.id,
+                    _safe_match_name(match),
+                    len(markets),
+                    use_firecrawl,
+                    bool(cached_news),
                 )
-                return await forecaster.forecast_match(match=match, markets=markets, evidence=evidence)
+                try:
+                    if use_firecrawl:
+                        firecrawl_context = await evidence_collector.firecrawl_context(match, markets)
+                        if firecrawl_context:
+                            self._record_forecast_firecrawl_context(news_cache, match, firecrawl_context)
+                    evidence = await evidence_collector.collect(
+                        match,
+                        markets,
+                        use_firecrawl=False,
+                        cached_news_context=cached_news_context,
+                        firecrawl_context_override=firecrawl_context,
+                    )
+                    forecasts = await forecaster.forecast_match(
+                        match=match,
+                        markets=markets,
+                        evidence=evidence,
+                    )
+                    logger.info("Match pipeline end match_id=%s forecasts=%d", match.id, len(forecasts))
+                    return forecasts
+                except Exception as exc:
+                    logger.warning(
+                        "Match pipeline failed match_id=%s error_type=%s",
+                        match.id,
+                        type(exc).__name__,
+                    )
+                    raise
 
         tasks = [forecast_one(match, markets) for match, markets in selected]
+        failed_matches = 0
         for result in await asyncio.gather(*tasks, return_exceptions=True):
             if isinstance(result, Exception):
+                failed_matches += 1
                 outputs.append(
                     AggregatedForecast(
                         market_id="error",
@@ -723,7 +885,13 @@ class ForecastRunner:
                 )
             else:
                 outputs.extend(result)
-        return [forecast for forecast in outputs if forecast.market_id != "error"]
+        forecasts = [forecast for forecast in outputs if forecast.market_id != "error"]
+        logger.info(
+            "Forecast selected complete forecasts=%d failed_matches=%d",
+            len(forecasts),
+            failed_matches,
+        )
+        return forecasts
 
     @staticmethod
     def _cached_news_context(cached_news: dict[str, Any]) -> str:
@@ -805,6 +973,12 @@ class ForecastRunner:
         existing_predictions: list[Prediction],
         lobby_id: str,
     ) -> dict[str, Any]:
+        logger.info(
+            "Plan writes start forecasts=%d existing_predictions=%d threshold_points=%d",
+            len(forecasts),
+            len(existing_predictions),
+            self.settings.update_threshold_points,
+        )
         existing_by_market = {prediction.market_id: prediction for prediction in existing_predictions}
         creates: list[dict[str, Any]] = []
         updates: list[dict[str, Any]] = []
@@ -845,26 +1019,77 @@ class ForecastRunner:
                         "reason": f"change {old}->{new} below threshold",
                     }
                 )
-        return {"creates": creates, "updates": updates, "skips": skips}
+        plan = {"creates": creates, "updates": updates, "skips": skips}
+        logger.info(
+            "Plan writes ready creates=%d updates=%d skips=%d",
+            len(creates),
+            len(updates),
+            len(skips),
+        )
+        return plan
 
     async def _write_predictions(
         self,
         sp: SportsPredictClient,
         plan: dict[str, Any],
     ) -> dict[str, Any]:
+        create_count = len(plan["creates"])
+        update_count = len(plan["updates"])
+        skip_count = len(plan["skips"])
         if not self.settings.can_submit:
+            logger.info(
+                "Submission dry-run creates=%d updates=%d skips=%d",
+                create_count,
+                update_count,
+                skip_count,
+            )
             return {
                 "mode": "dry_run",
                 "message": "No writes performed. Set SUBMIT=true to submit or update predictions.",
             }
 
+        logger.info("Submission start creates=%d updates=%d skips=%d", create_count, update_count, skip_count)
         create_results: list[dict[str, Any]] = []
-        for chunk in chunks(plan["creates"], 50):
-            create_results.append(await sp.submit_batch(chunk))
+        for index, chunk in enumerate(chunks(plan["creates"], 50), start=1):
+            logger.info("Submission create batch start batch=%d size=%d", index, len(chunk))
+            try:
+                result = await sp.submit_batch(chunk)
+            except Exception as exc:
+                logger.warning(
+                    "Submission create batch failed batch=%d error_type=%s",
+                    index,
+                    type(exc).__name__,
+                )
+                raise
+            create_results.append(result)
+            logger.info(
+                "Submission create batch end batch=%d total=%s succeeded=%s failed=%s",
+                index,
+                result.get("total"),
+                result.get("succeeded"),
+                result.get("failed"),
+            )
 
         update_results: list[dict[str, Any]] = []
-        for item in plan["updates"]:
-            updated = await sp.update_prediction(item["prediction_id"], item["probability"])
+        for index, item in enumerate(plan["updates"], start=1):
+            logger.info(
+                "Submission update start index=%d market_id=%s probability=%d",
+                index,
+                item["market_id"],
+                item["probability"],
+            )
+            try:
+                updated = await sp.update_prediction(item["prediction_id"], item["probability"])
+            except Exception as exc:
+                logger.warning(
+                    "Submission update failed index=%d market_id=%s error_type=%s",
+                    index,
+                    item["market_id"],
+                    type(exc).__name__,
+                )
+                raise
             update_results.append(updated.model_dump())
+            logger.info("Submission update end index=%d market_id=%s", index, item["market_id"])
 
+        logger.info("Submission complete create_batches=%d updates=%d", len(create_results), len(update_results))
         return {"mode": "submitted", "creates": create_results, "updates": update_results}

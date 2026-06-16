@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import time
 from typing import Any, TypeVar
 
 from anthropic import APIConnectionError, APIStatusError, APITimeoutError, AsyncAnthropic, RateLimitError
@@ -11,6 +13,7 @@ from probability_cup_bot.openai_adapter import ModelOutputError
 
 
 T = TypeVar("T", bound=BaseModel)
+logger = logging.getLogger(__name__)
 
 
 class AnthropicAdapter:
@@ -39,26 +42,60 @@ class AnthropicAdapter:
         reasoning_effort: str = "medium",
         tools: list[dict[str, Any]] | None = None,
     ) -> T:
-        del reasoning_effort, tools
-        schema = schema_model.model_json_schema()
-        response = await self.client.messages.create(
-            model=model,
-            max_tokens=4096,
-            temperature=0.2,
-            system=(
-                f"{instructions}\n\n"
-                f"Return only a JSON object named {schema_name} matching this JSON Schema. "
-                "Do not wrap it in markdown and do not add commentary.\n"
-                f"{json.dumps(schema, ensure_ascii=True)}"
-            ),
-            messages=[{"role": "user", "content": user_input}],
+        started_at = time.perf_counter()
+        logger.info(
+            "Model call start provider=%s model=%s schema=%s tools=%d reasoning=%s",
+            self.provider,
+            model,
+            schema_name,
+            len(tools or []),
+            reasoning_effort,
         )
-        text = self._extract_text(response)
+        del reasoning_effort, tools
         try:
+            schema = schema_model.model_json_schema()
+            response = await self.client.messages.create(
+                model=model,
+                max_tokens=4096,
+                temperature=0.2,
+                system=(
+                    f"{instructions}\n\n"
+                    f"Return only a JSON object named {schema_name} matching this JSON Schema. "
+                    "Do not wrap it in markdown and do not add commentary.\n"
+                    f"{json.dumps(schema, ensure_ascii=True)}"
+                ),
+                messages=[{"role": "user", "content": user_input}],
+            )
+            text = self._extract_text(response)
             data = json.loads(text)
-            return schema_model.model_validate(data)
+            parsed = schema_model.model_validate(data)
         except (json.JSONDecodeError, ValidationError) as exc:
+            logger.warning(
+                "Model call failed provider=%s model=%s schema=%s error_type=ModelOutputError elapsed=%.1fs",
+                self.provider,
+                model,
+                schema_name,
+                time.perf_counter() - started_at,
+            )
             raise ModelOutputError(f"Could not parse {schema_name}: {exc}\n{text[:2000]}") from exc
+        except Exception as exc:
+            logger.warning(
+                "Model call failed provider=%s model=%s schema=%s error_type=%s elapsed=%.1fs",
+                self.provider,
+                model,
+                schema_name,
+                type(exc).__name__,
+                time.perf_counter() - started_at,
+            )
+            raise
+        logger.info(
+            "Model call end provider=%s model=%s schema=%s elapsed=%.1fs",
+            self.provider,
+            model,
+            schema_name,
+            time.perf_counter() - started_at,
+        )
+        return parsed
 
     @staticmethod
     def _extract_text(response: Any) -> str:

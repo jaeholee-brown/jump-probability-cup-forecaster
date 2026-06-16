@@ -7,6 +7,10 @@ on:
         description: "Run without submitting predictions"
         required: false
         default: "false"
+      inspect_docket:
+        description: "List current matches/questions only; no LLM calls or submissions"
+        required: false
+        default: "false"
   schedule:
     - cron: "*/15 * * * *"
 
@@ -96,20 +100,27 @@ jobs:
 
       - name: Check forecast secrets
         id: forecast_secrets
+        env:
+          INPUT_INSPECT_DOCKET: ${{ github.event.inputs.inspect_docket }}
         run: |
-          if [ -n "$SPORTSPREDICT_API_KEY" ] && { [ -n "$OPENAI_API_KEY" ] || [ -n "$XAI_API_KEY" ] || [ -n "$ANTHROPIC_API_KEY" ]; }; then
+          if [ "$INPUT_INSPECT_DOCKET" = "true" ] && [ -n "$SPORTSPREDICT_API_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$SPORTSPREDICT_API_KEY" ] && { [ -n "$OPENAI_API_KEY" ] || [ -n "$XAI_API_KEY" ] || [ -n "$ANTHROPIC_API_KEY" ]; }; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping forecast: set SPORTSPREDICT_API_KEY plus at least one model API key."
+            echo "Skipping forecast: set SPORTSPREDICT_API_KEY plus at least one model API key, or set inspect_docket=true with SPORTSPREDICT_API_KEY."
           fi
 
       - name: Forecast
         if: steps.forecast_secrets.outputs.available == 'true'
         env:
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          INPUT_INSPECT_DOCKET: ${{ github.event.inputs.inspect_docket }}
         run: |
-          if [ "$INPUT_DRY_RUN" = "true" ]; then
+          if [ "$INPUT_INSPECT_DOCKET" = "true" ]; then
+            probability-cup-bot inspect-docket --max-questions 220
+          elif [ "$INPUT_DRY_RUN" = "true" ]; then
             probability-cup-bot run --dry-run
           else
             probability-cup-bot run

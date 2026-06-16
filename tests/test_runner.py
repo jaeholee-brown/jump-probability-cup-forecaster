@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta, timezone
 
 from probability_cup_bot.config import Settings
@@ -30,7 +31,7 @@ class FakeNewsMonitor:
         )
 
 
-def test_plan_writes_creates_updates_and_skips() -> None:
+def test_plan_writes_creates_updates_and_skips(caplog) -> None:
     settings = Settings(
         sportspredict_api_key="sportspredict_test_key",
         openai_api_key="openai_test_key",
@@ -70,6 +71,7 @@ def test_plan_writes_creates_updates_and_skips() -> None:
         Prediction(id="pred_update", market_id="update", lobby_id="lobby", probability=62),
         Prediction(id="pred_skip", market_id="skip", lobby_id="lobby", probability=50),
     ]
+    caplog.set_level(logging.INFO, logger="probability_cup_bot.runner")
     plan = runner._plan_writes(
         forecasts=forecasts,
         existing_predictions=existing,
@@ -80,6 +82,7 @@ def test_plan_writes_creates_updates_and_skips() -> None:
     assert len(plan["updates"]) == 1
     assert plan["updates"][0]["prediction_id"] == "pred_update"
     assert len(plan["skips"]) == 1
+    assert "Plan writes ready creates=1 updates=1 skips=1" in caplog.text
 
 
 def test_select_matches_skips_fresh_existing_predictions() -> None:
