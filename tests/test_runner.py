@@ -86,6 +86,50 @@ def test_plan_writes_creates_updates_and_skips(caplog) -> None:
     assert "Plan writes ready creates=1 updates=1 skips=1" in caplog.text
 
 
+def test_select_matches_restricts_to_forced_target_match() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+    )
+    runner = ForecastRunner(settings)
+    closing_time = (utcnow() + timedelta(hours=2)).isoformat()
+    matches = [
+        Match(id="target", name="Target FC vs Other FC", closing_time=closing_time),
+        Match(id="other", name="Other FC vs Third FC", closing_time=closing_time),
+    ]
+    markets = [
+        Market(
+            id="target_market",
+            question="Will Target FC win?",
+            status="open",
+            match=MarketMatch(id="target", name="Target FC vs Other FC", closing_time=closing_time),
+            lobby_id="lobby",
+        ),
+        Market(
+            id="other_market",
+            question="Will Other FC win?",
+            status="open",
+            match=MarketMatch(id="other", name="Other FC vs Third FC", closing_time=closing_time),
+            lobby_id="lobby",
+        ),
+    ]
+    existing = [
+        Prediction(id="pred_target", market_id="target_market", lobby_id="lobby", probability=50),
+        Prediction(id="pred_other", market_id="other_market", lobby_id="lobby", probability=50),
+    ]
+
+    selected = runner._select_matches(
+        matches,
+        markets,
+        existing,
+        {"matches": {}},
+        target_match_ids={"target"},
+        force_target_matches=True,
+    )
+
+    assert [match.id for match, _markets in selected] == ["target"]
+
+
 def test_forecast_checkpoint_writes_partial_telemetry(tmp_path) -> None:
     settings = Settings(
         sportspredict_api_key="sportspredict_test_key",

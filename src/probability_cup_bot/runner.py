@@ -49,8 +49,16 @@ class ForecastRunner:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-    async def run(self, *, news_monitor_only: bool = False) -> dict[str, Any]:
+    async def run(
+        self,
+        *,
+        news_monitor_only: bool = False,
+        target_match_ids: set[str] | None = None,
+        force_target_matches: bool = False,
+        force_news_monitor: bool = False,
+    ) -> dict[str, Any]:
         ensure_dirs(self.settings.state_dir, self.settings.logs_dir)
+        target_match_ids = target_match_ids or set()
         usage_tracker = UsageTracker()
         usage_token = set_current_tracker(usage_tracker)
         self._write_forecast_checkpoint(
@@ -62,12 +70,15 @@ class ForecastRunner:
             stage="run_start",
         )
         logger.info(
-            "Run start event_title=%r dry_run=%s max_matches=%s concurrency=%d news_monitor_only=%s",
+            "Run start event_title=%r dry_run=%s max_matches=%s concurrency=%d news_monitor_only=%s target_matches=%d force_target=%s force_news=%s",
             self.settings.event_title,
             not self.settings.can_submit,
             self.settings.max_matches_per_run or "unlimited",
             self.settings.concurrency,
             news_monitor_only,
+            len(target_match_ids),
+            force_target_matches,
+            force_news_monitor,
         )
         sp = SportsPredictClient(
             base_url=self.settings.sportspredict_base_url,
@@ -160,7 +171,14 @@ class ForecastRunner:
             selected = (
                 []
                 if news_monitor_only
-                else self._select_matches(matches, all_markets, existing_predictions, history)
+                else self._select_matches(
+                    matches,
+                    all_markets,
+                    existing_predictions,
+                    history,
+                    target_match_ids=target_match_ids,
+                    force_target_matches=force_target_matches,
+                )
             )
             logger.info(
                 "Selected matches count=%d markets=%d",
@@ -182,6 +200,8 @@ class ForecastRunner:
                 news_cache=news_cache,
                 news_monitor=news_monitor,
                 firecrawl=firecrawl,
+                target_match_ids=target_match_ids,
+                force_news_monitor=force_news_monitor,
             )
             logger.info(
                 "Selection after news monitor matches=%d promoted=%d checks=%d",
@@ -222,6 +242,9 @@ class ForecastRunner:
                 "open_markets_seen": len(all_markets),
                 "matches_forecasted": len(selected),
                 "news_monitor_only": news_monitor_only,
+                "target_match_ids": sorted(target_match_ids),
+                "force_target_matches": force_target_matches,
+                "force_news_monitor": force_news_monitor,
                 "update_gate": {
                     "enabled": self.settings.enable_update_gate,
                     "max_prediction_age_hours": self.settings.max_prediction_age_hours,
@@ -333,8 +356,12 @@ class ForecastRunner:
         markets: list[Market],
         existing_predictions: list[Prediction] | None = None,
         history: dict[str, Any] | None = None,
+        *,
+        target_match_ids: set[str] | None = None,
+        force_target_matches: bool = False,
     ) -> list[tuple[Match, list[Market]]]:
         now = utcnow()
+        target_match_ids = target_match_ids or set()
         selected: list[tuple[Match, list[Market]]] = []
         existing_by_market = {
             prediction.market_id: prediction
@@ -342,6 +369,11 @@ class ForecastRunner:
             if not prediction.market_status or prediction.market_status == "open"
         }
         for match, match_markets in self._eligible_match_groups(matches, markets, now):
+            if target_match_ids and match.id not in target_match_ids:
+                continue
+            if force_target_matches and match.id in target_match_ids:
+                selected.append((match, match_markets))
+                continue
             if not self._should_forecast_match(match, match_markets, existing_by_market, now, history or {}):
                 continue
             selected.append((match, match_markets))
@@ -474,23 +506,39 @@ class ForecastRunner:
         news_cache: dict[str, Any],
         news_monitor: GrokNewsMonitor | None,
         firecrawl: FirecrawlClient | None,
+        target_match_ids: set[str] | None = None,
+        force_news_monitor: bool = False,
     ) -> tuple[list[tuple[Match, list[Market]]], dict[str, Any], list[dict[str, Any]]]:
         if news_monitor is None:
             logger.info("News monitor disabled")
             return selected, news_cache, []
         now = utcnow()
+        target_match_ids = target_match_ids or set()
         selected_ids = {match.id for match, _ in selected}
         existing_by_market = {
             prediction.market_id: prediction
             for prediction in existing_predictions
             if not prediction.market_status or prediction.market_status == "open"
         }
-        candidates = [
-            (match, match_markets)
-            for match, match_markets in self._eligible_match_groups(matches, markets, now)
-            if match.id not in selected_ids
-            and self._should_news_monitor_match(match, match_markets, existing_by_market, history, news_cache, now)
-        ]
+        candidates: list[tuple[Match, list[Market]]] = []
+        for match, match_markets in self._eligible_match_groups(matches, markets, now):
+            if match.id in selected_ids:
+                continue
+            if target_match_ids and match.id not in target_match_ids:
+                continue
+            if force_news_monitor and match.id in target_match_ids:
+                if all(market.id in existing_by_market for market in match_markets):
+                    candidates.append((match, match_markets))
+                continue
+            if self._should_news_monitor_match(
+                match,
+                match_markets,
+                existing_by_market,
+                history,
+                news_cache,
+                now,
+            ):
+                candidates.append((match, match_markets))
         if self.settings.max_matches_per_run > 0:
             remaining = max(0, self.settings.max_matches_per_run - len(selected))
             candidates = candidates[:remaining]

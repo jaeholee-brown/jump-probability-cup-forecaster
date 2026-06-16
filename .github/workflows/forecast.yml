@@ -15,15 +15,19 @@ on:
         description: "Repair saved Grok boundary probabilities from state/latest-run.json and submit updates; no LLM calls"
         required: false
         default: "false"
+      schedule_mode:
+        description: "Optional scheduler command: refresh or due"
+        required: false
+        default: ""
       inspect_max_questions:
         description: "Maximum questions to print when inspect_docket is true"
         required: false
         default: "2000"
   schedule:
-    # Cheap monitor-only pass every 6 hours.
+    # Poll for newly posted games every 6 hours.
     - cron: "17 */6 * * *"
-    # Full stale-forecast refresh once per day.
-    - cron: "43 8 * * *"
+    # Cheap due-checker. It only spends model credits when a match hits its scheduled window.
+    - cron: "*/5 * * * *"
 
 concurrency:
   group: probability-cup-forecaster
@@ -119,8 +123,12 @@ jobs:
         env:
           INPUT_INSPECT_DOCKET: ${{ github.event.inputs.inspect_docket }}
           INPUT_REPAIR_BOUNDARY_FORECASTS: ${{ github.event.inputs.repair_boundary_forecasts }}
+          INPUT_SCHEDULE_MODE: ${{ github.event.inputs.schedule_mode }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
-          if { [ "$INPUT_INSPECT_DOCKET" = "true" ] || [ "$INPUT_REPAIR_BOUNDARY_FORECASTS" = "true" ]; } && [ -n "$SPORTSPREDICT_API_KEY" ]; then
+          if { [ "$INPUT_INSPECT_DOCKET" = "true" ] || [ "$INPUT_REPAIR_BOUNDARY_FORECASTS" = "true" ] || [ "$INPUT_SCHEDULE_MODE" = "refresh" ] || [ "$INPUT_SCHEDULE_MODE" = "due" ] || [ "$EVENT_SCHEDULE" = "17 */6 * * *" ]; } && [ -n "$SPORTSPREDICT_API_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_SCHEDULE" = "*/5 * * * *" ] && [ -n "$SPORTSPREDICT_API_KEY" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           elif [ -n "$SPORTSPREDICT_API_KEY" ] && { [ -n "$OPENAI_API_KEY" ] || [ -n "$XAI_API_KEY" ] || [ -n "$ANTHROPIC_API_KEY" ]; }; then
             echo "available=true" >> "$GITHUB_OUTPUT"
@@ -135,6 +143,7 @@ jobs:
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
           INPUT_INSPECT_DOCKET: ${{ github.event.inputs.inspect_docket }}
           INPUT_REPAIR_BOUNDARY_FORECASTS: ${{ github.event.inputs.repair_boundary_forecasts }}
+          INPUT_SCHEDULE_MODE: ${{ github.event.inputs.schedule_mode }}
           INPUT_INSPECT_MAX_QUESTIONS: ${{ github.event.inputs.inspect_max_questions }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
@@ -148,9 +157,18 @@ jobs:
               --submit \
               --output "logs/repair-boundary-$(date -u +%Y%m%dT%H%M%SZ).json" \
               --corrected-run-output state/latest-run-repaired.json
+          elif [ "$INPUT_SCHEDULE_MODE" = "refresh" ]; then
+            echo "Forecast workflow mode=schedule_refresh_manual schedule='${EVENT_SCHEDULE}'"
+            probability-cup-bot schedule --refresh-only
+          elif [ "$INPUT_SCHEDULE_MODE" = "due" ]; then
+            echo "Forecast workflow mode=schedule_due_manual schedule='${EVENT_SCHEDULE}'"
+            probability-cup-bot schedule --run-due
           elif [ "$EVENT_SCHEDULE" = "17 */6 * * *" ]; then
-            echo "Forecast workflow mode=news_monitor_only schedule='${EVENT_SCHEDULE}'"
-            probability-cup-bot run --news-monitor-only
+            echo "Forecast workflow mode=schedule_refresh schedule='${EVENT_SCHEDULE}'"
+            probability-cup-bot schedule --refresh-only
+          elif [ "$EVENT_SCHEDULE" = "*/5 * * * *" ]; then
+            echo "Forecast workflow mode=schedule_due_check schedule='${EVENT_SCHEDULE}'"
+            probability-cup-bot schedule --run-due
           elif [ "$INPUT_DRY_RUN" = "true" ]; then
             echo "Forecast workflow mode=dry_run schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot run --dry-run

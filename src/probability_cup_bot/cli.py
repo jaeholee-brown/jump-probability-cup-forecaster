@@ -13,6 +13,7 @@ from datetime import timezone
 from probability_cup_bot.config import load_settings
 from probability_cup_bot.models import Market, utcnow
 from probability_cup_bot.runner import ForecastRunner
+from probability_cup_bot.scheduler import MatchScheduler
 from probability_cup_bot.sportspredict import SportsPredictClient
 
 
@@ -40,7 +41,35 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run cheap news checks and forecast only markets promoted by material new information.",
     )
+    run.add_argument(
+        "--match-id",
+        action="append",
+        default=[],
+        help="Restrict the run to one match id. Can be repeated.",
+    )
+    run.add_argument(
+        "--match-ids",
+        default="",
+        help="Comma-separated match ids to restrict the run to.",
+    )
+    run.add_argument(
+        "--force-target-matches",
+        action="store_true",
+        help="Forecast targeted matches even when the normal update gate would skip them.",
+    )
+    run.add_argument(
+        "--force-news-monitor",
+        action="store_true",
+        help="News-check targeted matches even when the normal news cache interval would skip them.",
+    )
     run.add_argument("--dotenv", default=None, help="Optional path to an env file.")
+    schedule = subparsers.add_parser(
+        "schedule",
+        help="Refresh match schedule or run due per-match forecast/news jobs.",
+    )
+    schedule.add_argument("--dotenv", default=None, help="Optional path to an env file.")
+    schedule.add_argument("--refresh-only", action="store_true", help="Refresh match schedule only.")
+    schedule.add_argument("--run-due", action="store_true", help="Run due scheduled jobs.")
     inspect = subparsers.add_parser(
         "inspect-docket",
         help="List current matches/markets and summarize odds-feed usefulness without model calls.",
@@ -54,12 +83,19 @@ async def _run(args: argparse.Namespace) -> int:
     _configure_logging()
     settings = load_settings(dotenv_path=args.dotenv, force_dry_run=args.dry_run)
     runner = ForecastRunner(settings)
-    result = await runner.run(news_monitor_only=args.news_monitor_only)
+    target_match_ids = _target_match_ids(args)
+    result = await runner.run(
+        news_monitor_only=args.news_monitor_only,
+        target_match_ids=target_match_ids,
+        force_target_matches=args.force_target_matches,
+        force_news_monitor=args.force_news_monitor,
+    )
     print(
         json.dumps(
             {
                 "mode": result["submission_results"]["mode"],
                 "news_monitor_only": result.get("news_monitor_only", False),
+                "target_match_ids": result.get("target_match_ids", []),
                 "matches_forecasted": result["matches_forecasted"],
                 "forecast_count": result["forecast_count"],
                 "creates": len(result["plan"]["creates"]),
@@ -71,6 +107,23 @@ async def _run(args: argparse.Namespace) -> int:
         ),
         flush=True,
     )
+    return 0
+
+
+def _target_match_ids(args: argparse.Namespace) -> set[str]:
+    ids = set(args.match_id or [])
+    ids.update(item.strip() for item in (args.match_ids or "").split(",") if item.strip())
+    return ids
+
+
+async def _schedule(args: argparse.Namespace) -> int:
+    _configure_logging()
+    settings = load_settings(dotenv_path=args.dotenv, force_dry_run=False)
+    scheduler = MatchScheduler(settings)
+    if args.refresh_only == args.run_due:
+        raise SystemExit("Use exactly one of --refresh-only or --run-due.")
+    result = await scheduler.refresh() if args.refresh_only else await scheduler.run_due()
+    print(json.dumps(result, indent=2), flush=True)
     return 0
 
 
@@ -176,6 +229,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "run":
         return asyncio.run(_run(args))
+    if args.command == "schedule":
+        return asyncio.run(_schedule(args))
     if args.command == "inspect-docket":
         return asyncio.run(_inspect_docket(args))
     parser.print_help()
