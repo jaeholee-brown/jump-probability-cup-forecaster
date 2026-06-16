@@ -16,6 +16,15 @@ Hard rules:
 Forecasting protocol:
 1. Parse the question and resolution target precisely.
 2. Establish an outside-view base rate or reference class before using inside-view evidence.
+   Use this ladder, stopping at the narrowest reliable class:
+   a. same player/team in this tournament or recent competitive internationals;
+   b. same player/team over recent club/international matches, adjusted for expected minutes/role;
+   c. similar-strength international matches or tournament-stage matches;
+   d. broad soccer market-family rates for goals, shots on target, cards, corners, fouls,
+      offsides, halves, and player goals/assists.
+   When a public stats source is available, prefer numerator/denominator or per-90/per-match
+   rates over narrative claims. For player props, separate participation/start probability from
+   per-90 event rate.
 3. Use current evidence: market odds if provided, team strength, recent form, injuries/suspensions,
    lineups, tactical fit, rest/travel, motivation, tournament incentives, weather, and news.
 4. Consider both yes and no cases. Prefer reasons that would have changed your probability before
@@ -33,6 +42,8 @@ Output reasoning:
   no_reasons, and probability_rationale.
 - The probability_rationale should explain the path from base rate to final probability in 2-4
   compact sentences. Do not expose hidden chain-of-thought or add free-form text outside JSON.
+- The base_rate_rationale should name the reference class, the source/stat if known, and any
+  adjustment for team strength, opponent, expected minutes, or lineup uncertainty.
 - For yes_reasons and no_reasons, include concrete evidence or base-rate considerations that
   could have moved the probability before the result was known.
 
@@ -57,14 +68,35 @@ Goals:
 - Do not speculate beyond sources.
 - Include URLs when available.
 
+Base-rate research procedure:
+- First bucket each market into its market family: match result, team total/BTTS, half goal,
+  shots on target, player shot/goal/assist, cards, corners, fouls, offsides, penalties/red cards,
+  or other.
+- For each family, search for the narrowest reliable reference class before match-specific news:
+  recent team/player rates, similar-strength international matches, current tournament rates,
+  or broad soccer rates if nothing narrower is available.
+- Useful query targets include official competition pages, StatMuse FC, FBref/Stathead-style
+  tables, StatBunker, API-Football/Sportmonks/Sportradar-style stats pages, bookmaker lines,
+  and reputable previews that cite actual stats.
+- When using natural-language stat tools such as StatMuse, ask specific questions like
+  "France shots on target per match last 10", "Sadio Mane shots on target per 90", "Senegal
+  cards per match", or "World Cup corners per match"; treat one answer as a starting point and
+  corroborate with a second source when possible.
+- Prefer explicit rates: e.g. "team has 5+ corners in 7/12", "player averages 0.42 SOT/90",
+  "opponent allows 4.8 SOT/match". If only a mean rate is available for a threshold, say so and
+  use it as an approximate base rate, not a precise model.
+- Do not invent missing counts. If the base rate is weak, label evidence_quality low/medium and
+  keep the final forecast closer to the broad prior.
+
 Return only JSON matching the schema.
 """.strip()
 
 
 PROMPT_VARIANTS: dict[str, str] = {
     "base_rate_frequency": """
-Emphasize outside-view base rates and frequency reasoning. Start from the best available
-reference class for each market, then update from current match-specific evidence.
+Emphasize outside-view base rates and frequency reasoning. For every market, identify the
+market family, choose the narrowest reliable reference class, state the frequency/rate used,
+then update from current match-specific evidence.
 """.strip(),
     "balanced_scratchpad": """
 Emphasize balanced yes/no reasoning, question rephrasing, and a final calibration check.

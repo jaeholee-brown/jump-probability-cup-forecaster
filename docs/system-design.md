@@ -58,6 +58,7 @@ Default:
 
 - Primary high-volume research model: `grok-4.20-multi-agent-0309` via xAI when `XAI_API_KEY` is set.
 - Research passes: `overview`, `base_rates`, `late_news`, and `market_micro`.
+- Base-rate pass policy: bucket markets by family, search for the narrowest reliable reference class, and report explicit frequencies/rates when available. For the current Jump docket this matters more than generic match odds because shots, cards, corners, fouls, offsides, halves, and player props outnumber vanilla match-winner/goal-total markets. The pass may use StatMuse FC, FBref/Stathead-style tables, StatBunker, API-Football/Sportmonks/Sportradar-style pages, official competition pages, and bookmaker lines as evidence sources, but natural-language stats answers should be corroborated or downweighted.
 - Grok news monitor: `grok-4.20-multi-agent-0309` with low reasoning, `web_search`, and `x_search`, used as a cheap change detector before spending on the full ensemble.
 - Optional Firecrawl retrieval: targeted web-only searches, five scraped results per search, fed into Grok monitor/research as source context.
 - Grok forecast models: `grok-4.3` and `grok-4.20-0309-reasoning`.
@@ -98,6 +99,7 @@ Anthropic docs checked for current API behavior:
 - Halawi et al. show that retrieval plus reasoning scaffolding beats raw model prompting by a large Brier margin.
 - ForecastBench and Silicon Crowd show that aggregation and external crowd/market context are strong.
 - Prompt-engineering studies show base-rate/frequency/step-back prompts are the only prompt-only components worth keeping, and even those are modest.
+- The base-rate instructions are deliberately operational: find a source, extract a rate, state the reference class, then update. The bot avoids asking models to perform formal Bayesian-reasoning theater because forecasting-specific prompt studies found that kind of instruction can be neutral or harmful.
 - ForecastBench and Silicon Crowd support cross-model aggregation more directly than prompt-variant-only ensembling, so the bot defaults to model diversity, explicit component weights, and better retrieval instead of many same-family forecast votes.
 - Baron/Satopaa-style extremization motivates a mild log-odds extremization after aggregation.
 - Brier score is a strictly proper scoring rule, so settled results can support conservative online reweighting without inventing an untested sports model layer.

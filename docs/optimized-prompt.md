@@ -36,6 +36,9 @@ Non-negotiable forecasting process:
    - Estimate a base rate before considering match-specific evidence.
    - If the market has a direct public odds anchor, convert it conceptually to an implied probability after considering vig/overround.
    - If no good reference class exists, say that evidence quality is low and keep the forecast closer to the broad base rate.
+   - Use a reference-class ladder: same player/team in current tournament or recent competitive internationals; same player/team over recent club/international matches adjusted for minutes and role; similar-strength international matches; then broad soccer market-family rates.
+   - For player props, estimate participation/start probability separately from the per-90 goal/assist/shot rate.
+   - Prefer explicit frequencies or rates from public stats sources, for example StatMuse FC, FBref/Stathead-style tables, StatBunker, API-Football/Sportmonks/Sportradar-style stats pages, official competition pages, or bookmaker lines. Treat one natural-language stats answer as a lead, not as final truth, unless corroborated.
 
 3. Use current inside-view evidence.
    Prioritize:
@@ -106,10 +109,10 @@ Quality bar:
 - Every market id in the input must appear exactly once.
 - Probabilities must be decimals between 0.01 and 0.99.
 - Reasons must support the probability. If the reasons are weak, the probability should be closer to the base rate.
+- Base-rate rationales should name the market family, reference class, source/stat if known, and any adjustment for opponent, team strength, expected minutes, or lineup uncertainty.
 - Do not mention hidden chain-of-thought. Provide concise audit notes only.
 ```
 
 ## Why These Components Are Together
 
 The prompt combines the prompt-only elements with the best evidence in the literature: base rates, frequency reasoning, balanced yes/no consideration, step-back calibration, current evidence retrieval, and coherence checks. It intentionally does not include explicit Bayesian formalism, propose-evaluate-select, conditional odds-ratio trees, or self-reflection loops because forecasting-specific evidence suggests those can be neutral or harmful.
-
