@@ -150,13 +150,16 @@ class NewsCheck(BaseModel):
 class MarketForecast(BaseModel):
     market_id: str
     question: str
+    resolution_interpretation: str = ""
+    reference_class: str
+    base_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+    base_rate_rationale: str = ""
+    yes_reasons: list[str] = Field(default_factory=list)
+    no_reasons: list[str] = Field(default_factory=list)
+    probability_rationale: str = ""
     probability: float = Field(ge=0.01, le=0.99)
     confidence: str = Field(pattern="^(low|medium|high)$")
     evidence_quality: str = Field(pattern="^(low|medium|high)$")
-    reference_class: str
-    base_rate: float | None = Field(default=None, ge=0.0, le=1.0)
-    yes_reasons: list[str] = Field(default_factory=list)
-    no_reasons: list[str] = Field(default_factory=list)
     calibration_notes: str = ""
     consistency_notes: str = ""
 

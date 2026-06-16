@@ -600,6 +600,15 @@ class ForecastRunner:
         models = forecast.metadata.get("models") or []
         providers = forecast.metadata.get("providers") or []
         weights = forecast.metadata.get("weights") or []
+        resolution_interpretations = forecast.metadata.get("resolution_interpretations") or []
+        reference_classes = forecast.metadata.get("reference_classes") or []
+        base_rates = forecast.metadata.get("base_rates") or []
+        base_rate_rationales = forecast.metadata.get("base_rate_rationales") or []
+        yes_reasons = forecast.metadata.get("yes_reasons") or []
+        no_reasons = forecast.metadata.get("no_reasons") or []
+        probability_rationales = forecast.metadata.get("probability_rationales") or []
+        calibration_notes = forecast.metadata.get("calibration_notes") or []
+        consistency_notes = forecast.metadata.get("consistency_notes") or []
         records: list[dict[str, Any]] = []
         for index, probability in enumerate(forecast.component_probabilities):
             records.append(
@@ -609,6 +618,21 @@ class ForecastRunner:
                     "model": models[index] if index < len(models) else "",
                     "provider": providers[index] if index < len(providers) else "",
                     "weight": weights[index] if index < len(weights) else 1.0,
+                    "resolution_interpretation": (
+                        resolution_interpretations[index] if index < len(resolution_interpretations) else ""
+                    ),
+                    "reference_class": reference_classes[index] if index < len(reference_classes) else "",
+                    "base_rate": base_rates[index] if index < len(base_rates) else None,
+                    "base_rate_rationale": (
+                        base_rate_rationales[index] if index < len(base_rate_rationales) else ""
+                    ),
+                    "yes_reasons": yes_reasons[index] if index < len(yes_reasons) else [],
+                    "no_reasons": no_reasons[index] if index < len(no_reasons) else [],
+                    "probability_rationale": (
+                        probability_rationales[index] if index < len(probability_rationales) else ""
+                    ),
+                    "calibration_notes": calibration_notes[index] if index < len(calibration_notes) else "",
+                    "consistency_notes": consistency_notes[index] if index < len(consistency_notes) else "",
                 }
             )
         return records

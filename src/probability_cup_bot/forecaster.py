@@ -14,6 +14,7 @@ from probability_cup_bot.models import (
     AggregatedForecast,
     ForecastBatch,
     Market,
+    MarketForecast,
     Match,
     MatchEvidence,
 )
@@ -225,27 +226,25 @@ class MatchForecaster:
         markets: list[Market],
         batches: list[ForecastBatch],
     ) -> list[AggregatedForecast]:
-        by_market: dict[str, list[tuple[ForecastBatch, float, str, str]]] = defaultdict(list)
+        by_market: dict[str, list[tuple[ForecastBatch, MarketForecast]]] = defaultdict(list)
         for batch in batches:
             for forecast in batch.forecasts:
-                by_market[forecast.market_id].append(
-                    (batch, forecast.probability, forecast.confidence, forecast.evidence_quality)
-                )
+                by_market[forecast.market_id].append((batch, forecast))
 
         output: list[AggregatedForecast] = []
         for market in markets:
             components = by_market.get(market.id, [])
             if not components:
                 continue
-            probabilities = [p for _, p, _, _ in components]
+            probabilities = [forecast.probability for _, forecast in components]
             weights = [
                 batch.weight
-                * QUALITY_WEIGHT.get(quality, 1.0)
-                * CONFIDENCE_WEIGHT.get(confidence, 1.0)
-                for batch, _, confidence, quality in components
+                * QUALITY_WEIGHT.get(forecast.evidence_quality, 1.0)
+                * CONFIDENCE_WEIGHT.get(forecast.confidence, 1.0)
+                for batch, forecast in components
             ]
-            evidence_quality = self._mode([quality for _, _, _, quality in components])
-            confidence = self._mode([confidence for _, _, confidence, _ in components])
+            evidence_quality = self._mode([forecast.evidence_quality for _, forecast in components])
+            confidence = self._mode([forecast.confidence for _, forecast in components])
             shrinkage = (
                 self.settings.low_evidence_shrinkage
                 if evidence_quality == "low"
@@ -268,10 +267,23 @@ class MatchForecaster:
                     evidence_quality=evidence_quality,
                     notes=f"Aggregated {len(components)} variants by log-odds mean.",
                     metadata={
-                        "variants": [batch.prompt_variant for batch, _, _, _ in components],
-                        "models": [batch.model for batch, _, _, _ in components],
-                        "providers": [batch.provider for batch, _, _, _ in components],
+                        "variants": [batch.prompt_variant for batch, _ in components],
+                        "models": [batch.model for batch, _ in components],
+                        "providers": [batch.provider for batch, _ in components],
                         "weights": weights,
+                        "resolution_interpretations": [
+                            forecast.resolution_interpretation for _, forecast in components
+                        ],
+                        "reference_classes": [forecast.reference_class for _, forecast in components],
+                        "base_rates": [forecast.base_rate for _, forecast in components],
+                        "base_rate_rationales": [forecast.base_rate_rationale for _, forecast in components],
+                        "yes_reasons": [forecast.yes_reasons for _, forecast in components],
+                        "no_reasons": [forecast.no_reasons for _, forecast in components],
+                        "probability_rationales": [
+                            forecast.probability_rationale for _, forecast in components
+                        ],
+                        "calibration_notes": [forecast.calibration_notes for _, forecast in components],
+                        "consistency_notes": [forecast.consistency_notes for _, forecast in components],
                     },
                 )
             )

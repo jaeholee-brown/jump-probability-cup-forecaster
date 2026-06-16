@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from probability_cup_bot.config import Settings
 from probability_cup_bot.forecaster import MatchForecaster
+from probability_cup_bot.models import ForecastBatch, Market, MarketForecast, MarketMatch
 
 
 T = TypeVar("T", bound=BaseModel)
@@ -81,3 +82,53 @@ def test_forecaster_applies_calibration_multipliers() -> None:
     specs = forecaster._forecast_model_specs()
 
     assert [spec.weight for spec in specs] == [0.9, 0.4, 0.66, 0.7, 0.8]
+
+
+def test_aggregate_preserves_component_reasoning_metadata() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+    )
+    forecaster = MatchForecaster(settings)
+    market = Market(
+        id="market",
+        question="Will A win?",
+        status="open",
+        match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+        lobby_id="lobby",
+    )
+    batch = ForecastBatch(
+        match_id="match",
+        match_name="A vs B",
+        model="gpt-5",
+        prompt_variant="base_rate_frequency",
+        provider="openai",
+        weight=1.0,
+        forecasts=[
+            MarketForecast(
+                market_id="market",
+                question="Will A win?",
+                resolution_interpretation="A must win in regulation.",
+                reference_class="Even soccer match favorite win rates.",
+                base_rate=0.52,
+                base_rate_rationale="Similar favorites win slightly more often than not.",
+                yes_reasons=["A rates higher."],
+                no_reasons=["B has upset paths."],
+                probability_rationale="Start near 52%, then move up for team strength.",
+                probability=0.58,
+                confidence="medium",
+                evidence_quality="medium",
+                calibration_notes="Avoid overconfidence.",
+                consistency_notes="Consistent with draw risk.",
+            )
+        ],
+    )
+
+    [forecast] = forecaster._aggregate([market], [batch])
+
+    assert forecast.metadata["probability_rationales"] == [
+        "Start near 52%, then move up for team strength."
+    ]
+    assert forecast.metadata["base_rate_rationales"] == [
+        "Similar favorites win slightly more often than not."
+    ]
