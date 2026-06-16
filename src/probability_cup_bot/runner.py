@@ -3,13 +3,13 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 from dataclasses import asdict
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Any
 
 from probability_cup_bot.config import Settings
 from probability_cup_bot.evidence import EvidenceCollector
 from probability_cup_bot.forecaster import MatchForecaster
-from probability_cup_bot.models import AggregatedForecast, Market, Match, Prediction, utcnow
+from probability_cup_bot.models import AggregatedForecast, Market, Match, Prediction, parse_dt, utcnow
 from probability_cup_bot.openai_adapter import OpenAIAdapter
 from probability_cup_bot.sportspredict import SportsPredictClient, chunks
 from probability_cup_bot.state import ensure_dirs, timestamp_slug, write_json
@@ -51,7 +51,7 @@ class ForecastRunner:
             all_markets = await sp.list_markets(lobby.id)
             existing_predictions = await sp.list_predictions(lobby.id)
 
-            selected = self._select_matches(matches, all_markets)
+            selected = self._select_matches(matches, all_markets, existing_predictions)
             forecast_results = await self._forecast_selected(
                 selected=selected,
                 evidence_collector=evidence_collector,
@@ -75,6 +75,11 @@ class ForecastRunner:
                 "matches_seen": len(matches),
                 "open_markets_seen": len(all_markets),
                 "matches_forecasted": len(selected),
+                "update_gate": {
+                    "enabled": self.settings.enable_update_gate,
+                    "max_prediction_age_hours": self.settings.max_prediction_age_hours,
+                    "force_reforecast_within_hours": self.settings.force_reforecast_within_hours,
+                },
                 "forecast_count": len(forecast_results),
                 "plan": plan,
                 "submission_results": submission_results,
@@ -90,6 +95,7 @@ class ForecastRunner:
         self,
         matches: list[Match],
         markets: list[Market],
+        existing_predictions: list[Prediction] | None = None,
     ) -> list[tuple[Match, list[Market]]]:
         markets_by_match: dict[str, list[Market]] = defaultdict(list)
         for market in markets:
@@ -100,6 +106,11 @@ class ForecastRunner:
         now = utcnow()
         selected: list[tuple[Match, list[Market]]] = []
         match_lookup = {match.id: match for match in matches}
+        existing_by_market = {
+            prediction.market_id: prediction
+            for prediction in existing_predictions or []
+            if not prediction.market_status or prediction.market_status == "open"
+        }
         for match_id, match_markets in markets_by_match.items():
             match = match_lookup.get(match_id) or Match(
                 id=match_id,
@@ -115,12 +126,44 @@ class ForecastRunner:
                     continue
                 if self.settings.max_hours_to_close and hours > self.settings.max_hours_to_close:
                     continue
+            if not self._should_forecast_match(match, match_markets, existing_by_market, now):
+                continue
             selected.append((match, match_markets))
 
         selected.sort(key=lambda item: item[0].closes_at or utcnow())
         if self.settings.max_matches_per_run > 0:
             selected = selected[: self.settings.max_matches_per_run]
         return selected
+
+    def _should_forecast_match(
+        self,
+        match: Match,
+        markets: list[Market],
+        existing_by_market: dict[str, Prediction],
+        now: datetime,
+    ) -> bool:
+        if not self.settings.enable_update_gate:
+            return True
+        if any(market.id not in existing_by_market for market in markets):
+            return True
+
+        closes_at = match.closes_at or markets[0].closes_at
+        if closes_at is not None and self.settings.force_reforecast_within_hours >= 0:
+            hours_to_close = (closes_at.astimezone(timezone.utc) - now).total_seconds() / 3600
+            if hours_to_close <= self.settings.force_reforecast_within_hours:
+                return True
+
+        updated_times = [
+            parse_dt(existing_by_market[market.id].updated_date or existing_by_market[market.id].created_date)
+            for market in markets
+            if market.id in existing_by_market
+        ]
+        if not updated_times or any(updated_at is None for updated_at in updated_times):
+            return True
+
+        oldest_update = min(updated_at for updated_at in updated_times if updated_at is not None)
+        age_hours = (now - oldest_update.astimezone(timezone.utc)).total_seconds() / 3600
+        return age_hours >= self.settings.max_prediction_age_hours
 
     async def _forecast_selected(
         self,

@@ -5,17 +5,18 @@ Autonomous forecasting system for the Jump Trading Probability Cup / SportsPredi
 The bot:
 
 - discovers the Probability Cup event, lobby, open matches, and open markets;
-- gathers fresh public evidence with OpenAI web search and optional odds data;
-- uses optional xAI/Grok multi-agent research and forecast calls when `XAI_API_KEY` is available;
+- gathers fresh public evidence with xAI/Grok multi-agent web/X search when `XAI_API_KEY` is available, with OpenAI web search as fallback;
+- can add optional structured bookmaker odds context before LLM research;
 - forecasts each match's markets with multiple prompt variants;
 - aggregates forecasts in log-odds space, applies configurable calibration, and outputs 1-99 integer probabilities;
 - submits new predictions in `/predictions/batch` chunks and updates existing predictions before close;
+- skips already-fresh predictions unless they are stale, new, or close to kickoff;
 - runs locally or on a scheduled GitHub Action.
 
 ## Quick Start
 
 1. Create a SportsPredict bot key in the Probability Cup UI.
-2. Create an OpenAI API key, an xAI API key, or both. The default quality path uses OpenAI plus optional Grok; Grok-only runs are supported.
+2. Create an xAI API key, an OpenAI API key, or both. The default quality path uses Grok multi-agent research first; OpenAI is useful as a fallback or extra model source. Grok-only runs are supported.
 3. Copy `.env.example` to `.env` for local runs, or add GitHub repository secrets:
    - `SPORTSPREDICT_API_KEY`
    - `OPENAI_API_KEY` or `XAI_API_KEY`
@@ -46,6 +47,7 @@ The SportsPredict key should be stored only as a repository secret. Do not put i
 - [Ranked research synthesis](docs/research-ranking.md)
 - [Optimized forecasting prompt](docs/optimized-prompt.md)
 - [System design](docs/system-design.md)
+- [Follow-up recommendations and cost model](docs/follow-up-recommendations.md)
 
 ## Platform Constraints Encoded
 

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Run an LLM forecasting bot for the Jump Trading Probability Cup from GitHub Actions every hour or half-hour. The bot should discover recently open or updated questions, gather fresh context, forecast with the optimized prompt, aggregate multiple LLM calls, and submit or update predictions through the SportsPredict REST API.
+Run an LLM forecasting bot for the Jump Trading Probability Cup from GitHub Actions every hour or half-hour. The bot should discover new, stale, or closing-soon questions, gather fresh context with Grok multi-agent research as the primary path, forecast with the optimized prompt, aggregate multiple LLM calls, and submit or update predictions through the SportsPredict REST API.
 
 ## SportsPredict API Surface
 
@@ -38,7 +38,8 @@ Important limitations:
    - set `MAX_HOURS_TO_CLOSE=0` to remove this filter.
 6. For each selected match:
    - optional The Odds API lookup;
-   - OpenAI web-search evidence summary;
+   - xAI/Grok multi-agent web/X-search evidence summary when `XAI_API_KEY` exists;
+   - OpenAI web-search evidence summary as fallback when Grok is unavailable;
    - four independent forecasting variants;
    - log-odds aggregation;
    - mild extremization and evidence-quality shrinkage;
@@ -51,9 +52,10 @@ Important limitations:
 
 Default:
 
-- Research/evidence model with OpenAI key: `gpt-5.4-mini`.
-- Forecast model with OpenAI key: `gpt-5.5`.
-- Optional high-volume research/ensemble model: `grok-4.20-multi-agent-0309` via xAI when `XAI_API_KEY` is set.
+- Primary high-volume research model: `grok-4.20-multi-agent-0309` via xAI when `XAI_API_KEY` is set.
+- Grok forecast model: `grok-4.20-multi-agent-0309`.
+- Fallback research/evidence model with OpenAI key: `gpt-5.4-mini`.
+- Fallback/secondary forecast model with OpenAI key: `gpt-5.5`.
 - Grok-only mode is supported if `OPENAI_API_KEY` is absent.
 - Not used: `gpt-5.5-pro`.
 
@@ -97,6 +99,9 @@ Key environment controls:
 
 - `SUBMIT=true`: actually writes predictions.
 - `MAX_HOURS_TO_CLOSE=168`: forecast next seven days by default.
+- `ENABLE_UPDATE_GATE=true`: skip full reforecasting of already-fresh matches.
+- `MAX_PREDICTION_AGE_HOURS=12`: outside the force window, refresh a fully predicted match after this many hours.
+- `FORCE_REFORECAST_WITHIN_HOURS=6`: refresh every selected run inside the final pre-kickoff window.
 - `UPDATE_THRESHOLD_POINTS=2`: avoid noisy one-point updates.
 - `CONCURRENCY=4`: bound concurrent match forecasts.
 - `USE_GROK_RESEARCH=true`: use xAI multi-agent search for evidence when `XAI_API_KEY` exists.

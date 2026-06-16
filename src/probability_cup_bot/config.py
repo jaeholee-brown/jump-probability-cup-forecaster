@@ -43,6 +43,9 @@ class Settings:
     max_matches_per_run: int = 0
     min_hours_to_close: float = 0.0
     max_hours_to_close: float = 168.0
+    enable_update_gate: bool = True
+    max_prediction_age_hours: float = 12.0
+    force_reforecast_within_hours: float = 6.0
     update_threshold_points: int = 2
     extremize_alpha: float = 1.05
     base_shrinkage: float = 0.04
@@ -81,6 +84,9 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         max_matches_per_run=_int_env("MAX_MATCHES_PER_RUN", 0),
         min_hours_to_close=_float_env("MIN_HOURS_TO_CLOSE", 0.0),
         max_hours_to_close=_float_env("MAX_HOURS_TO_CLOSE", 168.0),
+        enable_update_gate=_bool_env("ENABLE_UPDATE_GATE", True),
+        max_prediction_age_hours=_float_env("MAX_PREDICTION_AGE_HOURS", 12.0),
+        force_reforecast_within_hours=_float_env("FORCE_REFORECAST_WITHIN_HOURS", 6.0),
         update_threshold_points=_int_env("UPDATE_THRESHOLD_POINTS", 2),
         extremize_alpha=_float_env("EXTREMIZE_ALPHA", 1.05),
         base_shrinkage=_float_env("BASE_SHRINKAGE", 0.04),
