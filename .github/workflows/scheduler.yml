@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Scheduler command: refresh or due"
+        description: "Scheduler command: refresh, due, or loop"
         required: false
         default: "due"
   schedule:
@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     permissions:
+      actions: write
       contents: read
     env:
       SPORTSPREDICT_API_KEY: ${{ secrets.SPORTSPREDICT_API_KEY }}
@@ -108,7 +109,20 @@ jobs:
             echo "SPORTSPREDICT_API_KEY is required for scheduler."
             exit 1
           fi
-          if [ "$EVENT_SCHEDULE" = "17 */6 * * *" ] || [ "$INPUT_MODE" = "refresh" ]; then
+          if [ "$INPUT_MODE" = "loop" ]; then
+            echo "Scheduler mode=loop schedule='${EVENT_SCHEDULE}'"
+            for iteration in 1 2 3 4; do
+              echo "::group::Due check iteration ${iteration}"
+              probability-cup-bot schedule --run-due
+              echo "::endgroup::"
+              if [ "$iteration" = "4" ]; then
+                break
+              fi
+              SLEEP_SECONDS="$(python3 -c 'from datetime import datetime, timedelta, timezone; slots=(7,22,37,52); now=datetime.now(timezone.utc); base=now.replace(second=0, microsecond=0); candidates=[(base+timedelta(hours=h)).replace(minute=m) for h in (0,1) for m in slots]; target=min(t for t in candidates if t > now + timedelta(seconds=20)); print(max(0, int((target-now).total_seconds())))')"
+              echo "Sleeping ${SLEEP_SECONDS}s until next due-check slot"
+              sleep "$SLEEP_SECONDS"
+            done
+          elif [ "$EVENT_SCHEDULE" = "17 */6 * * *" ] || [ "$INPUT_MODE" = "refresh" ]; then
             echo "Scheduler mode=refresh schedule='${EVENT_SCHEDULE}'"
             probability-cup-bot schedule --refresh-only
           else
@@ -132,3 +146,10 @@ jobs:
         with:
           path: state/
           key: forecast-state-${{ github.run_id }}
+
+      - name: Dispatch next scheduler loop
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'loop' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run scheduler.yml --ref main -f mode=loop
