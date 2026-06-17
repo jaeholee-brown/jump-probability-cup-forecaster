@@ -16,7 +16,7 @@ from probability_cup_bot.usage import record_usage
 
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
-DEFAULT_ANTHROPIC_MAX_TOKENS = 8192
+DEFAULT_ANTHROPIC_MAX_TOKENS = 16000
 
 
 def _anthropic_max_tokens() -> int:

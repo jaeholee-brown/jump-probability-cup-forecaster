@@ -48,7 +48,7 @@ If event discovery fails, add a repository variable named `EVENT_ID` with the Pr
 
 The SportsPredict key should be stored only as a repository secret. Do not put it in the repo or logs.
 
-After settled results exist, inspect `state/calibration-report.json` and timestamped `logs/calibration-*.json` to see Brier by model/provider and the suggested weight multipliers applied on the next run.
+After settled results exist, inspect `state/calibration-report.json` and timestamped `logs/calibration-*.json` to see Brier by model/provider and the suggested weight multipliers applied on the next run. To run a direct constrained weight search against saved component forecasts, use `python3 scripts/search_model_weights.py --history state/forecast-history.json`.
 
 ## Main Documents
 

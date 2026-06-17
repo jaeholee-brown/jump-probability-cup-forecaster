@@ -57,26 +57,37 @@ Non-negotiable forecasting process:
    - Penalize generic narratives. Reward concrete facts.
    - Do not double-count the same evidence through multiple labels.
 
-5. Quantify the update.
+5. Decompose markets that naturally decompose.
+   - Player goal/assist/shot props: estimate participation or expected minutes, then estimate event probability conditional on that role/minutes.
+   - Joint markets: estimate P(A) and P(B | A), and state the correlation assumption.
+   - Penalty/red-card markets: estimate the union with overlap rather than adding rates blindly.
+   - Threshold stat props: if converting a mean rate to a threshold probability, state the approximate distributional assumption and uncertainty.
+
+6. Quantify the update.
    - Move from the base rate/odds anchor to an inside-view probability.
    - Use small moves for weak evidence, larger moves for confirmed lineups/odds/injuries that directly affect the market.
    - If the evidence conflicts, average in log-odds space mentally rather than averaging narratives.
 
-6. Maintain cross-market coherence.
+7. Run an overconfidence and correlation check.
+   - Odds and team-quality gaps are strong anchors, not vetoes over concrete lineup, injury, weather, rotation, or game-state evidence.
+   - Do not let the same "favorite is stronger" evidence independently push every favorite-adjacent market too high.
+   - Shots-on-target, fouls, cards, offsides, and half-specific props are noisy. Keep them closer to a statistical base rate unless a direct stat, lineup, or odds anchor supports a stronger move.
+
+8. Maintain cross-market coherence.
    - Related match-result markets should not imply impossible sums.
    - A stricter event should not be more likely than a looser event. Example: "team wins by 2+" cannot exceed "team wins".
    - Goal-total thresholds should be monotonic.
    - Player props requiring the player to start/play should reflect participation probability.
    - If a market is independent enough, do not force artificial consistency.
 
-7. Calibrate for Brier scoring.
+9. Calibrate for Brier scoring.
    - Avoid lazy 50 percent forecasts when evidence points away from 50.
    - Avoid overconfident 1/99 forecasts unless the market is nearly settled by definition.
    - Avoid round-number anchoring. Prefer probabilities like 43, 57, 68 when justified.
    - If evidence quality is low, shrink toward the best base rate.
    - If several independent strong signals agree, allow mild extremization away from 50.
 
-8. Update discipline.
+10. Update discipline.
    - If revising an existing prediction, update only when new evidence or a coherence correction changes the probability enough to matter.
    - Near kickoff, lineups/injuries/odds shifts should dominate older previews.
    - Do not chase noise or tiny changes.
@@ -92,15 +103,18 @@ Output only JSON with this shape:
     {
       "market_id": "string",
       "question": "exact market question",
+      "resolution_interpretation": "what makes YES resolve",
+      "reference_class": "description of the outside-view anchor",
+      "base_rate": 0.50,
+      "base_rate_rationale": "reference class, source/stat, and adjustment",
+      "yes_reasons": ["audit reason", "audit reason"],
+      "no_reasons": ["audit reason", "audit reason"],
+      "probability_rationale": "base rate, update, decomposition or overconfidence adjustment when relevant. Final probability: 0.01",
       "probability": 0.01,
       "confidence": "low | medium | high",
       "evidence_quality": "low | medium | high",
-      "reference_class": "short description of the outside-view anchor",
-      "base_rate": 0.50,
-      "yes_reasons": ["short reason", "short reason"],
-      "no_reasons": ["short reason", "short reason"],
-      "calibration_notes": "short note explaining shrinkage/extremization/uncertainty",
-      "consistency_notes": "short note about related-market coherence"
+      "calibration_notes": "note explaining shrinkage/extremization/uncertainty",
+      "consistency_notes": "note about related-market coherence"
     }
   ]
 }
@@ -110,7 +124,7 @@ Quality bar:
 - Probabilities must be decimals between 0.01 and 0.99.
 - Reasons must support the probability. If the reasons are weak, the probability should be closer to the base rate.
 - Base-rate rationales should name the market family, reference class, source/stat if known, and any adjustment for opponent, team strength, expected minutes, or lineup uncertainty.
-- Do not mention hidden chain-of-thought. Provide concise audit notes only.
+- Do not mention hidden chain-of-thought. Provide structured audit notes only; do not force brevity when decomposition or uncertainty is important.
 ```
 
 ## Why These Components Are Together

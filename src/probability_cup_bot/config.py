@@ -47,11 +47,11 @@ def _mapping_env(name: str, default: dict[str, float]) -> dict[str, float]:
 
 
 DEFAULT_FORECAST_MODEL_WEIGHTS = {
-    "gpt-5": 1.0,
-    "grok-4.3": 0.3,
-    "grok-4.20-0309-reasoning": 0.4,
-    "claude-opus-4-8": 0.9,
-    "claude-opus-4-6": 0.8,
+    "gpt-5": 0.5,
+    "grok-4.3": 0.225,
+    "grok-4.20-0309-reasoning": 0.2,
+    "claude-opus-4-8": 1.35,
+    "claude-opus-4-6": 0.6,
 }
 
 

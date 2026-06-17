@@ -29,11 +29,11 @@ Current forecast ensemble:
 
 Default configured forecast providers do not all run all variants. The evidence says model diversity is more valuable than prompt-only diversity, and xAI forecast calls are more correlated with each other than OpenAI/Anthropic calls. The workflow now defaults to:
 
-- OpenAI `gpt-5` x 1 variant: `base_rate_frequency`, weight 1.0.
-- xAI `grok-4.3` x 1 variant: `base_rate_frequency`, weight 0.4.
-- xAI `grok-4.20-0309-reasoning` x 1 variant: `base_rate_frequency`, weight 0.6.
-- Anthropic `claude-opus-4-8` x 1 variant: `base_rate_frequency`, weight 0.7.
-- Anthropic `claude-opus-4-6` x 1 variant: `base_rate_frequency`, weight 0.8.
+- OpenAI `gpt-5` x 1 variant: `base_rate_frequency`, weight 0.5.
+- xAI `grok-4.3` x 1 variant: `base_rate_frequency`, weight 0.225.
+- xAI `grok-4.20-0309-reasoning` x 1 variant: `base_rate_frequency`, weight 0.2.
+- Anthropic `claude-opus-4-8` x 1 variant: `base_rate_frequency`, weight 1.35.
+- Anthropic `claude-opus-4-6` x 1 variant: `base_rate_frequency`, weight 0.6.
 
 Set `OPENAI_FORECAST_VARIANTS=all`, `GROK_FORECAST_VARIANTS=all`, or `CLAUDE_FORECAST_VARIANTS=all` for full prompt ensembling when desired. With all keys present, the default is 5 forecast batches per match-cycle.
 
@@ -161,7 +161,7 @@ The user's $2,500 xAI credit covers about 13,000 default xAI match-cycles under 
 Interpretation:
 
 - Replacing GPT-5.5 with GPT-5 cuts the OpenAI forecast call from about `$0.165` to about `$0.050`, making Claude the main paid marginal cost.
-- The two Grok forecasts have a combined raw weight of 1.0, equal to GPT-5 alone and below the two-Claude total of 1.5, so xAI can contribute useful disagreement without dominating the full ensemble.
+- The two Grok forecasts have a combined raw weight of 0.425, below GPT-5 and far below the two-Claude total of 1.95, so xAI can contribute useful disagreement without dominating the full ensemble.
 - The extra xAI budget is better spent on research decomposition, base-rate gathering, and source cleanup than forecast over-voting because retrieval/evidence quality has the strongest measured effect in the forecasting literature.
 
 ## Recommendation

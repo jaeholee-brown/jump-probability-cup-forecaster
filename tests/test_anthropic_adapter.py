@@ -74,7 +74,7 @@ async def test_anthropic_structured_response_allows_larger_tool_outputs() -> Non
     )
 
     assert result.ok is True
-    assert client.messages.kwargs["max_tokens"] == 8192
+    assert client.messages.kwargs["max_tokens"] == 16000
 
 
 async def test_anthropic_structured_response_uses_configured_max_tokens(monkeypatch) -> None:

@@ -169,8 +169,12 @@ class MatchForecaster:
                 "evidence": evidence.model_dump(),
                 "output_requirements": (
                     "Return exactly one forecast for every market id. Decimals must be between "
-                    "0.01 and 0.99. Keep notes concise: at most 2 short yes reasons, 2 short no "
-                    "reasons, and 1-2 compact sentences for each rationale field."
+                    "0.01 and 0.99. Use enough structured audit detail to justify the number. "
+                    "For decomposable markets, show the participation/conditional/joint or union "
+                    "calculation in probability_rationale. For favorite, noisy, or correlated prop "
+                    "markets, include the overconfidence/correlation check. End each "
+                    "probability_rationale with 'Final probability: 0.xx' and make the probability "
+                    "field exactly match that value."
                 ),
             },
             ensure_ascii=True,

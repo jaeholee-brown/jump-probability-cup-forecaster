@@ -29,28 +29,46 @@ Forecasting protocol:
    lineups, tactical fit, rest/travel, motivation, tournament incentives, weather, and news.
 4. Consider both yes and no cases. Prefer reasons that would have changed your probability before
    seeing the final answer.
-5. Quantify the update from the base rate. Avoid double-counting the same evidence twice.
-6. Check related markets for coherence. If several markets concern the same match, maintain
+5. Decompose the event when the market naturally decomposes:
+   - player goal/assist/shot props: P(plays enough minutes) x P(event | role/minutes);
+   - joint markets: P(A) x P(B | A), with correlation stated explicitly;
+   - penalty/red-card markets: estimate the union with overlap rather than adding rates blindly;
+   - threshold stat props: turn a mean/rate into a threshold probability only if the distributional
+     assumption is plausible, and label it approximate.
+6. Quantify the update from the base rate. Avoid double-counting the same evidence twice.
+7. Run an overconfidence and correlation check:
+   - odds and team-quality gaps are strong anchors but not dispositive;
+   - concrete lineup, injury, weather, rotation, or game-state news can move a favorite down;
+   - do not let the same "favorite is stronger" fact independently make many correlated favorite
+     props too high;
+   - shots-on-target, fouls, cards, offsides, and half-specific props are noisy. Keep them closer to
+     their statistical base rate unless there is a direct stat, lineup, or odds anchor.
+8. Check related markets for coherence. If several markets concern the same match, maintain
    monotonicity and basic probability consistency.
-7. Calibrate: avoid round-number anchoring, avoid reflexive 50%, avoid false precision, and avoid
+9. Calibrate: avoid round-number anchoring, avoid reflexive 50%, avoid false precision, and avoid
    excessive hedging when evidence is strong.
-8. Give the probability you would want locked in at market close under Brier scoring.
+10. Give the probability you would want locked in at market close under Brier scoring.
 
 Output reasoning:
-- Write concise reasoning inside the structured JSON fields before giving the probability:
+- Write enough structured audit detail that another forecaster could reconstruct your calculation:
   resolution_interpretation, reference_class, base_rate, base_rate_rationale, yes_reasons,
   no_reasons, and probability_rationale.
-- Keep every text field short. Use at most 2 yes reasons and 2 no reasons, each as a compact
-  phrase. Keep probability_rationale to 1-2 compact sentences and end with the exact text
-  "Final probability: 0.xx" using the same decimal value as the probability field. Do not expose
-  hidden chain-of-thought or add free-form text outside JSON.
+- Do not be terse when the market is noisy, decomposable, or correlated with other markets. Use
+  2-5 yes reasons and 2-5 no reasons when useful.
+- The probability_rationale should usually include the base rate, the most important update(s),
+  any decomposition math, and the calibration/overconfidence adjustment. End with the exact text
+  "Final probability: 0.xx" using the same decimal value as the probability field.
+- The probability field must equal the "Final probability" value in probability_rationale. It is
+  not a confidence score or a yes/no label.
+- Do not expose hidden chain-of-thought or add free-form text outside JSON.
 - The base_rate_rationale should name the reference class, the source/stat if known, and any
-  adjustment for team strength, opponent, expected minutes, or lineup uncertainty in one sentence.
+  adjustment for team strength, opponent, expected minutes, or lineup uncertainty.
 - For yes_reasons and no_reasons, include only concrete evidence or base-rate considerations that
   could have moved the probability before the result was known.
 
 Evidence weighting:
-- Reliable public odds or a well-formed de-vigged market estimate is a strong anchor.
+- Reliable public odds or a well-formed de-vigged market estimate is a strong anchor, not a veto
+  over concrete match-specific information.
 - Concrete lineup/injury/news within 24 hours of kickoff can justify meaningful updates.
 - Generic team narratives without data should move probabilities only a little.
 - If evidence quality is low, shrink toward the best base rate rather than pretending to know.
@@ -102,7 +120,7 @@ then update from current match-specific evidence.
 """.strip(),
     "balanced_scratchpad": """
 Emphasize balanced yes/no reasoning, question rephrasing, and a final calibration check.
-Keep reasoning concise but explicit enough that probability updates follow from evidence.
+Make the audit trail explicit enough that probability updates follow from evidence.
 """.strip(),
     "late_information": """
 Emphasize late-breaking evidence and market-moving information: lineups, injuries,

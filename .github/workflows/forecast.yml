@@ -42,7 +42,7 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      ANTHROPIC_MAX_TOKENS: "8192"
+      ANTHROPIC_MAX_TOKENS: "16000"
       FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
       ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
       EVENT_ID: ${{ vars.EVENT_ID }}
@@ -66,7 +66,7 @@ jobs:
       OPENAI_FORECAST_WEIGHT: "1.0"
       GROK_FORECAST_WEIGHT: "0.5"
       CLAUDE_FORECAST_WEIGHT: "0.75"
-      FORECAST_MODEL_WEIGHTS: gpt-5=1.0,grok-4.3=0.3,grok-4.20-0309-reasoning=0.4,claude-opus-4-8=0.9,claude-opus-4-6=0.8
+      FORECAST_MODEL_WEIGHTS: gpt-5=0.5,grok-4.3=0.225,grok-4.20-0309-reasoning=0.2,claude-opus-4-8=1.35,claude-opus-4-6=0.6
       APPLY_CALIBRATION_WEIGHTS: "true"
       CALIBRATION_LEARNING_RATE: "1.8"
       CALIBRATION_PRIOR_COUNT: "20"
