@@ -11,7 +11,7 @@ on:
     # Poll for newly posted games every 6 hours.
     - cron: "17 */6 * * *"
     # Cheap due-checker. It only spends model credits when a match hits its scheduled window.
-    - cron: "7/15 * * * *"
+    - cron: "2/15 * * * *"
 
 concurrency:
   group: probability-cup-forecaster
@@ -118,7 +118,7 @@ jobs:
               if [ "$iteration" = "4" ]; then
                 break
               fi
-              SLEEP_SECONDS="$(python3 -c 'from datetime import datetime, timedelta, timezone; slots=(7,22,37,52); now=datetime.now(timezone.utc); base=now.replace(second=0, microsecond=0); candidates=[(base+timedelta(hours=h)).replace(minute=m) for h in (0,1) for m in slots]; target=min(t for t in candidates if t > now + timedelta(seconds=20)); print(max(0, int((target-now).total_seconds())))')"
+              SLEEP_SECONDS="$(python3 -c 'from datetime import datetime, timedelta, timezone; slots=(2,17,32,47); now=datetime.now(timezone.utc); base=now.replace(second=0, microsecond=0); candidates=[(base+timedelta(hours=h)).replace(minute=m) for h in (0,1) for m in slots]; target=min(t for t in candidates if t > now + timedelta(seconds=20)); print(max(0, int((target-now).total_seconds())))')"
               echo "Sleeping ${SLEEP_SECONDS}s until next due-check slot"
               sleep "$SLEEP_SECONDS"
             done

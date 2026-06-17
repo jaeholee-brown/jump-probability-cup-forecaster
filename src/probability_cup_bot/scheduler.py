@@ -35,7 +35,7 @@ def build_due_actions(
     *,
     now: datetime,
     forecast_offset_minutes: float = 30.0,
-    news_offset_minutes: float = 10.0,
+    news_offset_minutes: float = 15.0,
 ) -> DueActions:
     now = now.astimezone(timezone.utc)
     forecast_ids: list[str] = []
@@ -181,7 +181,7 @@ class MatchScheduler:
             if closes_at is not None:
                 close = closes_at.astimezone(timezone.utc)
                 entry["late_forecast_due_at"] = _iso(close - timedelta(minutes=30))
-                entry["news_check_due_at"] = _iso(close - timedelta(minutes=10))
+                entry["news_check_due_at"] = _iso(close - timedelta(minutes=15))
             entries[match.id] = entry
         for match_id, entry in list(entries.items()):
             if match_id not in seen_ids:

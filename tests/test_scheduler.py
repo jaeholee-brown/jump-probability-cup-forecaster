@@ -66,8 +66,8 @@ def test_due_actions_use_opening_time_before_closing_time() -> None:
     assert due.news_match_ids == []
 
 
-def test_due_actions_news_checks_at_ten_minutes_after_late_forecast() -> None:
-    now = datetime(2026, 6, 16, 12, 50, tzinfo=timezone.utc)
+def test_due_actions_news_checks_at_fifteen_minutes_before_close() -> None:
+    now = datetime(2026, 6, 16, 12, 45, tzinfo=timezone.utc)
     schedule = {
         "matches": {
             "match": {
