@@ -103,6 +103,10 @@ class AnthropicAdapter:
                 schema_name=schema_name,
                 usage=getattr(response, "usage", None),
             )
+            if getattr(response, "stop_reason", "") == "max_tokens":
+                raise ModelOutputError(
+                    f"{schema_name} output was truncated at ANTHROPIC_MAX_TOKENS={_anthropic_max_tokens()}"
+                )
             data = self._extract_tool_input(response, schema_name)
             text = "" if data is not None else self._extract_text(response)
             if data is None:

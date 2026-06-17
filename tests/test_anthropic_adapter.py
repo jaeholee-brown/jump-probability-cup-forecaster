@@ -75,3 +75,82 @@ async def test_anthropic_structured_response_allows_larger_tool_outputs() -> Non
 
     assert result.ok is True
     assert client.messages.kwargs["max_tokens"] == 8192
+
+
+async def test_anthropic_structured_response_uses_configured_max_tokens(monkeypatch) -> None:
+    class TinySchema(BaseModel):
+        ok: bool
+
+    class ToolUse:
+        type = "tool_use"
+        name = "tiny_schema"
+        input = {"ok": True}
+
+    class Response:
+        content = [ToolUse()]
+        usage = None
+
+    class Messages:
+        def __init__(self) -> None:
+            self.kwargs: dict[str, Any] = {}
+
+        async def create(self, **kwargs: Any) -> Response:
+            self.kwargs = kwargs
+            return Response()
+
+    class Client:
+        def __init__(self) -> None:
+            self.messages = Messages()
+
+    monkeypatch.setenv("ANTHROPIC_MAX_TOKENS", "12000")
+    adapter = AnthropicAdapter("test-key")
+    client = Client()
+    adapter.client = client
+
+    await adapter.structured_response(
+        model="claude-opus-4-6",
+        instructions="Return JSON.",
+        user_input="{}",
+        schema_model=TinySchema,
+        schema_name="tiny_schema",
+    )
+
+    assert client.messages.kwargs["max_tokens"] == 12000
+
+
+async def test_anthropic_structured_response_rejects_truncated_output() -> None:
+    class TinySchema(BaseModel):
+        ok: bool
+
+    class ToolUse:
+        type = "tool_use"
+        name = "tiny_schema"
+        input = {"ok": True}
+
+    class Response:
+        content = [ToolUse()]
+        usage = None
+        stop_reason = "max_tokens"
+
+    class Messages:
+        async def create(self, **kwargs: Any) -> Response:
+            return Response()
+
+    class Client:
+        messages = Messages()
+
+    adapter = AnthropicAdapter("test-key")
+    adapter.client = Client()
+
+    try:
+        await adapter.structured_response(
+            model="claude-opus-4-6",
+            instructions="Return JSON.",
+            user_input="{}",
+            schema_model=TinySchema,
+            schema_name="tiny_schema",
+        )
+    except ModelOutputError as exc:
+        assert "truncated" in str(exc)
+    else:
+        raise AssertionError("expected ModelOutputError")
