@@ -180,7 +180,7 @@ Key environment controls:
 - `OPENAI_FORECAST_VARIANTS=base_rate_frequency`: comma-separated OpenAI variants, or `all`.
 - `GROK_FORECAST_VARIANTS=base_rate_frequency`: comma-separated Grok variants, or `all`.
 - `CLAUDE_FORECAST_VARIANTS=base_rate_frequency`: comma-separated Claude variants, or `all`.
-- `FORECAST_MODEL_WEIGHTS=gpt-5=1.0,grok-4.3=0.4,grok-4.20-0309-reasoning=0.6,claude-opus-4-8=0.7,claude-opus-4-6=0.8`: model-specific component weights before confidence/evidence adjustments.
+- `FORECAST_MODEL_WEIGHTS=gpt-5=1.0,grok-4.3=0.3,grok-4.20-0309-reasoning=0.4,claude-opus-4-8=0.9,claude-opus-4-6=0.8`: model-specific component weights before confidence/evidence adjustments.
 - `APPLY_CALIBRATION_WEIGHTS=true`: apply suggested multipliers from prior settled results.
 - `CALIBRATION_LEARNING_RATE=1.8`, `CALIBRATION_PRIOR_COUNT=20`: conservative online reweighting controls.
 - `EXTREMIZE_ALPHA=1.05`: mild log-odds extremization.
