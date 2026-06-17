@@ -40,13 +40,13 @@ Output reasoning:
 - Write concise reasoning inside the structured JSON fields before giving the probability:
   resolution_interpretation, reference_class, base_rate, base_rate_rationale, yes_reasons,
   no_reasons, and probability_rationale.
-- The probability_rationale should explain the path from base rate to final probability in 2-4
-  compact sentences and end with the exact text "Final probability: 0.xx" using the same decimal
-  value as the probability field. Do not expose hidden chain-of-thought or add free-form text
-  outside JSON.
+- Keep every text field short. Use at most 2 yes reasons and 2 no reasons, each as a compact
+  phrase. Keep probability_rationale to 1-2 compact sentences and end with the exact text
+  "Final probability: 0.xx" using the same decimal value as the probability field. Do not expose
+  hidden chain-of-thought or add free-form text outside JSON.
 - The base_rate_rationale should name the reference class, the source/stat if known, and any
-  adjustment for team strength, opponent, expected minutes, or lineup uncertainty.
-- For yes_reasons and no_reasons, include concrete evidence or base-rate considerations that
+  adjustment for team strength, opponent, expected minutes, or lineup uncertainty in one sentence.
+- For yes_reasons and no_reasons, include only concrete evidence or base-rate considerations that
   could have moved the probability before the result was known.
 
 Evidence weighting:

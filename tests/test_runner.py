@@ -456,6 +456,44 @@ def test_affected_markets_limits_news_monitor_promotion() -> None:
     assert [market.id for market in affected] == ["affected"]
 
 
+def test_component_coverage_reports_missing_configured_models() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+        xai_api_key="xai_test_key",
+        anthropic_api_key="anthropic_test_key",
+    )
+    runner = ForecastRunner(settings)
+    forecasts = [
+        AggregatedForecast(
+            market_id="market",
+            question="Will A win?",
+            probability=0.61,
+            probability_int=61,
+            component_probabilities=[0.62, 0.60],
+            confidence="medium",
+            evidence_quality="medium",
+            metadata={"models": ["gpt-5", "grok-4.3"]},
+        )
+    ]
+
+    coverage = runner._component_coverage(forecasts)
+
+    assert coverage["forecast_count"] == 1
+    assert coverage["full_coverage_market_count"] == 0
+    assert coverage["partial_coverage_market_count"] == 1
+    assert coverage["missing_by_model"] == {
+        "grok-4.20-0309-reasoning": 1,
+        "claude-opus-4-8": 1,
+        "claude-opus-4-6": 1,
+    }
+    assert coverage["markets_missing_components"][0]["missing_models"] == [
+        "grok-4.20-0309-reasoning",
+        "claude-opus-4-8",
+        "claude-opus-4-6",
+    ]
+
+
 async def test_news_monitor_promotes_skipped_match() -> None:
     settings = Settings(
         sportspredict_api_key="sportspredict_test_key",

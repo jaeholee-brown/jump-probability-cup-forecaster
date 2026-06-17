@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from typing import Any, TypeVar
 
@@ -15,7 +16,14 @@ from probability_cup_bot.usage import record_usage
 
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
-ANTHROPIC_MAX_TOKENS = 8192
+DEFAULT_ANTHROPIC_MAX_TOKENS = 8192
+
+
+def _anthropic_max_tokens() -> int:
+    raw_value = os.getenv("ANTHROPIC_MAX_TOKENS", "").strip()
+    if not raw_value:
+        return DEFAULT_ANTHROPIC_MAX_TOKENS
+    return max(1024, int(raw_value))
 
 
 def _is_retryable_exception(exc: BaseException) -> bool:
@@ -73,7 +81,7 @@ class AnthropicAdapter:
             schema = schema_model.model_json_schema()
             response = await self.client.messages.create(
                 model=model,
-                max_tokens=ANTHROPIC_MAX_TOKENS,
+                max_tokens=_anthropic_max_tokens(),
                 system=(
                     f"{instructions}\n\nReturn one structured {schema_name} tool call. "
                     "Do not add commentary outside the tool call."

@@ -222,6 +222,14 @@ class ForecastRunner:
                 existing_predictions=existing_predictions,
                 lobby_id=lobby.id,
             )
+            component_coverage = self._component_coverage(forecast_results)
+            if component_coverage["missing_by_model"]:
+                logger.warning(
+                    "Forecast component coverage incomplete full_coverage=%d/%d missing_by_model=%s",
+                    component_coverage["full_coverage_market_count"],
+                    component_coverage["forecast_count"],
+                    component_coverage["missing_by_model"],
+                )
             history = self._update_history(history, selected, forecast_results, plan)
             submission_results = await self._write_predictions(sp, plan)
             calibration_report = await self._build_calibration_report(sp, lobby.id, history, calibration_multipliers)
@@ -256,6 +264,7 @@ class ForecastRunner:
                     "checks": news_checks,
                 },
                 "plan": plan,
+                "component_coverage": component_coverage,
                 "submission_results": submission_results,
                 "calibration": {
                     "settled_market_count": calibration_report.get("settled_market_count", 0),
@@ -908,6 +917,65 @@ class ForecastRunner:
                 }
             )
         return records
+
+    def _component_coverage(self, forecasts: list[AggregatedForecast]) -> dict[str, Any]:
+        expected_models = self._expected_forecast_models()
+        missing_by_model = {model: 0 for model in expected_models}
+        model_component_counts = {model: 0 for model in expected_models}
+        market_reports: list[dict[str, Any]] = []
+        full_coverage_count = 0
+
+        for forecast in forecasts:
+            observed_models = list((forecast.metadata or {}).get("models") or [])
+            observed_unique = sorted(set(str(model) for model in observed_models if model))
+            observed_counts = {
+                model: sum(1 for observed in observed_models if observed == model)
+                for model in observed_unique
+            }
+            for model, count in observed_counts.items():
+                model_component_counts[model] = model_component_counts.get(model, 0) + count
+            missing = [model for model in expected_models if model not in observed_counts]
+            if missing:
+                for model in missing:
+                    missing_by_model[model] = missing_by_model.get(model, 0) + 1
+                market_reports.append(
+                    {
+                        "market_id": forecast.market_id,
+                        "question": forecast.question,
+                        "observed_models": observed_unique,
+                        "missing_models": missing,
+                        "component_count": len(forecast.component_probabilities),
+                    }
+                )
+            else:
+                full_coverage_count += 1
+
+        missing_by_model = {model: count for model, count in missing_by_model.items() if count}
+        return {
+            "forecast_count": len(forecasts),
+            "expected_models": expected_models,
+            "full_coverage_market_count": full_coverage_count,
+            "partial_coverage_market_count": len(forecasts) - full_coverage_count,
+            "model_component_counts": model_component_counts,
+            "missing_by_model": missing_by_model,
+            "markets_missing_components": market_reports,
+        }
+
+    def _expected_forecast_models(self) -> list[str]:
+        models: list[str] = []
+        if self.settings.use_openai_forecast and self.settings.openai_api_key:
+            models.append(self.settings.forecast_model)
+        if self.settings.use_grok_forecast and self.settings.xai_api_key:
+            models.extend(self.settings.grok_forecast_models)
+        if self.settings.use_claude_forecast and self.settings.anthropic_api_key:
+            models.extend(self.settings.claude_forecast_models)
+        seen: set[str] = set()
+        output: list[str] = []
+        for model in models:
+            if model and model not in seen:
+                seen.add(model)
+                output.append(model)
+        return output
 
     async def _build_calibration_report(
         self,

@@ -169,7 +169,8 @@ class MatchForecaster:
                 "evidence": evidence.model_dump(),
                 "output_requirements": (
                     "Return exactly one forecast for every market id. Decimals must be between "
-                    "0.01 and 0.99. Keep notes concise."
+                    "0.01 and 0.99. Keep notes concise: at most 2 short yes reasons, 2 short no "
+                    "reasons, and 1-2 compact sentences for each rationale field."
                 ),
             },
             ensure_ascii=True,
