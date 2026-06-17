@@ -15,6 +15,7 @@ from probability_cup_bot.usage import record_usage
 
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
+ANTHROPIC_MAX_TOKENS = 8192
 
 
 def _is_retryable_exception(exc: BaseException) -> bool:
@@ -72,7 +73,7 @@ class AnthropicAdapter:
             schema = schema_model.model_json_schema()
             response = await self.client.messages.create(
                 model=model,
-                max_tokens=4096,
+                max_tokens=ANTHROPIC_MAX_TOKENS,
                 system=(
                     f"{instructions}\n\nReturn one structured {schema_name} tool call. "
                     "Do not add commentary outside the tool call."
