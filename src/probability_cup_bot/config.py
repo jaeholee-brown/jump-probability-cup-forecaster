@@ -68,8 +68,18 @@ class Settings:
     forecast_model: str = "gpt-5"
     research_model: str = "gpt-5.4-mini"
     grok_research_model: str = "grok-4.20-multi-agent-0309"
-    grok_research_passes: tuple[str, ...] = ("overview", "base_rates", "late_news", "market_micro")
+    grok_research_passes: tuple[str, ...] = (
+        "overview",
+        "base_rates",
+        "late_news",
+        "market_micro",
+        "lineup_roles",
+        "volatile_market_anchors",
+    )
     grok_research_reasoning_effort: str = "medium"
+    use_grok_evidence_qa: bool = True
+    grok_evidence_qa_model: str = "grok-4.20-multi-agent-0309"
+    grok_evidence_qa_reasoning_effort: str = "low"
     grok_news_model: str = "grok-4.20-multi-agent-0309"
     grok_news_reasoning_effort: str = "low"
     grok_forecast_model: str = "grok-4.3"
@@ -151,9 +161,22 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         grok_research_model=os.getenv("GROK_RESEARCH_MODEL", "grok-4.20-multi-agent-0309"),
         grok_research_passes=_csv_env(
             "GROK_RESEARCH_PASSES",
-            ("overview", "base_rates", "late_news", "market_micro"),
+            (
+                "overview",
+                "base_rates",
+                "late_news",
+                "market_micro",
+                "lineup_roles",
+                "volatile_market_anchors",
+            ),
         ),
         grok_research_reasoning_effort=os.getenv("GROK_RESEARCH_REASONING_EFFORT", "medium"),
+        use_grok_evidence_qa=_bool_env("USE_GROK_EVIDENCE_QA", True),
+        grok_evidence_qa_model=os.getenv(
+            "GROK_EVIDENCE_QA_MODEL",
+            os.getenv("GROK_RESEARCH_MODEL", "grok-4.20-multi-agent-0309"),
+        ),
+        grok_evidence_qa_reasoning_effort=os.getenv("GROK_EVIDENCE_QA_REASONING_EFFORT", "low"),
         grok_news_model=os.getenv("GROK_NEWS_MODEL", "grok-4.20-multi-agent-0309"),
         grok_news_reasoning_effort=os.getenv("GROK_NEWS_REASONING_EFFORT", "low"),
         grok_forecast_model=os.getenv("GROK_FORECAST_MODEL", "grok-4.3"),

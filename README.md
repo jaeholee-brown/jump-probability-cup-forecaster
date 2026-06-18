@@ -6,6 +6,7 @@ The bot:
 
 - discovers the Probability Cup event, lobby, open matches, and open markets;
 - gathers fresh public evidence with multiple xAI/Grok multi-agent web/X research passes when `XAI_API_KEY` is available, with targeted Firecrawl search+scrape context and OpenAI web search as fallback;
+- spends surplus Grok budget on lineup/role research, volatile-market statistical anchors, and an evidence-QA pass before paid model forecasts;
 - uses a Grok web/X news monitor to decide whether already-covered matches need the full paid ensemble rerun;
 - can add optional structured bookmaker odds context before LLM research;
 - forecasts each match's markets with a configurable OpenAI/xAI/Claude ensemble when keys are available;

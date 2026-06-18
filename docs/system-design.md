@@ -57,7 +57,8 @@ Important limitations:
 Default:
 
 - Primary high-volume research model: `grok-4.20-multi-agent-0309` via xAI when `XAI_API_KEY` is set.
-- Research passes: `overview`, `base_rates`, `late_news`, and `market_micro`.
+- Research passes: `overview`, `base_rates`, `late_news`, `market_micro`, `lineup_roles`, and `volatile_market_anchors`.
+- Evidence QA: after the research passes are merged, a low-reasoning Grok audit checks whether the evidence has stale claims, missing denominators, weak player-role assumptions, or unsupported volatile-market anchors. The audit is appended to the evidence package before OpenAI/Grok/Claude forecasts run.
 - Base-rate pass policy: bucket markets by family, search for the narrowest reliable reference class, and report explicit frequencies/rates when available. For the current Jump docket this matters more than generic match odds because shots, cards, corners, fouls, offsides, halves, and player props outnumber vanilla match-winner/goal-total markets. The pass may use StatMuse FC, FBref/Stathead-style tables, StatBunker, API-Football/Sportmonks/Sportradar-style pages, official competition pages, and bookmaker lines as evidence sources, but natural-language stats answers should be corroborated or downweighted.
 - Grok news monitor: `grok-4.20-multi-agent-0309` with low reasoning, `web_search`, and `x_search`, used as a change detector before spending on the full ensemble. It returns `affected_market_ids`, so material news for one player/prop does not force every market in the match through the paid ensemble.
 - Optional Firecrawl retrieval: targeted web-only searches, five scraped results per search, fed into Grok monitor/research as source context.
@@ -112,7 +113,7 @@ Anthropic docs checked for current API behavior:
 Because xAI credits are abundant here, Grok is used freely for monitoring and research but not allowed to dominate the final ensemble. The full paid ensemble still uses one GPT-5 forecast, two Claude Opus forecasts, and two downweighted Grok forecasts. The xAI surplus goes into evidence:
 
 - scheduled Grok monitor checks on covered matches;
-- four specialized Grok research passes for selected matches;
+- six specialized Grok research passes plus one evidence-QA audit for selected matches;
 - `web_search` plus `x_search` in both the monitor and research stages;
 - cached summaries and source lists in `state/news-cache.json`.
 
@@ -165,8 +166,10 @@ Key environment controls:
 - `NEWS_MONITOR_MAX_HOURS_TO_CLOSE=168`: news-monitor eligible matches within the same close window.
 - `NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS=2`: promote to full ensemble only when expected movement clears the update threshold.
 - `USE_GROK_RESEARCH=true`: use xAI multi-agent search for evidence when `XAI_API_KEY` exists.
-- `GROK_RESEARCH_PASSES=overview,base_rates,late_news,market_micro`: specialized xAI research passes to run and merge.
+- `GROK_RESEARCH_PASSES=overview,base_rates,late_news,market_micro,lineup_roles,volatile_market_anchors`: specialized xAI research passes to run and merge.
 - `GROK_RESEARCH_REASONING_EFFORT=medium`: xAI research effort.
+- `USE_GROK_EVIDENCE_QA=true`: run a post-merge Grok audit before paid model forecasts.
+- `GROK_EVIDENCE_QA_MODEL=grok-4.20-multi-agent-0309`, `GROK_EVIDENCE_QA_REASONING_EFFORT=low`: default evidence-audit model and effort.
 - `GROK_NEWS_MODEL=grok-4.20-multi-agent-0309`, `GROK_NEWS_REASONING_EFFORT=low`: default news monitor model/effort.
 - `USE_FIRECRAWL_RETRIEVAL=true`: allow Firecrawl snippets when targeted gate says they are useful.
 - `FIRECRAWL_MODE=targeted`: use Firecrawl for close, volatile, low-evidence, high-disagreement, or material-news cases, not every run.

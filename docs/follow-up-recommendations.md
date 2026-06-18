@@ -54,7 +54,7 @@ Recommended Jump stack:
 - Grok multi-agent primary research for every selected match.
 - Grok-only fallback mode if no OpenAI key exists.
 - Default: use GPT-5, two Claude Opus generations, and two lightly weighted Grok forecast models. This keeps model diversity while preventing xAI from overruling OpenAI/Anthropic through volume.
-- Spend the xAI surplus on four specialized Grok research passes: stable overview, base rates, late-news/lineups, and market-specific micro evidence.
+- Spend the xAI surplus on six specialized Grok research passes: stable overview, base rates, late-news/lineups, market-specific micro evidence, lineup/role evidence, and volatile-market anchors. Run a low-reasoning Grok evidence-QA audit after merge so stale claims, missing denominators, and weak prop anchors reach the paid forecasters.
 - If paid budget gets tight, keep Grok research and one Grok forecast on every selected match, then reserve GPT-5/Claude for close-to-kickoff, high-disagreement, or high-value matches.
 
 ## 3. Blind Reruns vs Cheap Update Gate
@@ -134,15 +134,17 @@ Prices checked 2026-06-16:
 Assumptions:
 
 - One full match-cycle forecasts all markets for one match, about 9-10 markets.
-- Four Grok research passes, each about 9K billed input tokens, 6K billed reasoning/completion tokens, and 2 web/X tool invocations.
+- Six Grok research passes, each about 9K billed input tokens, 6K billed reasoning/completion tokens, and 2 web/X tool invocations.
+- One Grok evidence-QA audit, about 12K billed input tokens, 2K billed reasoning/completion tokens, and 2 web/X tool invocations.
 - Each forecast call: 12K billed input tokens. OpenAI and Grok forecast calls assume 3.5K billed reasoning/completion tokens at `REASONING_EFFORT=medium`; Claude defaults to no explicit extended-thinking parameter, so the base estimate uses 1.5K visible output tokens, with a sensitivity case of 3.5K if hidden/adaptive thinking is billed similarly.
-- xAI research cost: `4 * (9K * $1.25/M + 6K * $2.50/M + 2 * $5/1K) = $0.145`.
+- xAI research cost: `6 * (9K * $1.25/M + 6K * $2.50/M + 2 * $5/1K) = $0.2175`.
+- xAI evidence-QA cost: `12K * $1.25/M + 2K * $2.50/M + 2 * $5/1K = $0.030`.
 - OpenAI GPT-5 forecast call: `12K * $1.25/M + 3.5K * $10/M = $0.050`.
 - Grok forecast call: `12K * $1.25/M + 3.5K * $2.50/M = $0.0238`.
 - Claude forecast call: `12K * $5/M + 1.5K * $25/M = $0.0975`; sensitivity with 3.5K billed output is `$0.1475`.
 - Firecrawl retrieval cost: about 14 credits per match-cycle under the default two-query, five-result-per-query web-only configuration.
-- Default cycle: four Grok research passes, two lightly weighted Grok forecasts, one GPT-5 forecast, and two Claude Opus forecasts, about `$0.438`, plus about 14 Firecrawl credits if Firecrawl is enabled.
-- Provider split per cycle: about `$0.193` xAI, `$0.050` OpenAI, and `$0.195` Anthropic.
+- Default cycle: six Grok research passes, one Grok evidence-QA audit, two lightly weighted Grok forecasts, one GPT-5 forecast, and two Claude Opus forecasts, about `$0.541`, plus about 14 Firecrawl credits if Firecrawl is enabled.
+- Provider split per cycle: about `$0.296` xAI, `$0.050` OpenAI, and `$0.195` Anthropic.
 - Bot considers matches within the default 168-hour close window, not the full 919-hour event window.
 
 Approximate costs:

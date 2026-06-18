@@ -12,7 +12,7 @@ import httpx
 
 from probability_cup_bot.config import Settings
 from probability_cup_bot.firecrawl import FirecrawlClient
-from probability_cup_bot.models import Match, MatchEvidence, Market, utcnow
+from probability_cup_bot.models import EvidenceAudit, Match, MatchEvidence, Market, utcnow
 from probability_cup_bot.openai_adapter import OpenAIAdapter
 from probability_cup_bot.prompts import RESEARCH_INSTRUCTIONS
 
@@ -43,7 +43,40 @@ RESEARCH_PASS_TASKS: dict[str, str] = {
         "public facts, especially for player props, cards, shots, corners, goals, penalties, "
         "and other volatile soccer markets."
     ),
+    "lineup_roles": (
+        "Focus on confirmed or expected lineups, substitutions risk, player roles, set pieces, "
+        "formation, tactical matchup, injuries, suspensions, minutes expectations, and manager "
+        "comments. For player markets, separate start probability, expected minutes, role, and "
+        "per-minute event rate."
+    ),
+    "volatile_market_anchors": (
+        "Focus only on volatile soccer prop families: cards, fouls, penalties, red cards, corners, "
+        "shots on target, offsides, BTTS, team totals, half-specific goals, and joint markets. "
+        "Find statistical or odds anchors where possible, quantify broad base rates when narrow "
+        "rates are unavailable, and flag markets where narrative evidence is too weak."
+    ),
 }
+
+
+EVIDENCE_AUDIT_INSTRUCTIONS = """
+You are an evidence QA analyst for a soccer probability forecasting bot.
+
+Review the merged evidence before the expensive forecast ensemble sees it. Your job is not to
+make final forecasts. Your job is to detect evidence problems that could cause bad probabilities.
+
+Use web search and X search if needed to verify freshness, but be disciplined:
+- Flag missing denominators, invented-looking stats, stale previews, unsupported lineups, and
+  social-only claims that are not corroborated.
+- For each volatile market, say whether the evidence has a real statistical/odds/source anchor
+  or only narrative reasoning.
+- For player props, check whether start probability, expected minutes, tactical role, and recent
+  per-minute rate were established.
+- For joint or union markets, check whether the evidence supports a decomposition instead of
+  independent addition.
+- For cards/penalties/reds/corners/shots/offsides, ask for external anchors and warn if absent.
+
+Return compact, actionable QA notes. Do not overstate uncertainty: if the evidence is good, say so.
+""".strip()
 
 
 def split_match_name(match_name: str) -> tuple[str, str] | None:
@@ -142,6 +175,12 @@ class EvidenceCollector:
         evidences = [result for result in results if isinstance(result, MatchEvidence)]
         if evidences:
             evidence = self._merge_evidence(match, odds_context, evidences)
+            evidence = await self._maybe_audit_evidence(
+                adapter=adapter,
+                match=match,
+                markets=markets,
+                evidence=evidence,
+            )
             logger.info(
                 "Evidence end match_id=%s quality=%s facts=%d items=%d passes=%d failed_passes=%d elapsed=%.1fs",
                 match.id,
@@ -256,6 +295,79 @@ class EvidenceCollector:
         )
         return evidence
 
+    async def _maybe_audit_evidence(
+        self,
+        *,
+        adapter: OpenAIAdapter,
+        match: Match,
+        markets: list[Market],
+        evidence: MatchEvidence,
+    ) -> MatchEvidence:
+        if adapter.provider != "xai" or not self.settings.use_grok_evidence_qa:
+            return evidence
+
+        user_input = json.dumps(
+            {
+                "today_utc": utcnow().astimezone(timezone.utc).isoformat(),
+                "match": match.model_dump(),
+                "markets": [
+                    {
+                        "id": market.id,
+                        "question": market.question,
+                        "status": market.status,
+                        "closing_time": market.match.closing_time,
+                    }
+                    for market in markets
+                ],
+                "merged_evidence": evidence.model_dump(),
+                "decision_context": (
+                    "The forecast ensemble will see this evidence after your audit. Add cautions "
+                    "that should change probabilistic forecasts, especially for volatile markets."
+                ),
+            },
+            ensure_ascii=True,
+        )
+        started_at = time.perf_counter()
+        logger.info(
+            "Evidence QA start match_id=%s provider=%s model=%s markets=%d",
+            match.id,
+            adapter.provider,
+            self.settings.grok_evidence_qa_model,
+            len(markets),
+        )
+        try:
+            audit = await adapter.structured_response(
+                model=self.settings.grok_evidence_qa_model,
+                instructions=EVIDENCE_AUDIT_INSTRUCTIONS,
+                user_input=user_input,
+                schema_model=EvidenceAudit,
+                schema_name="evidence_audit",
+                reasoning_effort=self.settings.grok_evidence_qa_reasoning_effort,
+                tools=[{"type": "web_search"}, {"type": "x_search"}],
+            )
+        except Exception as exc:
+            logger.warning(
+                "Evidence QA failed match_id=%s provider=%s model=%s error_type=%s elapsed=%.1fs",
+                match.id,
+                adapter.provider,
+                self.settings.grok_evidence_qa_model,
+                type(exc).__name__,
+                time.perf_counter() - started_at,
+            )
+            return evidence
+
+        audited = self._apply_evidence_audit(evidence, audit)
+        logger.info(
+            "Evidence QA end match_id=%s quality=%s alerts=%d missing=%d stale=%d elapsed=%.1fs",
+            match.id,
+            audit.evidence_quality,
+            len(audit.volatile_market_alerts),
+            len(audit.missing_or_weak_anchors),
+            len(audit.stale_or_conflicting_claims),
+            time.perf_counter() - started_at,
+        )
+        return audited
+
     def _merge_evidence(
         self,
         match: Match,
@@ -293,6 +405,67 @@ class EvidenceCollector:
             items=items,
             evidence_quality=quality,
         )
+
+    def _apply_evidence_audit(self, evidence: MatchEvidence, audit: EvidenceAudit) -> MatchEvidence:
+        audit_lines = self._evidence_audit_lines(audit)
+        if not audit_lines:
+            return evidence
+
+        return evidence.model_copy(
+            update={
+                "query_summary": (
+                    f"{evidence.query_summary}\n"
+                    f"[evidence_qa] {audit.overall_assessment}"
+                ),
+                "key_facts": [*evidence.key_facts, *audit_lines][:40],
+                "evidence_quality": self._audit_adjusted_quality(
+                    evidence.evidence_quality,
+                    audit.evidence_quality,
+                    audit,
+                ),
+            }
+        )
+
+    @staticmethod
+    def _evidence_audit_lines(audit: EvidenceAudit) -> list[str]:
+        lines = [f"Evidence QA: {audit.overall_assessment}"]
+        lines.extend(f"Evidence QA missing/weak anchor: {item}" for item in audit.missing_or_weak_anchors[:6])
+        lines.extend(
+            f"Evidence QA stale/conflicting claim: {item}" for item in audit.stale_or_conflicting_claims[:4]
+        )
+        for alert in audit.volatile_market_alerts[:10]:
+            question = f" ({alert.question})" if alert.question else ""
+            family = f"{alert.market_family}: " if alert.market_family else ""
+            recommendation = f" Recommendation: {alert.recommendation}" if alert.recommendation else ""
+            lines.append(
+                f"Evidence QA {alert.severity} alert{question}: {family}{alert.issue}{recommendation}"
+            )
+        lines.extend(f"Evidence QA source note: {item}" for item in audit.source_quality_notes[:4])
+        lines.extend(
+            f"Evidence QA forecaster caution: {item}" for item in audit.recommended_forecaster_cautions[:6]
+        )
+        return lines[:24]
+
+    @staticmethod
+    def _audit_adjusted_quality(
+        current_quality: str,
+        audit_quality: str,
+        audit: EvidenceAudit,
+    ) -> str:
+        order = {"low": 0, "medium": 1, "high": 2}
+        severe_alert = any(alert.severity == "high" for alert in audit.volatile_market_alerts)
+        hard_problem = bool(audit.stale_or_conflicting_claims) or severe_alert
+        if not hard_problem and audit_quality == "low":
+            hard_problem = len(audit.missing_or_weak_anchors) >= 3
+        if not hard_problem:
+            return current_quality
+        current_score = order.get(current_quality, 1)
+        audit_score = order.get(audit_quality, 1)
+        adjusted_score = min(current_score, audit_score)
+        for quality, score in order.items():
+            if score == adjusted_score:
+                return quality
+        return current_quality
 
     @staticmethod
     def _best_evidence_quality(values: Any) -> str:

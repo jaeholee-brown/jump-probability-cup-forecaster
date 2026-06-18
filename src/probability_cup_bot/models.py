@@ -125,6 +125,28 @@ class MatchEvidence(BaseModel):
         return "\n\n".join(parts)
 
 
+class MarketEvidenceAlert(BaseModel):
+    market_id: str = ""
+    question: str = ""
+    market_family: str = ""
+    issue: str
+    recommendation: str = ""
+    severity: str = Field(pattern="^(low|medium|high)$")
+
+
+class EvidenceAudit(BaseModel):
+    match_id: str
+    match_name: str
+    audited_at: str
+    evidence_quality: str = Field(pattern="^(low|medium|high)$")
+    overall_assessment: str
+    missing_or_weak_anchors: list[str] = Field(default_factory=list)
+    stale_or_conflicting_claims: list[str] = Field(default_factory=list)
+    volatile_market_alerts: list[MarketEvidenceAlert] = Field(default_factory=list)
+    source_quality_notes: list[str] = Field(default_factory=list)
+    recommended_forecaster_cautions: list[str] = Field(default_factory=list)
+
+
 class NewsSource(BaseModel):
     title: str = ""
     url: str = ""
