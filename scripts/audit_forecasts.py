@@ -21,6 +21,13 @@ ANCHOR_PATTERN = re.compile(
     r"\b(odds?|bookmaker|book|market[- ]?implied|implied|de-?vig|polymarket|line|price)\b",
     re.IGNORECASE,
 )
+EVIDENCE_LEVEL_ORDER = {
+    "direct_market_line": 0,
+    "direct_or_adjacent_stat": 1,
+    "adjacent_match_market": 2,
+    "match_context_only": 3,
+    "no_external_source": 4,
+}
 LEGACY_MARKET_MATCHES = {
     "a42ddd0a-f256-4673-b105-14f678bba629": "FRA vs SEN",
     "02f1082e-cb12-43c6-aadb-0e8b89e66f49": "FRA vs SEN",
@@ -189,6 +196,7 @@ def _worst(records: list[dict[str, Any]], *, reverse: bool = True, limit: int = 
         "outcome",
         "brier",
         "stage",
+        "external_evidence_level",
         "component_count",
         "component_spread_points",
     ]
@@ -305,6 +313,188 @@ def _external_fields(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _external_source_facts(entry: dict[str, Any], *, source_types: set[str] | None = None) -> list[str]:
+    facts: list[str] = []
+    for source in entry.get("sources") or []:
+        if not isinstance(source, dict):
+            continue
+        source_type = str(source.get("type") or "unknown")
+        if source_types is not None and source_type not in source_types:
+            continue
+        for fact in source.get("facts") or []:
+            facts.append(str(fact))
+    return facts
+
+
+def _contains_any(text: str, needles: list[str]) -> bool:
+    return any(needle in text for needle in needles)
+
+
+def _matched_facts(facts: list[str], needles: list[str]) -> list[str]:
+    matches = []
+    for fact in facts:
+        fact_text = fact.lower()
+        if _contains_any(fact_text, needles):
+            matches.append(fact)
+    return matches[:5]
+
+
+def _player_terms(question: str) -> list[str]:
+    terms: list[str] = []
+    for token in re.findall(r"[A-ZÀ-ÖØ-Þ][\wÀ-ÖØ-öø-ÿ'’-]+", question):
+        lower = token.lower().strip("'’")
+        if lower not in {
+            "will",
+            "in",
+            "at",
+            "and",
+            "or",
+            "the",
+            "first",
+            "second",
+            "half",
+        }:
+            terms.append(lower)
+    return terms
+
+
+def _external_evidence_for_record(question: str, family: str, entry: dict[str, Any]) -> dict[str, Any]:
+    if not entry:
+        return {
+            "external_evidence_level": "no_external_source",
+            "external_evidence_reason": "No configured external source matched this forecast's match.",
+            "external_evidence_basis": [],
+        }
+
+    odds_or_stats_facts = _external_source_facts(entry, source_types={"odds", "stats"})
+    context = "\n".join([entry.get("odds_summary") or "", *odds_or_stats_facts]).lower()
+    question_text = question.lower()
+    has_moneyline = _contains_any(context, ["moneyline", "favorite", "favourite", "favored", "favour"])
+    has_total = _contains_any(context, ["total 2.5", "over 2.5", "under 2.5", "match total", "total went over"])
+    has_btts = _contains_any(context, ["btts", "both teams score"])
+    has_sot = _contains_any(context, ["shot-on-target", "shots-on-target", "shots on target", "sot"])
+    has_shots = has_sot or _contains_any(context, [" shot ", " shots ", "shot and shot-on-target"])
+    has_fouls = "foul" in context
+    has_corners = "corner" in context
+    has_cards = "card" in context
+    has_offsides = "offside" in context
+    has_penalty_red = "penalty" in context or "red card" in context
+    has_anytime_scorer = _contains_any(context, ["anytime", "goalscorer", "score a goal"])
+
+    direct_facts: list[str] = []
+    adjacent_facts: list[str] = []
+    reason = ""
+    level = "match_context_only"
+
+    if family == "result":
+        if "win the match" in question_text and has_moneyline:
+            level = "direct_market_line"
+            reason = "Moneyline/favorite odds directly describe match-winner likelihood."
+            direct_facts = _matched_facts(odds_or_stats_facts, ["moneyline", "favorite", "favored"])
+        elif has_moneyline:
+            level = "adjacent_match_market"
+            reason = "Match moneyline is relevant but does not directly price halftime or partial-result framing."
+            adjacent_facts = _matched_facts(odds_or_stats_facts, ["moneyline", "favorite", "favored"])
+    elif family == "goals":
+        needs_total = _contains_any(question_text, ["total goals", "3 or more", "2 or fewer", "second half have"])
+        needs_btts = "both teams score" in question_text
+        if (needs_total and has_total) or (needs_btts and has_btts):
+            level = "direct_market_line"
+            reason = "Totals and/or BTTS odds directly price the core goal-market leg."
+            direct_facts = _matched_facts(odds_or_stats_facts, ["total", "over 2.5", "under 2.5", "btts"])
+        elif has_total or has_btts or has_moneyline:
+            level = "adjacent_match_market"
+            reason = "Moneyline, totals, or BTTS odds are adjacent to team-scoring probability but do not directly price this exact market."
+            adjacent_facts = _matched_facts(odds_or_stats_facts, ["moneyline", "total", "btts"])
+    elif family in {"player-goal", "player-goal-assist"}:
+        player_terms = _player_terms(question)
+        mentions_player = any(term in context for term in player_terms)
+        if mentions_player and has_anytime_scorer:
+            level = "direct_market_line"
+            reason = "A player goalscorer market was found for the named player."
+            direct_facts = _matched_facts(odds_or_stats_facts, [*player_terms, "anytime", "goalscorer"])
+        elif has_total or has_btts or has_moneyline:
+            level = "adjacent_match_market"
+            reason = "Team/match scoring odds are relevant but do not directly price the named player's goal/assist market."
+            adjacent_facts = _matched_facts(odds_or_stats_facts, ["moneyline", "total", "btts"])
+    elif family == "shots-on-target":
+        if has_sot:
+            level = "direct_or_adjacent_stat"
+            reason = "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold."
+            direct_facts = _matched_facts(odds_or_stats_facts, ["shot-on-target", "shots-on-target", "shots on target", "sot"])
+        elif has_shots:
+            level = "direct_or_adjacent_stat"
+            reason = "External source includes shot-volume facts adjacent to the shots-on-target market."
+            direct_facts = _matched_facts(odds_or_stats_facts, [" shot ", " shots "])
+        elif has_moneyline or has_total:
+            level = "adjacent_match_market"
+            reason = "Match winner/total odds are only loose proxies for shot-on-target props."
+            adjacent_facts = _matched_facts(odds_or_stats_facts, ["moneyline", "total"])
+    elif family == "fouls":
+        if has_fouls:
+            level = "direct_or_adjacent_stat"
+            reason = "External source includes foul-rate/foul-count evidence."
+            direct_facts = _matched_facts(odds_or_stats_facts, ["foul"])
+        elif has_moneyline:
+            level = "adjacent_match_market"
+            reason = "Moneyline context is a weak proxy for foul-market game script."
+            adjacent_facts = _matched_facts(odds_or_stats_facts, ["moneyline"])
+    elif family == "corners":
+        if has_corners:
+            level = "direct_or_adjacent_stat"
+            reason = "External source includes corner evidence."
+            direct_facts = _matched_facts(odds_or_stats_facts, ["corner"])
+        elif has_moneyline or has_total:
+            level = "adjacent_match_market"
+            reason = "Match odds are only loose proxies for corner props."
+            adjacent_facts = _matched_facts(odds_or_stats_facts, ["moneyline", "total"])
+    elif family == "cards":
+        if has_cards:
+            level = "direct_or_adjacent_stat"
+            reason = "External source includes card evidence."
+            direct_facts = _matched_facts(odds_or_stats_facts, ["card"])
+        elif has_moneyline:
+            level = "adjacent_match_market"
+            reason = "Moneyline context is a weak proxy for card props."
+            adjacent_facts = _matched_facts(odds_or_stats_facts, ["moneyline"])
+    elif family == "offsides":
+        if has_offsides:
+            level = "direct_or_adjacent_stat"
+            reason = "External source includes offside evidence."
+            direct_facts = _matched_facts(odds_or_stats_facts, ["offside"])
+        elif has_moneyline:
+            level = "adjacent_match_market"
+            reason = "Moneyline context is a weak proxy for offside props."
+            adjacent_facts = _matched_facts(odds_or_stats_facts, ["moneyline"])
+    elif family == "penalty-red":
+        if has_penalty_red and has_cards:
+            level = "direct_or_adjacent_stat"
+            reason = "External source includes penalty/red-card related evidence."
+            direct_facts = _matched_facts(odds_or_stats_facts, ["penalty", "red card", "card"])
+        elif has_moneyline or has_total:
+            level = "adjacent_match_market"
+            reason = "Match odds are only loose proxies for penalty/red-card likelihood."
+            adjacent_facts = _matched_facts(odds_or_stats_facts, ["moneyline", "total"])
+    else:
+        if _contains_any(question_text, ["score in the first half", "score in the second half", "score in the second"]):
+            if has_total or has_btts:
+                level = "adjacent_match_market"
+                reason = "Totals/BTTS odds are adjacent to team half-scoring markets."
+                adjacent_facts = _matched_facts(odds_or_stats_facts, ["total", "btts"])
+        elif has_moneyline or has_total or has_btts:
+            level = "adjacent_match_market"
+            reason = "Match-level odds are relevant context but do not directly price this market."
+            adjacent_facts = _matched_facts(odds_or_stats_facts, ["moneyline", "total", "btts"])
+
+    if level == "match_context_only":
+        reason = "External sources cover the match but not this market family with a direct or adjacent market/stat line."
+    return {
+        "external_evidence_level": level,
+        "external_evidence_reason": reason,
+        "external_evidence_basis": direct_facts or adjacent_facts,
+    }
+
+
 def _build_records(
     *,
     platform: dict[str, Any],
@@ -370,6 +560,7 @@ def _build_records(
             "last_forecast_at": history_row.get("last_forecast_at"),
             "last_model_forecast_at": history_row.get("last_model_forecast_at"),
             **_external_fields(external_entry),
+            **_external_evidence_for_record(question, family, external_entry),
         }
         records.append(row)
         for component in components:
@@ -448,6 +639,11 @@ def _external_coverage(records: list[dict[str, Any]], external_sources: dict[str
         "settled_matches": len(by_match),
         "settled_records": len(records),
         "settled_records_with_sources": sum(1 for row in records if int(row.get("external_source_count") or 0) > 0),
+        "settled_records_with_direct_or_adjacent_evidence": sum(
+            1
+            for row in records
+            if row.get("external_evidence_level") in {"direct_market_line", "direct_or_adjacent_stat"}
+        ),
         "matches_missing_sources": missing,
         "by_match": by_match,
     }
@@ -474,6 +670,11 @@ def _candidate_findings(
         "External source coverage: "
         f"{external_coverage['settled_records_with_sources']}/{external_coverage['settled_records']} "
         f"settled forecasts across {external_coverage['settled_matches']} match groups."
+    )
+    findings.append(
+        "Direct/specific evidence coverage: "
+        f"{external_coverage['settled_records_with_direct_or_adjacent_evidence']}/"
+        f"{external_coverage['settled_records']} settled forecasts."
     )
 
     family_rows = _group_summary(records, "family")
@@ -535,6 +736,8 @@ def _report_markdown(report: dict[str, Any]) -> str:
     lines.append(_markdown_summary_rows(report["component_summary"]))
     lines.extend(["", "## External Source Coverage", ""])
     lines.append(_markdown_external_coverage(report["external_source_coverage"]))
+    lines.extend(["", "## External Evidence Strength", ""])
+    lines.append(_markdown_summary_rows(report["external_evidence_bins"]))
     lines.extend(["", "## Worst Settled Markets", ""])
     lines.append(_markdown_record_rows(report["worst_markets"]))
     lines.extend(["", "## Best Settled Markets", ""])
@@ -550,8 +753,14 @@ def _markdown_table(row: dict[str, Any]) -> str:
 
 
 def _markdown_summary_rows(rows: dict[str, dict[str, Any]]) -> str:
-    output = [{"group": key, **value} for key, value in rows.items()]
+    output = [{"group": key, **value} for key, value in _sort_summary_rows(rows).items()]
     return _markdown_rows(output)
+
+
+def _sort_summary_rows(rows: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    if set(rows).issubset(EVIDENCE_LEVEL_ORDER):
+        return dict(sorted(rows.items(), key=lambda item: EVIDENCE_LEVEL_ORDER.get(item[0], 99)))
+    return rows
 
 
 def _markdown_record_rows(rows: list[dict[str, Any]]) -> str:
@@ -632,6 +841,9 @@ def build_report(args: argparse.Namespace, platform: dict[str, Any]) -> dict[str
             "component_records": len(component_records),
             "external_source_matches_configured": external_coverage["configured_matches"],
             "settled_records_with_external_sources": external_coverage["settled_records_with_sources"],
+            "settled_records_with_direct_or_adjacent_evidence": external_coverage[
+                "settled_records_with_direct_or_adjacent_evidence"
+            ],
         },
         "overall": _summary(records),
         "by_family": _group_summary(records, "family"),
@@ -641,6 +853,7 @@ def build_report(args: argparse.Namespace, platform: dict[str, Any]) -> dict[str
         "disagreement_bins": _disagreement_bins(records),
         "market_anchor_bins": _group_summary(records, "has_market_anchor_in_rationale"),
         "external_source_coverage": external_coverage,
+        "external_evidence_bins": _group_summary(records, "external_evidence_level"),
         "component_summary": _component_summary(component_records),
         "component_by_family": {
             family: _component_summary([row for row in component_records if row["family"] == family])
@@ -654,6 +867,7 @@ def build_report(args: argparse.Namespace, platform: dict[str, Any]) -> dict[str
             "Platform-level scoring uses SportsPredict /results and covers every settled submitted prediction returned by the API.",
             "Component/model scoring is available only for markets present in saved forecast-history.json.",
             "External source enrichment is match-level unless a direct market/prop line is shown in the source facts.",
+            "External evidence strength is conservative: generic moneyline/total context is not treated as direct evidence for SOT, cards, fouls, offsides, corners, or half-specific props.",
             "External odds are not available through the Jump API; source coverage comes from public odds, stats, and recap pages captured in reports/external-match-sources.json.",
             "Post-change split uses forecast-history timestamps, not Git metadata inside artifacts.",
         ],

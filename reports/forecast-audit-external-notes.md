@@ -11,6 +11,8 @@ coverage to all settled platform forecasts.
 - Settled platform forecasts scored: 90.
 - Settled match groups covered by external sources: 9 of 9.
 - Settled forecasts with at least one public odds/stat/recap source attached: 90 of 90.
+- Settled forecasts with direct market-line evidence or direct/adjacent stat evidence:
+  25 of 90.
 - Remaining limitation: most sources are match-level. Direct prop-level historical lines
   are only available when the public page explicitly preserved that market.
 
@@ -82,8 +84,8 @@ coverage to all settled platform forecasts.
 
 ## Uzbekistan vs Colombia
 
-- Public context made Colombia a heavy favorite; the preserved FOX boxscore odds tab
-  showed Colombia winning as a `-316` favorite.
+- Public context made Colombia a heavy favorite; FOX listed Colombia around `-280`,
+  Uzbekistan around `+850`, and draw around `+370`, with Over 2.5 close to even.
 - Colombia won 3-1.
 - Bot lesson: Uzbekistan scoring at `35%` was not extreme, but the low-total lean and
   second-half SOT-control props were too conservative/fragile.
@@ -94,6 +96,9 @@ coverage to all settled platform forecasts.
   punish odds anchors.
 - The clearest bot-specific weakness remains noisy stat-prop overconfidence: shots on
   target, fouls, offsides, cards, and half-specific variants.
+- The new evidence-strength table sharpens this: records with direct/adjacent stat
+  evidence have mean forecast `51.5%` against a `12.5%` hit rate so far. Sample size is
+  only 8, but the direction matches the family-level SOT/foul/card pattern.
 - Team quality and possession should be weak evidence for stat dominance unless backed by
   direct team/player rates or a public prop line.
 - Correlated combo markets need explicit leg decomposition and recombination; treating

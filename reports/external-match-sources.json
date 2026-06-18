@@ -117,6 +117,7 @@
           "facts": [
             "Moneyline: England -140, Croatia +420, draw +270.",
             "Total 2.5: Over +116, Under -142.",
+            "Anytime goalscorer props included Harry Kane +125.",
             "BTTS Yes +108, No -130."
           ]
         },
@@ -278,7 +279,7 @@
     "UZB vs COL": {
       "match_name": "UZB vs COL",
       "aliases": ["Uzbekistan vs Colombia", "Colombia vs Uzbekistan"],
-      "odds_summary": "Colombia was a heavy favorite; public snippets showed Colombia around -316 to -1.5 favorite territory, with Uzbekistan a long underdog.",
+      "odds_summary": "Colombia was a heavy favorite around -280, Uzbekistan around +850, draw around +370; Over 2.5 was close to even and BTTS Yes was plus-money.",
       "result_summary": "Colombia beat Uzbekistan 3-1.",
       "audit_notes": [
         "Colombia-win and over directions were externally supported.",
@@ -288,11 +289,21 @@
       "sources": [
         {
           "type": "odds",
-          "title": "FOX Sports Uzbekistan vs Colombia boxscore odds tab",
+          "title": "FOX Sports Uzbekistan vs Colombia odds",
+          "url": "https://www.foxsports.com/stories/soccer/2026-world-cup-uzbekistan-colombia-odds-predictions-picks",
+          "facts": [
+            "Moneyline: Uzbekistan +850, Colombia -280, draw +370.",
+            "Total 2.5: Over -110, Under -115.",
+            "Anytime goalscorer props included Luis Díaz +135 and Eldor Shomurodov +390.",
+            "BTTS Yes +124, No -154."
+          ]
+        },
+        {
+          "type": "stats",
+          "title": "FOX Sports Uzbekistan vs Colombia boxscore",
           "url": "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
           "facts": [
             "Colombia won 3-1.",
-            "The page displayed Colombia winning as a -316 favorite.",
             "The match total went over 2.5."
           ]
         },
