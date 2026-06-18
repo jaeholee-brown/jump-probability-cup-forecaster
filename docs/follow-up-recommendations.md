@@ -29,11 +29,11 @@ Current forecast ensemble:
 
 Default configured forecast providers do not all run all variants. The evidence says model diversity is more valuable than prompt-only diversity, and xAI forecast calls are more correlated with each other than OpenAI/Anthropic calls. The workflow now defaults to:
 
-- OpenAI `gpt-5` x 1 variant: `base_rate_frequency`, weight 0.5.
-- xAI `grok-4.3` x 1 variant: `base_rate_frequency`, weight 0.225.
-- xAI `grok-4.20-0309-reasoning` x 1 variant: `base_rate_frequency`, weight 0.2.
-- Anthropic `claude-opus-4-8` x 1 variant: `base_rate_frequency`, weight 1.35.
-- Anthropic `claude-opus-4-6` x 1 variant: `base_rate_frequency`, weight 0.6.
+- OpenAI `gpt-5` x 1 variant: `base_rate_frequency`, weight 0.35.
+- xAI `grok-4.3` x 1 variant: `base_rate_frequency`, weight 0.2.
+- xAI `grok-4.20-0309-reasoning` x 1 variant: `base_rate_frequency`, weight 0.15.
+- Anthropic `claude-opus-4-8` x 1 variant: `base_rate_frequency`, weight 1.2.
+- Anthropic `claude-opus-4-6` x 1 variant: `base_rate_frequency`, weight 1.1.
 
 Set `OPENAI_FORECAST_VARIANTS=all`, `GROK_FORECAST_VARIANTS=all`, or `CLAUDE_FORECAST_VARIANTS=all` for full prompt ensembling when desired. With all keys present, the default is 5 forecast batches per match-cycle.
 

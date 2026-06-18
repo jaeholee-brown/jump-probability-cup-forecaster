@@ -15,7 +15,16 @@ from probability_cup_bot.config import Settings
 from probability_cup_bot.evidence import EvidenceCollector
 from probability_cup_bot.firecrawl import FirecrawlClient
 from probability_cup_bot.forecaster import MatchForecaster
-from probability_cup_bot.models import AggregatedForecast, Market, Match, NewsCheck, Prediction, parse_dt, utcnow
+from probability_cup_bot.models import (
+    AggregatedForecast,
+    Market,
+    Match,
+    MatchEvidence,
+    NewsCheck,
+    Prediction,
+    parse_dt,
+    utcnow,
+)
 from probability_cup_bot.news_monitor import GrokNewsMonitor
 from probability_cup_bot.openai_adapter import OpenAIAdapter
 from probability_cup_bot.sportspredict import SportsPredictClient, chunks
@@ -1076,7 +1085,8 @@ class ForecastRunner:
                         cached_news_context=cached_news_context,
                         firecrawl_context_override=firecrawl_context,
                     )
-                    forecasts = await forecaster.forecast_match(
+                    forecasts = await self._forecast_match_with_missing_retry(
+                        forecaster=forecaster,
                         match=match,
                         markets=markets,
                         evidence=evidence,
@@ -1175,6 +1185,68 @@ class ForecastRunner:
             failed_matches,
         )
         return forecasts
+
+    async def _forecast_match_with_missing_retry(
+        self,
+        *,
+        forecaster: MatchForecaster,
+        match: Match,
+        markets: list[Market],
+        evidence: MatchEvidence,
+    ) -> list[AggregatedForecast]:
+        forecasts = await forecaster.forecast_match(match=match, markets=markets, evidence=evidence)
+        missing_markets = self._missing_forecast_markets(markets, forecasts)
+        if not missing_markets:
+            return forecasts
+
+        logger.warning(
+            "Match forecast omitted markets; retrying missing subset match_id=%s missing=%d market_ids=%s",
+            match.id,
+            len(missing_markets),
+            [market.id for market in missing_markets],
+        )
+        try:
+            retry_forecasts = await forecaster.forecast_match(
+                match=match,
+                markets=missing_markets,
+                evidence=evidence,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Missing-market retry failed match_id=%s missing=%d error_type=%s",
+                match.id,
+                len(missing_markets),
+                type(exc).__name__,
+            )
+            return forecasts
+
+        by_market = {forecast.market_id: forecast for forecast in forecasts}
+        for forecast in retry_forecasts:
+            by_market.setdefault(forecast.market_id, forecast)
+        combined = [by_market[market.id] for market in markets if market.id in by_market]
+        still_missing = self._missing_forecast_markets(markets, combined)
+        if still_missing:
+            logger.error(
+                "Match forecast still missing markets after retry match_id=%s missing=%d market_ids=%s",
+                match.id,
+                len(still_missing),
+                [market.id for market in still_missing],
+            )
+        else:
+            logger.info(
+                "Missing-market retry filled all omitted markets match_id=%s added=%d",
+                match.id,
+                len(retry_forecasts),
+            )
+        return combined
+
+    @staticmethod
+    def _missing_forecast_markets(
+        markets: list[Market],
+        forecasts: list[AggregatedForecast],
+    ) -> list[Market]:
+        forecast_market_ids = {forecast.market_id for forecast in forecasts if forecast.market_id}
+        return [market for market in markets if market.id not in forecast_market_ids]
 
     def _write_forecast_checkpoint(
         self,

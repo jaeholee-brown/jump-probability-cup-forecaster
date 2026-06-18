@@ -31,6 +31,10 @@ Forecasting protocol:
    seeing the final answer.
 5. Decompose the event when the market naturally decomposes:
    - player goal/assist/shot props: P(plays enough minutes) x P(event | role/minutes);
+   - player shot-on-target or goal props: add separate paths for penalties, direct free kicks,
+     corners/set pieces, and late attacking role changes when relevant. If the player is a
+     plausible penalty taker, include P(penalty awarded) x P(player takes it) x P(on target or
+     goal) instead of treating the market as only an open-play per-90 event;
    - joint markets: P(A) x P(B | A), with correlation stated explicitly;
    - penalty/red-card markets: estimate the union with overlap rather than adding rates blindly;
    - threshold stat props: turn a mean/rate into a threshold probability only if the distributional
@@ -45,6 +49,12 @@ Forecasting protocol:
      their statistical base rate unless there is a direct stat, lineup, or odds anchor.
 8. Check related markets for coherence. If several markets concern the same match, maintain
    monotonicity and basic probability consistency.
+   - Build a small dependency map before finalizing: penalties can affect penalty-taker goals and
+     shots on target; red cards affect late goals, SOT, cards, fouls, and offsides; heavy favorite
+     pressure affects corners, SOT, penalties, and opponent cards/fouls. Do not make every market
+     extreme, but do propagate concrete channels that resolution rules count.
+   - If a player prop can resolve through a rare but explicit channel such as a penalty kick, make
+     sure the final probability is at least consistent with that channel's probability mass.
 9. Calibrate: avoid round-number anchoring, avoid reflexive 50%, avoid false precision, and avoid
    excessive hedging when evidence is strong.
 10. Give the probability you would want locked in at market close under Brier scoring.
@@ -102,6 +112,12 @@ Base-rate research procedure:
   "France shots on target per match last 10", "Sadio Mane shots on target per 90", "Senegal
   cards per match", or "World Cup corners per match"; treat one answer as a starting point and
   corroborate with a second source when possible.
+- For player shot, shot-on-target, goal, or assist markets, explicitly identify likely penalty
+  takers, direct free-kick takers, corner takers, and expected minutes/substitution role. Search
+  for current lineups and set-piece responsibilities when the named player is a midfielder,
+  captain, forward, or known dead-ball specialist.
+- For penalty and red-card markets, gather the likely referee, VAR context, team box-entry/pressing
+  style, foul/card tendencies, and whether any likely penalty taker has a related player prop.
 - Prefer explicit rates: e.g. "team has 5+ corners in 7/12", "player averages 0.42 SOT/90",
   "opponent allows 4.8 SOT/match". If only a mean rate is available for a threshold, say so and
   use it as an approximate base rate, not a precise model.

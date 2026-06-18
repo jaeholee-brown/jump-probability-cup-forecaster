@@ -30,7 +30,10 @@ source support, or broad sentiment that does not affect the listed markets.
 
 Return a compact current news summary that can be cached and reused by later forecast calls.
 If a rerun is needed, set affected_market_ids to only the listed market ids whose probabilities
-should be recomputed. Leave it empty only when all listed markets are affected.
+should be recomputed. Leave it empty only when all listed markets are affected. Confirmed starting
+lineups, tactical shape, major weather changes, or broad referee/disciplinary news often affect
+the whole match; when that is true or when you are unsure which props move, leave affected_market_ids
+empty so the runner recomputes every listed market.
 """
 
 
@@ -73,8 +76,10 @@ class GrokNewsMonitor:
                 "decision_rule": (
                     "Set should_reforecast=true only if new information is credible and likely "
                     "to change at least one market by the threshold. Populate affected_market_ids "
-                    "with only the changed market ids. Otherwise update summary, set "
-                    "affected_market_ids=[], and set should_reforecast=false."
+                    "with only the changed market ids. If the information is match-wide or you "
+                    "cannot confidently enumerate the affected subset, set should_reforecast=true "
+                    "and affected_market_ids=[] to mean all listed markets. Otherwise update "
+                    "summary, set affected_market_ids=[], and set should_reforecast=false."
                 ),
             },
             ensure_ascii=True,

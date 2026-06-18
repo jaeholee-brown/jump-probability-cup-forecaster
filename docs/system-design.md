@@ -60,14 +60,14 @@ Default:
 - Research passes: `overview`, `base_rates`, `late_news`, `market_micro`, `lineup_roles`, and `volatile_market_anchors`.
 - Evidence QA: after the research passes are merged, a low-reasoning Grok audit checks whether the evidence has stale claims, missing denominators, weak player-role assumptions, or unsupported volatile-market anchors. The audit is appended to the evidence package before OpenAI/Grok/Claude forecasts run.
 - Base-rate pass policy: bucket markets by family, search for the narrowest reliable reference class, and report explicit frequencies/rates when available. For the current Jump docket this matters more than generic match odds because shots, cards, corners, fouls, offsides, halves, and player props outnumber vanilla match-winner/goal-total markets. The pass may use StatMuse FC, FBref/Stathead-style tables, StatBunker, API-Football/Sportmonks/Sportradar-style pages, official competition pages, and bookmaker lines as evidence sources, but natural-language stats answers should be corroborated or downweighted.
-- Grok news monitor: `grok-4.20-multi-agent-0309` with low reasoning, `web_search`, and `x_search`, used as a change detector before spending on the full ensemble. It returns `affected_market_ids`, so material news for one player/prop does not force every market in the match through the paid ensemble.
+- Grok news monitor: `grok-4.20-multi-agent-0309` with low reasoning, `web_search`, and `x_search`, used as a change detector before spending on the full ensemble. It returns `affected_market_ids`, so narrow player/prop news can target only those markets. If the list is empty while `should_reforecast=true`, the runner treats the news as match-wide and reruns every listed market.
 - Optional Firecrawl retrieval: targeted web-only searches, five scraped results per search, fed into Grok monitor/research as source context.
 - Grok forecast models: `grok-4.3` and `grok-4.20-0309-reasoning`.
 - OpenAI forecast model: `gpt-5`.
 - Claude forecast models: `claude-opus-4-8` and `claude-opus-4-6`.
 - Fallback research/evidence model with OpenAI key: `gpt-5.4-mini`.
 - Default forecast variants: one `base_rate_frequency` call per configured forecast model.
-- Default model-specific forecast weights: `gpt-5=0.5`, `grok-4.3=0.225`, `grok-4.20-0309-reasoning=0.2`, `claude-opus-4-8=1.35`, and `claude-opus-4-6=0.6`. These are constrained-search weights from the first settled sample, deliberately keeping every model active while moving mass toward Claude 4.8.
+- Default model-specific forecast weights: `gpt-5=0.35`, `grok-4.3=0.2`, `grok-4.20-0309-reasoning=0.15`, `claude-opus-4-8=1.2`, and `claude-opus-4-6=1.1`. These are live-audit weights that deliberately keep every model active while moving more mass toward the Claude models after the first 100 settled markets.
 - Claude forecast calls use Anthropic tool-choice structured output and do not enable extended thinking. The forecaster passes `reasoning_effort=none` for Claude so logs and future adapter behavior stay explicit; Opus still uses normal inference at standard token pricing.
 - Calibration multipliers are applied on top of those base weights after enough settled results accumulate.
 - Full prompt-ensemble mode: set `OPENAI_FORECAST_VARIANTS=all`, `GROK_FORECAST_VARIANTS=all`, and/or `CLAUDE_FORECAST_VARIANTS=all`.
@@ -183,7 +183,7 @@ Key environment controls:
 - `OPENAI_FORECAST_VARIANTS=base_rate_frequency`: comma-separated OpenAI variants, or `all`.
 - `GROK_FORECAST_VARIANTS=base_rate_frequency`: comma-separated Grok variants, or `all`.
 - `CLAUDE_FORECAST_VARIANTS=base_rate_frequency`: comma-separated Claude variants, or `all`.
-- `FORECAST_MODEL_WEIGHTS=gpt-5=0.5,grok-4.3=0.225,grok-4.20-0309-reasoning=0.2,claude-opus-4-8=1.35,claude-opus-4-6=0.6`: model-specific component weights before confidence/evidence adjustments.
+- `FORECAST_MODEL_WEIGHTS=gpt-5=0.35,grok-4.3=0.2,grok-4.20-0309-reasoning=0.15,claude-opus-4-8=1.2,claude-opus-4-6=1.1`: model-specific component weights before confidence/evidence adjustments.
 - `APPLY_CALIBRATION_WEIGHTS=true`: apply suggested multipliers from prior settled results.
 - `CALIBRATION_LEARNING_RATE=1.8`, `CALIBRATION_PRIOR_COUNT=20`: conservative online reweighting controls.
 - `EXTREMIZE_ALPHA=1.05`: mild log-odds extremization.

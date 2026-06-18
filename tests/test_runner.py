@@ -3,7 +3,16 @@ import logging
 from datetime import timedelta, timezone
 
 from probability_cup_bot.config import Settings
-from probability_cup_bot.models import AggregatedForecast, Market, MarketMatch, Match, NewsCheck, Prediction, utcnow
+from probability_cup_bot.models import (
+    AggregatedForecast,
+    Market,
+    MarketMatch,
+    Match,
+    MatchEvidence,
+    NewsCheck,
+    Prediction,
+    utcnow,
+)
 from probability_cup_bot.runner import ForecastRunner
 
 
@@ -30,6 +39,34 @@ class FakeNewsMonitor:
             new_developments=["Player X is confirmed out."],
             sources=[],
         )
+
+
+class PartialForecaster:
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
+    async def forecast_match(
+        self,
+        *,
+        match: Match,
+        markets: list[Market],
+        evidence: MatchEvidence,
+    ) -> list[AggregatedForecast]:
+        self.calls.append([market.id for market in markets])
+        if len(self.calls) == 1:
+            markets = markets[:1]
+        return [
+            AggregatedForecast(
+                market_id=market.id,
+                question=market.question,
+                probability=0.61,
+                probability_int=61,
+                component_probabilities=[0.61],
+                confidence="medium",
+                evidence_quality="medium",
+            )
+            for market in markets
+        ]
 
 
 def test_plan_writes_creates_updates_and_skips(caplog) -> None:
@@ -454,6 +491,73 @@ def test_affected_markets_limits_news_monitor_promotion() -> None:
     affected = ForecastRunner._affected_markets(markets, ["affected"])
 
     assert [market.id for market in affected] == ["affected"]
+
+
+def test_affected_markets_empty_subset_means_all_markets() -> None:
+    markets = [
+        Market(
+            id="first",
+            question="Will player X score?",
+            status="open",
+            match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+            lobby_id="lobby",
+        ),
+        Market(
+            id="second",
+            question="Will A win?",
+            status="open",
+            match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+            lobby_id="lobby",
+        ),
+    ]
+
+    affected = ForecastRunner._affected_markets(markets, [])
+
+    assert [market.id for market in affected] == ["first", "second"]
+
+
+async def test_forecast_match_retries_omitted_markets(caplog) -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+    )
+    runner = ForecastRunner(settings)
+    forecaster = PartialForecaster()
+    match = Match(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z")
+    markets = [
+        Market(
+            id="first",
+            question="Will A win?",
+            status="open",
+            match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+            lobby_id="lobby",
+        ),
+        Market(
+            id="second",
+            question="Will player X have 1+ shot on target?",
+            status="open",
+            match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+            lobby_id="lobby",
+        ),
+    ]
+    evidence = MatchEvidence(
+        match_id="match",
+        match_name="A vs B",
+        generated_at="2026-06-16T00:00:00Z",
+        query_summary="summary",
+    )
+    caplog.set_level(logging.WARNING, logger="probability_cup_bot.runner")
+
+    forecasts = await runner._forecast_match_with_missing_retry(
+        forecaster=forecaster,
+        match=match,
+        markets=markets,
+        evidence=evidence,
+    )
+
+    assert [forecast.market_id for forecast in forecasts] == ["first", "second"]
+    assert forecaster.calls == [["first", "second"], ["second"]]
+    assert "Match forecast omitted markets; retrying missing subset" in caplog.text
 
 
 def test_component_coverage_reports_missing_configured_models() -> None:

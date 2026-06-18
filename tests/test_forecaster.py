@@ -166,7 +166,7 @@ def test_forecaster_builds_cross_provider_specs() -> None:
         ("base_rate_frequency",),
         ("base_rate_frequency",),
     ]
-    assert [spec.weight for spec in specs] == [0.5, 0.225, 0.2, 1.35, 0.6]
+    assert [spec.weight for spec in specs] == [0.35, 0.2, 0.15, 1.2, 1.1]
 
 
 def test_forecaster_applies_calibration_multipliers() -> None:
@@ -186,7 +186,7 @@ def test_forecaster_applies_calibration_multipliers() -> None:
 
     specs = forecaster._forecast_model_specs()
 
-    assert [spec.weight for spec in specs] == pytest.approx([0.45, 0.225, 0.22, 1.35, 0.6])
+    assert [spec.weight for spec in specs] == pytest.approx([0.315, 0.2, 0.165, 1.2, 1.1])
 
 
 def test_aggregate_preserves_component_reasoning_metadata() -> None:

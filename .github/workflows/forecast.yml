@@ -69,7 +69,7 @@ jobs:
       OPENAI_FORECAST_WEIGHT: "1.0"
       GROK_FORECAST_WEIGHT: "0.5"
       CLAUDE_FORECAST_WEIGHT: "0.75"
-      FORECAST_MODEL_WEIGHTS: gpt-5=0.5,grok-4.3=0.225,grok-4.20-0309-reasoning=0.2,claude-opus-4-8=1.35,claude-opus-4-6=0.6
+      FORECAST_MODEL_WEIGHTS: gpt-5=0.35,grok-4.3=0.2,grok-4.20-0309-reasoning=0.15,claude-opus-4-8=1.2,claude-opus-4-6=1.1
       APPLY_CALIBRATION_WEIGHTS: "true"
       CALIBRATION_LEARNING_RATE: "1.8"
       CALIBRATION_PRIOR_COUNT: "20"
