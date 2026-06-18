@@ -1,0 +1,308 @@
+{
+  "matches": {
+    "ARG vs ALG": {
+      "match_name": "ARG vs ALG",
+      "aliases": ["Argentina vs Algeria"],
+      "odds_summary": "Argentina was a heavy favorite around -260, Algeria around +800, draw around +360; Over 2.5 was near even and BTTS Yes was a plus-money underdog.",
+      "result_summary": "Argentina beat Algeria 3-0.",
+      "audit_notes": [
+        "Argentina-win and Argentina-scoring anchors were externally supported.",
+        "Algeria second-half scoring and BTTS-style outcomes were reasonable low-to-mid probability NO leans."
+      ],
+      "sources": [
+        {
+          "type": "odds",
+          "title": "FOX Sports Argentina vs Algeria odds",
+          "url": "https://www.foxsports.com/stories/soccer/2026-world-cup-argentina-algeria-odds-prediction-picks",
+          "facts": [
+            "Moneyline: Argentina -260, Algeria +800, draw +360.",
+            "Total 2.5: Over -104, Under -118.",
+            "BTTS Yes +130, No -166."
+          ]
+        },
+        {
+          "type": "recap",
+          "title": "ESPN Algeria vs Argentina match page",
+          "url": "https://www.espn.com/soccer/match/_/gameId/760433/algeria-argentina",
+          "facts": ["Argentina won 3-0."]
+        }
+      ]
+    },
+    "AUT vs JOR": {
+      "match_name": "AUT vs JOR",
+      "aliases": ["Austria vs Jordan"],
+      "odds_summary": "Austria was a heavy favorite around -270, Jordan around +750, draw around +425; Over 2.5 was favored around -135 and BTTS Yes was close to even.",
+      "result_summary": "Austria beat Jordan 3-1.",
+      "audit_notes": [
+        "Austria-win and 3+ goals outcomes were strongly supported by pre-match market context.",
+        "Jordan scoring was not a shock given BTTS Yes was near even."
+      ],
+      "sources": [
+        {
+          "type": "odds",
+          "title": "FOX Sports Austria vs Jordan odds",
+          "url": "https://www.foxsports.com/stories/soccer/2026-world-cup-austria-jordan-odds-prediction-picks",
+          "facts": [
+            "Moneyline: Austria -270, Jordan +750, draw +425.",
+            "Total 2.5: Over -135, Under +110.",
+            "BTTS Yes +104, No -132."
+          ]
+        },
+        {
+          "type": "recap",
+          "title": "ESPN Jordan vs Austria match page",
+          "url": "https://www.espn.com/soccer/match/_/gameId/760431/jordan-austria",
+          "facts": ["Austria won 3-1."]
+        }
+      ]
+    },
+    "CZE vs RSA": {
+      "match_name": "CZE vs RSA",
+      "aliases": ["Czechia vs South Africa", "Czech Republic vs South Africa"],
+      "odds_summary": "Czechia was only a mild favorite, roughly +100 to -122 depending on book/source; South Africa was around +300 to +376, and Under 2.5 was favored.",
+      "result_summary": "Czechia and South Africa drew 1-1, with South Africa equalizing late by penalty.",
+      "audit_notes": [
+        "The Czechia-win miss was not a huge favorite failure; the market treated this as relatively balanced.",
+        "Penalty/red and second-half scoring markets were plausible 40-45% events that happened.",
+        "Concrete foul-rate evidence pointed against a generic underdog-fouls-more prior."
+      ],
+      "sources": [
+        {
+          "type": "odds",
+          "title": "Oddschecker Czech Republic vs South Africa odds",
+          "url": "https://www.oddschecker.com/us/soccer/world-cup/czech-republic-v-south-africa",
+          "facts": [
+            "Czech Republic was near +100, draw near +230, South Africa near +300.",
+            "Under 2.5 was favored around -150."
+          ]
+        },
+        {
+          "type": "odds",
+          "title": "Covers Czechia vs South Africa odds",
+          "url": "https://www.covers.com/world-cup/czechia-vs-south-africa-prediction-top-picks-odds-today-6-18-2026",
+          "facts": [
+            "Czechia was listed around -122, South Africa around +376, draw around +285.",
+            "Under 2.5 was around -122."
+          ]
+        },
+        {
+          "type": "stats",
+          "title": "FootyStats Czech Republic vs South Africa team stats",
+          "url": "https://footystats.org/international/czech-republic-national-team-vs-south-africa-national-team-h2h-stats",
+          "facts": ["Pre-match team-rate page showed Czechia committing more fouls per match than South Africa."]
+        },
+        {
+          "type": "recap",
+          "title": "Guardian Czechia vs South Africa live report",
+          "url": "https://www.theguardian.com/football/live/2026/jun/18/czechia-v-south-africa-world-cup-live",
+          "facts": ["South Africa equalized late by penalty in a 1-1 draw."]
+        }
+      ]
+    },
+    "ENG vs CRO": {
+      "match_name": "ENG vs CRO",
+      "aliases": ["England vs Croatia"],
+      "odds_summary": "England was favored around -140, Croatia around +420, draw around +270; Under 2.5 was favored around -142 but BTTS Yes was only slightly plus-money.",
+      "result_summary": "England beat Croatia 4-2.",
+      "audit_notes": [
+        "The 4-2 score was high-event relative to the main total, but BTTS Yes and Over 2.5 were not extreme tails.",
+        "Our BTTS-and-3-plus-goals forecast at 32% was probably low but not absurd.",
+        "Penalty/red YES was a moderately unlikely event, not a black swan."
+      ],
+      "sources": [
+        {
+          "type": "odds",
+          "title": "FOX Sports England vs Croatia odds",
+          "url": "https://www.foxsports.com/stories/soccer/2026-world-cup-england-croatia-odds-prediction-picks",
+          "facts": [
+            "Moneyline: England -140, Croatia +420, draw +270.",
+            "Total 2.5: Over +116, Under -142.",
+            "BTTS Yes +108, No -130."
+          ]
+        },
+        {
+          "type": "recap",
+          "title": "The Analyst England vs Croatia stats",
+          "url": "https://theanalyst.com/articles/england-vs-croatia-stats-world-cup-2026",
+          "facts": ["England won 4-2."]
+        },
+        {
+          "type": "recap",
+          "title": "ESPN England vs Croatia live story",
+          "url": "https://www.espn.com/soccer/story/_/id/49097138/england-croatia-live-world-cup-2026-latest-updates-commentary-score-result",
+          "facts": ["England won 4-2."]
+        }
+      ]
+    },
+    "FRA vs SEN": {
+      "match_name": "FRA vs SEN",
+      "aliases": ["France vs Senegal"],
+      "odds_summary": "France was a major tournament favorite and group favorite; direct match moneyline was not captured in the saved public-source set.",
+      "result_summary": "France beat Senegal 3-1.",
+      "audit_notes": [
+        "France-win and France-scoring priors were externally supported by broader market context.",
+        "The France first-half scoring miss and Senegal card miss require direct market/prop lines before treating them as systematic."
+      ],
+      "sources": [
+        {
+          "type": "odds",
+          "title": "FOX Sports France vs Senegal odds page",
+          "url": "https://www.foxsports.com/stories/soccer/2026-world-cup-france-senegal-odds-prediction-picks",
+          "facts": ["Pre-match article framed France as a leading World Cup favorite."]
+        },
+        {
+          "type": "odds",
+          "title": "CBS Sports Senegal vs France odds preview",
+          "url": "https://www.cbssports.com/soccer/news/senegal-vs-france-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-tuesday/",
+          "facts": ["France was listed among the World Cup favorites and as group favorite."]
+        },
+        {
+          "type": "recap",
+          "title": "ESPN France vs Senegal match page",
+          "url": "https://www.espn.com/soccer/match/_/gameId/760432",
+          "facts": ["France won 3-1."]
+        }
+      ]
+    },
+    "GHA vs PAN": {
+      "match_name": "GHA vs PAN",
+      "aliases": ["Ghana vs Panama"],
+      "odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
+      "result_summary": "Ghana beat Panama 1-0 in a low-event match.",
+      "audit_notes": [
+        "Ghana-win was directionally right, but not a large edge.",
+        "Ghana 3-plus shots on target at 67% was too high for a slight favorite in an under-leaning match without a direct SOT line.",
+        "Low total SOT context supports the broader stat-prop overconfidence finding."
+      ],
+      "sources": [
+        {
+          "type": "odds",
+          "title": "FOX Sports Ghana vs Panama odds",
+          "url": "https://www.foxsports.com/stories/soccer/2026-world-cup-ghana-panama-odds-prediction-picks",
+          "facts": [
+            "Moneyline: Ghana +130, Panama +220, draw +220.",
+            "Total 2.5: Over +138, Under -170.",
+            "BTTS Yes +100, No -110."
+          ]
+        },
+        {
+          "type": "odds",
+          "title": "Covers Ghana vs Panama odds",
+          "url": "https://www.covers.com/world-cup/ghana-vs-panama-prediction-top-picks-odds-today-6-17-2026",
+          "facts": [
+            "Ghana was around +127, Panama around +245, draw around +245.",
+            "Under 2.5 was around -150."
+          ]
+        },
+        {
+          "type": "stats",
+          "title": "FanSided Ghana vs Panama stats",
+          "url": "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage",
+          "facts": [
+            "Ghana won 1-0.",
+            "A total shots-on-target market of 9-plus resolved at 6."
+          ]
+        }
+      ]
+    },
+    "IRQ vs NOR": {
+      "match_name": "IRQ vs NOR",
+      "aliases": ["Iraq vs Norway", "Norway vs Iraq"],
+      "odds_summary": "Norway was a very heavy favorite around -600, Iraq around +1400, draw around +600; Over 2.5 was favored and BTTS Yes was plus-money but not remote.",
+      "result_summary": "Norway beat Iraq 4-1.",
+      "audit_notes": [
+        "Norway-win and high-total directions were externally supported.",
+        "Iraq scoring at 39% was market-consistent rather than an obviously bad low forecast.",
+        "The second-half SOT miss reflects event-volume instability more than match-result direction."
+      ],
+      "sources": [
+        {
+          "type": "odds",
+          "title": "FOX Sports Iraq vs Norway odds",
+          "url": "https://www.foxsports.com/stories/soccer/2026-world-cup-norway-iraq-odds-prediction-picks",
+          "facts": [
+            "Moneyline: Iraq +1400, Norway -600, draw +600.",
+            "Total 2.5: Over -178, Under +144.",
+            "BTTS Yes +152, No -200."
+          ]
+        },
+        {
+          "type": "recap",
+          "title": "ESPN Norway vs Iraq match page",
+          "url": "https://www.espn.com/soccer/match/_/gameId/760430/norway-iraq",
+          "facts": ["Norway won 4-1."]
+        },
+        {
+          "type": "recap",
+          "title": "Guardian Iraq vs Norway live report",
+          "url": "https://www.theguardian.com/football/live/2026/jun/16/iraq-v-norway-world-cup-2026-live",
+          "facts": ["Iraq equalized before Norway pulled away to win 4-1."]
+        }
+      ]
+    },
+    "POR vs COD": {
+      "match_name": "POR vs COD",
+      "aliases": ["Portugal vs DR Congo", "Portugal vs Congo DR"],
+      "odds_summary": "Portugal was a heavy favorite around -350, DR Congo around +1000, draw around +420; Over 2.5 was favored and BTTS No was favored.",
+      "result_summary": "Portugal and DR Congo drew 1-1.",
+      "audit_notes": [
+        "Portugal-win at 77% was close to public market implication, so the result was a bookmaker-consensus miss.",
+        "The sharper bot-specific miss was favorite-control volume: Portugal second-half SOT dominance was overconfident.",
+        "Ramos anytime scoring was correctly kept low relative to Ronaldo and team-level scoring context."
+      ],
+      "sources": [
+        {
+          "type": "odds",
+          "title": "FOX Sports Portugal vs DR Congo odds",
+          "url": "https://www.foxsports.com/stories/soccer/2026-world-cup-portugal-dr-congo-odds-prediction-picks",
+          "facts": [
+            "Moneyline: Portugal -350, DR Congo +1000, draw +420.",
+            "Total 2.5: Over -128, Under +104.",
+            "BTTS Yes +128, No -164."
+          ]
+        },
+        {
+          "type": "stats",
+          "title": "AS Portugal vs DR Congo live stats",
+          "url": "https://en.as.com/soccer/world-cup/portugal-vs-dr-congo-live-online-score-stats-goals-and-updates-fifa-world-cup-2026-f202606-d/",
+          "facts": ["Portugal had very low shot and shot-on-target output despite being favored."]
+        },
+        {
+          "type": "recap",
+          "title": "Guardian Portugal vs DR Congo live report",
+          "url": "https://www.theguardian.com/football/live/2026/jun/17/portugal-v-dr-congo-world-cup-2026-live",
+          "facts": ["The match ended 1-1."]
+        }
+      ]
+    },
+    "UZB vs COL": {
+      "match_name": "UZB vs COL",
+      "aliases": ["Uzbekistan vs Colombia", "Colombia vs Uzbekistan"],
+      "odds_summary": "Colombia was a heavy favorite; public snippets showed Colombia around -316 to -1.5 favorite territory, with Uzbekistan a long underdog.",
+      "result_summary": "Colombia beat Uzbekistan 3-1.",
+      "audit_notes": [
+        "Colombia-win and over directions were externally supported.",
+        "Uzbekistan scoring at 35% was not an extreme tail for a 3-1 match profile, but our under/low-total lean was too conservative.",
+        "Second-half SOT-control props again showed high volatility."
+      ],
+      "sources": [
+        {
+          "type": "odds",
+          "title": "FOX Sports Uzbekistan vs Colombia boxscore odds tab",
+          "url": "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
+          "facts": [
+            "Colombia won 3-1.",
+            "The page displayed Colombia winning as a -316 favorite.",
+            "The match total went over 2.5."
+          ]
+        },
+        {
+          "type": "recap",
+          "title": "Guardian Uzbekistan vs Colombia live report",
+          "url": "https://www.theguardian.com/football/live/2026/jun/18/fifa-world-cup-2026-live-uzbekistan-v-colombia-updates-uzb-vs-col-group-k-match-score-latest",
+          "facts": ["Colombia won 3-1 and Uzbekistan scored."]
+        }
+      ]
+    }
+  }
+}

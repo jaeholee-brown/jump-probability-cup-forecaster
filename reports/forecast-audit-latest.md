@@ -1,10 +1,11 @@
 # Forecast Audit
 
-Generated: `2026-06-18T18:12:57.521430+00:00`
+Generated: `2026-06-18T18:23:49.313139+00:00`
 
 ## Executive Findings
 
 - Settled platform predictions: 90 markets, mean Brier 0.2154.
+- External source coverage: 90/90 settled forecasts across 9 match groups.
 - Family goals: n=14, mean Brier 0.2451, mean p 0.425 vs outcome rate 0.5 (bias -0.075).
 - Family fouls: n=7, mean Brier 0.2403, mean p 0.5314 vs outcome rate 0.2857 (bias 0.2457).
 - Family offsides: n=8, mean Brier 0.2387, mean p 0.5212 vs outcome rate 0.375 (bias 0.1463).
@@ -30,6 +31,8 @@ Generated: `2026-06-18T18:12:57.521430+00:00`
 | history_matches | 8 |
 | component_scored_predictions | 66 |
 | component_records | 299 |
+| external_source_matches_configured | 9 |
+| settled_records_with_external_sources | 90 |
 
 ## By Family
 
@@ -67,6 +70,20 @@ Generated: `2026-06-18T18:12:57.521430+00:00`
 | gpt-5 | 65 | 0.2236 | 0.4889 | 0.3692 | 0.1197 | 0.4538 |
 | grok-4.20-0309-reasoning | 66 | 0.2282 | 0.4874 | 0.3636 | 0.1238 | 0.4653 |
 
+## External Source Coverage
+
+| match_name | settled_records | records_with_sources | source_count | odds_source_count | stats_source_count | odds_summary | result_summary |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ARG vs ALG | 10 | 10 | 2 | 1 | 0 | Argentina was a heavy favorite around -260, Algeria around +800, draw around +360; Over 2.5 was near even and BTTS Yes was a plus-money underdog. | Argentina beat Algeria 3-0. |
+| AUT vs JOR | 10 | 10 | 2 | 1 | 0 | Austria was a heavy favorite around -270, Jordan around +750, draw around +425; Over 2.5 was favored around -135 and BTTS Yes was close to even. | Austria beat Jordan 3-1. |
+| CZE vs RSA | 10 | 10 | 4 | 2 | 1 | Czechia was only a mild favorite, roughly +100 to -122 depending on book/source; South Africa was around +300 to +376, and Under 2.5 was favored. | Czechia and South Africa drew 1-1, with South Africa equalizing late by penalty. |
+| ENG vs CRO | 10 | 10 | 3 | 1 | 0 | England was favored around -140, Croatia around +420, draw around +270; Under 2.5 was favored around -142 but BTTS Yes was only slightly plus-money. | England beat Croatia 4-2. |
+| FRA vs SEN | 10 | 10 | 3 | 2 | 0 | France was a major tournament favorite and group favorite; direct match moneyline was not captured in the saved public-source set. | France beat Senegal 3-1. |
+| GHA vs PAN | 10 | 10 | 3 | 2 | 1 | Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored. | Ghana beat Panama 1-0 in a low-event match. |
+| IRQ vs NOR | 10 | 10 | 3 | 1 | 0 | Norway was a very heavy favorite around -600, Iraq around +1400, draw around +600; Over 2.5 was favored and BTTS Yes was plus-money but not remote. | Norway beat Iraq 4-1. |
+| POR vs COD | 10 | 10 | 3 | 1 | 1 | Portugal was a heavy favorite around -350, DR Congo around +1000, draw around +420; Over 2.5 was favored and BTTS No was favored. | Portugal and DR Congo drew 1-1. |
+| UZB vs COL | 10 | 10 | 2 | 1 | 0 | Colombia was a heavy favorite; public snippets showed Colombia around -316 to -1.5 favorite territory, with Uzbekistan a long underdog. | Colombia beat Uzbekistan 3-1. |
+
 ## Worst Settled Markets
 
 | match_name | question | family | probability_int | outcome | brier | stage | component_count | component_spread_points |
@@ -79,10 +96,10 @@ Generated: `2026-06-18T18:12:57.521430+00:00`
 | IRQ vs NOR | Will there be 4 or more total shots on target in the second half? | shots-on-target | 62 | 0 | 0.3844 | pre-evidence-qa | 4 | 13.0 |
 | ENG vs CRO | Will a penalty kick be awarded OR a red card be shown? | penalty-red | 38 | 1 | 0.3844 | pre-evidence-qa | 5 | 8.0 |
 | IRQ vs NOR | Will Iraq score at least 1 goal? | goals | 39 | 1 | 0.3721 | pre-evidence-qa | 4 | 5.0 |
-|  | Will Senegal receive at least 1 card in the second half? | cards | 59 | 0 | 0.3481 | platform-only | 0 |  |
+| FRA vs SEN | Will Senegal receive at least 1 card in the second half? | cards | 59 | 0 | 0.3481 | platform-only | 0 |  |
 | ARG vs ALG | Will Algeria commit more fouls than Argentina? | fouls | 58 | 0 | 0.3364 | pre-evidence-qa | 4 | 1.0 |
-|  | Will both teams score AND the match have 3 or more total goals? | goals | 42 | 1 | 0.3364 | platform-only | 0 |  |
-|  | Will France score in the first half? | other | 58 | 0 | 0.3364 | platform-only | 0 |  |
+| FRA vs SEN | Will both teams score AND the match have 3 or more total goals? | goals | 42 | 1 | 0.3364 | platform-only | 0 |  |
+| FRA vs SEN | Will France score in the first half? | other | 58 | 0 | 0.3364 | platform-only | 0 |  |
 | UZB vs COL | Will Colombia have more shots on target than Uzbekistan in the second half? | shots-on-target | 58 | 0 | 0.3364 | pre-evidence-qa | 5 | 8.0 |
 | CZE vs RSA | Will South Africa score in the second half? | other | 43 | 1 | 0.3249 | post-evidence-qa | 5 | 4.0 |
 | CZE vs RSA | Will a penalty kick be awarded OR a red card be shown in the match? | penalty-red | 43 | 1 | 0.3249 | post-evidence-qa | 5 | 5.0 |
@@ -99,7 +116,7 @@ Generated: `2026-06-18T18:12:57.521430+00:00`
 | AUT vs JOR | Will Austria win the match? | result | 75 | 1 | 0.0625 | pre-evidence-qa | 4 | 1.0 |
 | UZB vs COL | Will Eldor Shomurodov score or assist a goal (excluding own goals)? | player-goal-assist | 25 | 0 | 0.0625 | pre-evidence-qa | 5 | 12.0 |
 | AUT vs JOR | Will Jordan finish with more corner kicks than Austria? | corners | 26 | 0 | 0.0676 | pre-evidence-qa | 0 |  |
-|  | Will Sadio Mané score a goal (excluding own goals)? | player-goal | 26 | 0 | 0.0676 | platform-only | 0 |  |
+| FRA vs SEN | Will Sadio Mané score a goal (excluding own goals)? | player-goal | 26 | 0 | 0.0676 | platform-only | 0 |  |
 | POR vs COD | Will DR Congo commit more fouls than Portugal? | fouls | 73 | 1 | 0.0729 | pre-evidence-qa | 5 | 8.0 |
 | ARG vs ALG | Will Argentina score the first goal of the game and Algeria score in the second half? | goals | 28 | 0 | 0.0784 | pre-evidence-qa | 4 | 16.0 |
 | ARG vs ALG | Will Argentina win the match? | result | 71 | 1 | 0.0841 | pre-evidence-qa | 0 |  |
@@ -111,5 +128,6 @@ Generated: `2026-06-18T18:12:57.521430+00:00`
 
 - Platform-level scoring uses SportsPredict /results and covers every settled submitted prediction returned by the API.
 - Component/model scoring is available only for markets present in saved forecast-history.json.
-- External odds are not available through the Jump API; this report flags explicit odds/market-anchor language in saved rationales as a proxy until a historical odds feed is attached.
+- External source enrichment is match-level unless a direct market/prop line is shown in the source facts.
+- External odds are not available through the Jump API; source coverage comes from public odds, stats, and recap pages captured in reports/external-match-sources.json.
 - Post-change split uses forecast-history timestamps, not Git metadata inside artifacts.

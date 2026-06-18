@@ -21,6 +21,18 @@ ANCHOR_PATTERN = re.compile(
     r"\b(odds?|bookmaker|book|market[- ]?implied|implied|de-?vig|polymarket|line|price)\b",
     re.IGNORECASE,
 )
+LEGACY_MARKET_MATCHES = {
+    "a42ddd0a-f256-4673-b105-14f678bba629": "FRA vs SEN",
+    "02f1082e-cb12-43c6-aadb-0e8b89e66f49": "FRA vs SEN",
+    "b86d03ef-3e9b-4029-bf1a-2a7706a53a86": "FRA vs SEN",
+    "49c796d9-068f-4889-bfb8-ff99a884c0d0": "FRA vs SEN",
+    "44edc25a-6d65-4602-a0f0-7319d4731fbd": "FRA vs SEN",
+    "d09a87e1-f556-40d1-97c8-ecbe8bbb83ca": "FRA vs SEN",
+    "6f0a2ca7-d1e8-4f11-ab6b-cce2e91448a2": "FRA vs SEN",
+    "9c5459a1-4edc-429b-bdaf-1223d3764b5a": "FRA vs SEN",
+    "b8fd5895-4f4d-4706-8bf8-8dbf72487c89": "FRA vs SEN",
+    "fc032969-f65c-4e9f-913b-c21f5474b020": "FRA vs SEN",
+}
 
 
 def _mean(values: list[float]) -> float | None:
@@ -222,11 +234,83 @@ def _history_match_name(history: dict[str, Any], match_id: str) -> str:
     return str(((history.get("matches") or {}).get(match_id) or {}).get("match_name") or "")
 
 
+def _infer_legacy_match_name(market_id: str, question: str) -> str:
+    if market_id in LEGACY_MARKET_MATCHES:
+        return LEGACY_MARKET_MATCHES[market_id]
+    text = question.lower()
+    if "france" in text or "senegal" in text or "sadio" in text or "mane" in text:
+        return "FRA vs SEN"
+    return ""
+
+
+def _match_key(match_name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", match_name.lower())
+
+
+def _load_external_sources(path: str | None) -> dict[str, dict[str, Any]]:
+    if not path:
+        return {}
+    source_path = Path(path)
+    if not source_path.exists():
+        return {}
+    raw = json.loads(source_path.read_text(encoding="utf-8"))
+    matches = raw.get("matches") if isinstance(raw, dict) and "matches" in raw else raw
+    if not isinstance(matches, dict):
+        raise ValueError(f"External source file must contain a match-name object: {source_path}")
+    indexed: dict[str, dict[str, Any]] = {}
+    for match_name, payload in matches.items():
+        if not isinstance(payload, dict):
+            continue
+        entry = {**payload, "match_name": str(payload.get("match_name") or match_name)}
+        names = {str(match_name), str(entry["match_name"])}
+        names.update(str(alias) for alias in entry.get("aliases") or [])
+        for name in names:
+            indexed[_match_key(name)] = entry
+    return indexed
+
+
+def _external_for_match(match_name: str, external_sources: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    if not match_name:
+        return {}
+    return external_sources.get(_match_key(match_name)) or {}
+
+
+def _external_counts(entry: dict[str, Any]) -> dict[str, int]:
+    sources = entry.get("sources") or []
+    type_counts: dict[str, int] = defaultdict(int)
+    for source in sources:
+        if isinstance(source, dict):
+            type_counts[str(source.get("type") or "unknown")] += 1
+    return {
+        "external_source_count": len(sources),
+        "external_odds_source_count": type_counts.get("odds", 0),
+        "external_stats_source_count": type_counts.get("stats", 0),
+        "external_recap_source_count": type_counts.get("recap", 0),
+    }
+
+
+def _external_fields(entry: dict[str, Any]) -> dict[str, Any]:
+    counts = _external_counts(entry)
+    urls = [
+        str(source.get("url"))
+        for source in entry.get("sources") or []
+        if isinstance(source, dict) and source.get("url")
+    ]
+    return {
+        **counts,
+        "external_odds_summary": entry.get("odds_summary") or "",
+        "external_result_summary": entry.get("result_summary") or "",
+        "external_audit_notes": entry.get("audit_notes") or [],
+        "external_source_urls": urls,
+    }
+
+
 def _build_records(
     *,
     platform: dict[str, Any],
     history: dict[str, Any],
     post_change_at: datetime,
+    external_sources: dict[str, dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     matches_by_id = {match.id: match for match in platform["matches"]}
     markets_by_id = {market.id: market for market in platform["markets"]}
@@ -248,17 +332,23 @@ def _build_records(
         prediction = predictions_by_market.get(market_id)
         history_row = history_markets.get(market_id) or {}
         match_id = (market.match.id if market else history_row.get("match_id") or "")
-        match_name = _market_match_name(market, matches_by_id) or _history_match_name(history, match_id)
+        question = result.get("question") or (market.question if market else history_row.get("question") or "")
+        match_name = (
+            _market_match_name(market, matches_by_id)
+            or _history_match_name(history, match_id)
+            or _infer_legacy_match_name(market_id, question)
+        )
+        external_entry = _external_for_match(match_name, external_sources)
         probability_int = int(round(float(probability_submitted)))
         probability = probability_int / 100.0
         components = history_row.get("components") or []
         aggregate_probability = _aggregate_probability(components)
-        family = _market_family(result.get("question") or history_row.get("question") or "")
+        family = _market_family(question)
         row = {
             "market_id": market_id,
             "match_id": match_id,
             "match_name": match_name,
-            "question": result.get("question") or (market.question if market else history_row.get("question") or ""),
+            "question": question,
             "family": family,
             "probability": probability,
             "probability_int": probability_int,
@@ -279,6 +369,7 @@ def _build_records(
             "has_market_anchor_in_rationale": _has_market_anchor(history_row),
             "last_forecast_at": history_row.get("last_forecast_at"),
             "last_model_forecast_at": history_row.get("last_model_forecast_at"),
+            **_external_fields(external_entry),
         }
         records.append(row)
         for component in components:
@@ -332,11 +423,57 @@ def _disagreement_bins(records: list[dict[str, Any]]) -> dict[str, dict[str, Any
     return _group_summary(enriched, "spread_bucket")
 
 
-def _candidate_findings(records: list[dict[str, Any]], component_records: list[dict[str, Any]]) -> list[str]:
+def _external_coverage(records: list[dict[str, Any]], external_sources: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    by_match: dict[str, dict[str, Any]] = {}
+    for match_name, rows in _records_by_match(records).items():
+        source_counts = [int(row.get("external_source_count") or 0) for row in rows]
+        odds_counts = [int(row.get("external_odds_source_count") or 0) for row in rows]
+        stats_counts = [int(row.get("external_stats_source_count") or 0) for row in rows]
+        by_match[match_name] = {
+            "settled_records": len(rows),
+            "records_with_sources": sum(1 for count in source_counts if count > 0),
+            "source_count": max(source_counts) if source_counts else 0,
+            "odds_source_count": max(odds_counts) if odds_counts else 0,
+            "stats_source_count": max(stats_counts) if stats_counts else 0,
+            "odds_summary": rows[0].get("external_odds_summary") or "",
+            "result_summary": rows[0].get("external_result_summary") or "",
+        }
+    missing = [
+        match_name
+        for match_name, row in sorted(by_match.items())
+        if int(row["settled_records"]) > int(row["records_with_sources"])
+    ]
+    return {
+        "configured_matches": len({_match_key(entry.get("match_name") or "") for entry in external_sources.values()}),
+        "settled_matches": len(by_match),
+        "settled_records": len(records),
+        "settled_records_with_sources": sum(1 for row in records if int(row.get("external_source_count") or 0) > 0),
+        "matches_missing_sources": missing,
+        "by_match": by_match,
+    }
+
+
+def _records_by_match(records: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for record in records:
+        buckets[str(record.get("match_name") or "unknown")].append(record)
+    return dict(buckets)
+
+
+def _candidate_findings(
+    records: list[dict[str, Any]],
+    component_records: list[dict[str, Any]],
+    external_coverage: dict[str, Any],
+) -> list[str]:
     findings: list[str] = []
     overall = _summary(records)
     findings.append(
         f"Settled platform predictions: {overall['count']} markets, mean Brier {overall['mean_brier']}."
+    )
+    findings.append(
+        "External source coverage: "
+        f"{external_coverage['settled_records_with_sources']}/{external_coverage['settled_records']} "
+        f"settled forecasts across {external_coverage['settled_matches']} match groups."
     )
 
     family_rows = _group_summary(records, "family")
@@ -396,6 +533,8 @@ def _report_markdown(report: dict[str, Any]) -> str:
     lines.append(_markdown_summary_rows(report["calibration_bins"]))
     lines.extend(["", "## Component Scores", ""])
     lines.append(_markdown_summary_rows(report["component_summary"]))
+    lines.extend(["", "## External Source Coverage", ""])
+    lines.append(_markdown_external_coverage(report["external_source_coverage"]))
     lines.extend(["", "## Worst Settled Markets", ""])
     lines.append(_markdown_record_rows(report["worst_markets"]))
     lines.extend(["", "## Best Settled Markets", ""])
@@ -419,6 +558,26 @@ def _markdown_record_rows(rows: list[dict[str, Any]]) -> str:
     return _markdown_rows(rows)
 
 
+def _markdown_external_coverage(coverage: dict[str, Any]) -> str:
+    rows = []
+    for match_name, row in sorted((coverage.get("by_match") or {}).items()):
+        rows.append(
+            {
+                "match_name": match_name,
+                "settled_records": row.get("settled_records"),
+                "records_with_sources": row.get("records_with_sources"),
+                "source_count": row.get("source_count"),
+                "odds_source_count": row.get("odds_source_count"),
+                "stats_source_count": row.get("stats_source_count"),
+                "odds_summary": row.get("odds_summary"),
+                "result_summary": row.get("result_summary"),
+            }
+        )
+    if not rows:
+        return "_No external source rows._"
+    return _markdown_rows(rows)
+
+
 def _markdown_rows(rows: list[dict[str, Any]]) -> str:
     if not rows:
         return "_No rows._"
@@ -439,13 +598,16 @@ def _cell(value: Any) -> str:
 
 def build_report(args: argparse.Namespace, platform: dict[str, Any]) -> dict[str, Any]:
     history = json.loads(Path(args.history).read_text()) if args.history else {"markets": {}, "matches": {}}
+    external_sources = _load_external_sources(args.external_sources)
     post_change_at = _parse_dt(args.post_change_at) or _parse_dt(DEFAULT_POST_CHANGE_AT)
     assert post_change_at is not None
     records, component_records = _build_records(
         platform=platform,
         history=history,
         post_change_at=post_change_at,
+        external_sources=external_sources,
     )
+    external_coverage = _external_coverage(records, external_sources)
 
     open_predictions = [
         prediction
@@ -468,6 +630,8 @@ def build_report(args: argparse.Namespace, platform: dict[str, Any]) -> dict[str
             "history_matches": len((history.get("matches") or {})),
             "component_scored_predictions": len([record for record in records if record["has_component_history"]]),
             "component_records": len(component_records),
+            "external_source_matches_configured": external_coverage["configured_matches"],
+            "settled_records_with_external_sources": external_coverage["settled_records_with_sources"],
         },
         "overall": _summary(records),
         "by_family": _group_summary(records, "family"),
@@ -476,6 +640,7 @@ def build_report(args: argparse.Namespace, platform: dict[str, Any]) -> dict[str
         "calibration_bins": _calibration_bins(records),
         "disagreement_bins": _disagreement_bins(records),
         "market_anchor_bins": _group_summary(records, "has_market_anchor_in_rationale"),
+        "external_source_coverage": external_coverage,
         "component_summary": _component_summary(component_records),
         "component_by_family": {
             family: _component_summary([row for row in component_records if row["family"] == family])
@@ -488,11 +653,12 @@ def build_report(args: argparse.Namespace, platform: dict[str, Any]) -> dict[str
         "data_notes": [
             "Platform-level scoring uses SportsPredict /results and covers every settled submitted prediction returned by the API.",
             "Component/model scoring is available only for markets present in saved forecast-history.json.",
-            "External odds are not available through the Jump API; this report flags explicit odds/market-anchor language in saved rationales as a proxy until a historical odds feed is attached.",
+            "External source enrichment is match-level unless a direct market/prop line is shown in the source facts.",
+            "External odds are not available through the Jump API; source coverage comes from public odds, stats, and recap pages captured in reports/external-match-sources.json.",
             "Post-change split uses forecast-history timestamps, not Git metadata inside artifacts.",
         ],
     }
-    report["findings"] = _candidate_findings(records, component_records)
+    report["findings"] = _candidate_findings(records, component_records, external_coverage)
     return report
 
 
@@ -515,6 +681,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--history", default="state/forecast-history.json", help="forecast-history.json path.")
     parser.add_argument("--dotenv", default=None, help="Optional .env path.")
     parser.add_argument("--output-dir", default="reports", help="Directory for JSON and Markdown reports.")
+    parser.add_argument(
+        "--external-sources",
+        default="reports/external-match-sources.json",
+        help="Optional JSON file of public odds/stat/recap sources keyed by match.",
+    )
     parser.add_argument("--post-change-at", default=DEFAULT_POST_CHANGE_AT, help="ISO timestamp for post-change split.")
     parser.add_argument("--limit", type=int, default=15, help="Worst/best markets to include in Markdown.")
     return parser.parse_args()
