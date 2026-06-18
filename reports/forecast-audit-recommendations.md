@@ -19,10 +19,9 @@ Shots on target, fouls, offsides, cards, and half-specific props are the most co
 source of avoidable error. The bot is too willing to map favorite status, possession, or
 team quality into medium-high probabilities.
 
-The evidence-strength split now makes that concrete: only 25 of 90 settled forecasts have
-direct market-line evidence or direct/adjacent stat evidence, and the direct/adjacent stat
-bucket is currently badly over-optimistic. Keep the sample-size warning, but prioritize
-this failure mode.
+The ESPN retrospective resolver now gives direct/specific evidence for all 90 settled
+forecasts. That closes the previous evidence gap, while preserving the same practical
+failure mode: medium-high probabilities on noisy stat props are still too optimistic.
 
 3. Require direct rates before moving far from 50 on control props.
 
@@ -49,10 +48,10 @@ Keep logging family calibration, but do not hard-code corrections from these sam
 
 1. Extend external-source capture from match-level to prop-level where possible.
 
-The audit now verifies match-level source coverage for every settled forecast and labels
-each market as direct line, direct/adjacent stat, adjacent match market, or context-only.
-The next increment is direct lines for cards, SOT, corners, offsides, and player props
-whenever public pages preserve them.
+The audit now verifies match-level source coverage for every settled forecast, labels
+pre-match evidence strength, and attaches ESPN retrospective resolver evidence. The next
+increment is historical pre-match prop lines for cards, SOT, corners, offsides, and player
+props whenever public pages preserve them.
 
 2. Add a "source strength" field to component forecasts.
 
@@ -78,3 +77,5 @@ markets predate the latest evidence-QA change. Do not overfit weights to the fir
 - Do not hard-code sport heuristics without source evidence.
 - Do not treat every low-probability hit as a calibration failure; compare bucket hit rate,
   not just worst individual Brier scores.
+- Do not silently trust platform prop settlement when independent stat feeds disagree.
+  The Semenyo SOT market should stay flagged until resolver evidence is inspectable.

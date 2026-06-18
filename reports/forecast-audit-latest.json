@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-18T18:30:08.776602+00:00",
+  "generated_at": "2026-06-18T18:37:21.929296+00:00",
   "event": {
     "id": "aa5572ec-5930-4d99-b06b-f8966333d172",
     "title": "Jump Trading Probability Cup",
@@ -29,7 +29,9 @@
     "component_records": 299,
     "external_source_matches_configured": 9,
     "settled_records_with_external_sources": 90,
-    "settled_records_with_direct_or_adjacent_evidence": 25
+    "settled_records_with_direct_or_adjacent_evidence": 90,
+    "settled_records_with_espn_resolver": 90,
+    "espn_resolver_mismatches": 1
   },
   "overall": {
     "count": 90,
@@ -328,7 +330,9 @@
     "settled_matches": 9,
     "settled_records": 90,
     "settled_records_with_sources": 90,
-    "settled_records_with_direct_or_adjacent_evidence": 25,
+    "settled_records_with_direct_or_adjacent_evidence": 90,
+    "settled_records_with_espn_resolver": 90,
+    "espn_resolver_mismatches": 1,
     "matches_missing_sources": [],
     "by_match": {
       "CZE vs RSA": {
@@ -397,9 +401,9 @@
       "GHA vs PAN": {
         "settled_records": 10,
         "records_with_sources": 10,
-        "source_count": 3,
+        "source_count": 4,
         "odds_source_count": 2,
-        "stats_source_count": 1,
+        "stats_source_count": 2,
         "odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
         "result_summary": "Ghana beat Panama 1-0 in a low-event match."
       },
@@ -415,13 +419,13 @@
     }
   },
   "external_evidence_bins": {
-    "adjacent_match_market": {
-      "count": 64,
-      "mean_brier": 0.2071,
-      "mean_probability": 0.4653,
-      "outcome_rate": 0.4062,
-      "bias_probability_minus_outcome": 0.0591,
-      "mean_abs_error": 0.4397
+    "direct_retrospective_stat": {
+      "count": 73,
+      "mean_brier": 0.2134,
+      "mean_probability": 0.4723,
+      "outcome_rate": 0.3699,
+      "bias_probability_minus_outcome": 0.1025,
+      "mean_abs_error": 0.446
     },
     "direct_market_line": {
       "count": 17,
@@ -430,114 +434,23 @@
       "outcome_rate": 0.5294,
       "bias_probability_minus_outcome": -0.0076,
       "mean_abs_error": 0.4524
-    },
-    "direct_or_adjacent_stat": {
-      "count": 8,
-      "mean_brier": 0.248,
-      "mean_probability": 0.515,
-      "outcome_rate": 0.125,
-      "bias_probability_minus_outcome": 0.39,
-      "mean_abs_error": 0.48
-    },
-    "match_context_only": {
-      "count": 1,
-      "mean_brier": 0.3364,
-      "mean_probability": 0.58,
-      "outcome_rate": 0.0,
-      "bias_probability_minus_outcome": 0.58,
-      "mean_abs_error": 0.58
     }
   },
-  "external_evidence_gaps_by_family": {
-    "shots-on-target": {
-      "count": 20,
-      "mean_brier": 0.2089,
-      "mean_probability": 0.4925,
-      "outcome_rate": 0.4,
-      "bias_probability_minus_outcome": 0.0925,
-      "mean_abs_error": 0.4455
-    },
-    "offsides": {
-      "count": 8,
-      "mean_brier": 0.2387,
-      "mean_probability": 0.5212,
-      "outcome_rate": 0.375,
-      "bias_probability_minus_outcome": 0.1463,
-      "mean_abs_error": 0.4863
-    },
-    "fouls": {
-      "count": 6,
-      "mean_brier": 0.2403,
-      "mean_probability": 0.5383,
-      "outcome_rate": 0.3333,
-      "bias_probability_minus_outcome": 0.205,
-      "mean_abs_error": 0.4783
-    },
-    "other": {
-      "count": 6,
-      "mean_brier": 0.194,
-      "mean_probability": 0.6,
-      "outcome_rate": 0.8333,
-      "bias_probability_minus_outcome": -0.2333,
-      "mean_abs_error": 0.4267
-    },
-    "penalty-red": {
-      "count": 6,
-      "mean_brier": 0.2339,
-      "mean_probability": 0.4117,
-      "outcome_rate": 0.3333,
-      "bias_probability_minus_outcome": 0.0783,
-      "mean_abs_error": 0.475
-    },
-    "corners": {
-      "count": 5,
-      "mean_brier": 0.1444,
-      "mean_probability": 0.394,
-      "outcome_rate": 0.4,
-      "bias_probability_minus_outcome": -0.006,
-      "mean_abs_error": 0.37
-    },
-    "goals": {
-      "count": 5,
-      "mean_brier": 0.2599,
-      "mean_probability": 0.348,
-      "outcome_rate": 0.6,
-      "bias_probability_minus_outcome": -0.252,
-      "mean_abs_error": 0.484
-    },
-    "cards": {
-      "count": 3,
-      "mean_brier": 0.2998,
-      "mean_probability": 0.5333,
-      "outcome_rate": 0.3333,
-      "bias_probability_minus_outcome": 0.2,
-      "mean_abs_error": 0.5467
-    },
-    "player-goal": {
-      "count": 2,
-      "mean_brier": 0.0482,
-      "mean_probability": 0.215,
-      "outcome_rate": 0.0,
-      "bias_probability_minus_outcome": 0.215,
-      "mean_abs_error": 0.215
-    },
-    "player-goal-assist": {
-      "count": 2,
-      "mean_brier": 0.045,
-      "mean_probability": 0.21,
-      "outcome_rate": 0.0,
-      "bias_probability_minus_outcome": 0.21,
-      "mean_abs_error": 0.21
-    },
-    "result": {
-      "count": 2,
-      "mean_brier": 0.194,
-      "mean_probability": 0.44,
-      "outcome_rate": 0.0,
-      "bias_probability_minus_outcome": 0.44,
-      "mean_abs_error": 0.44
+  "external_evidence_gaps_by_family": {},
+  "espn_resolver_mismatches": [
+    {
+      "match_name": "GHA vs PAN",
+      "question": "Will Antoine Semenyo have at least 1 shot on target?",
+      "family": "shots-on-target",
+      "probability_int": 64,
+      "outcome": 1,
+      "espn_resolved_outcome": 0,
+      "espn_evidence_basis": [
+        "Antoine Semenyo ESPN SOT/goal events in full match: 0."
+      ],
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760434"
     }
-  },
+  ],
   "component_summary": {
     "claude-opus-4-8": {
       "count": 61,
@@ -1077,7 +990,7 @@
       "outcome": 0,
       "brier": 0.4624,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "direct_or_adjacent_stat",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 0,
       "component_spread_points": null
     },
@@ -1089,7 +1002,7 @@
       "outcome": 0,
       "brier": 0.4489,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "direct_or_adjacent_stat",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 5,
       "component_spread_points": 6.0
     },
@@ -1101,7 +1014,7 @@
       "outcome": 1,
       "brier": 0.4225,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 5,
       "component_spread_points": 3.0
     },
@@ -1113,7 +1026,7 @@
       "outcome": 0,
       "brier": 0.3844,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 4,
       "component_spread_points": 13.0
     },
@@ -1125,7 +1038,7 @@
       "outcome": 1,
       "brier": 0.3844,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 5,
       "component_spread_points": 8.0
     },
@@ -1137,7 +1050,7 @@
       "outcome": 1,
       "brier": 0.3721,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 4,
       "component_spread_points": 5.0
     },
@@ -1149,7 +1062,7 @@
       "outcome": 0,
       "brier": 0.3481,
       "stage": "platform-only",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 0,
       "component_spread_points": null
     },
@@ -1161,7 +1074,7 @@
       "outcome": 0,
       "brier": 0.3364,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 4,
       "component_spread_points": 1.0
     },
@@ -1173,7 +1086,7 @@
       "outcome": 1,
       "brier": 0.3364,
       "stage": "platform-only",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 0,
       "component_spread_points": null
     },
@@ -1185,7 +1098,7 @@
       "outcome": 0,
       "brier": 0.3364,
       "stage": "platform-only",
-      "external_evidence_level": "match_context_only",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 0,
       "component_spread_points": null
     },
@@ -1197,7 +1110,7 @@
       "outcome": 0,
       "brier": 0.3364,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 5,
       "component_spread_points": 8.0
     },
@@ -1209,7 +1122,7 @@
       "outcome": 1,
       "brier": 0.3249,
       "stage": "post-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 5,
       "component_spread_points": 4.0
     },
@@ -1221,7 +1134,7 @@
       "outcome": 1,
       "brier": 0.3249,
       "stage": "post-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 5,
       "component_spread_points": 5.0
     }
@@ -1235,7 +1148,7 @@
       "outcome": 0,
       "brier": 0.0289,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 5,
       "component_spread_points": 7.0
     },
@@ -1247,7 +1160,7 @@
       "outcome": 0,
       "brier": 0.0324,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 4,
       "component_spread_points": 13.0
     },
@@ -1259,7 +1172,7 @@
       "outcome": 0,
       "brier": 0.0484,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 4,
       "component_spread_points": 6.0
     },
@@ -1271,7 +1184,7 @@
       "outcome": 0,
       "brier": 0.0576,
       "stage": "post-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 0,
       "component_spread_points": null
     },
@@ -1283,7 +1196,7 @@
       "outcome": 0,
       "brier": 0.0576,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 3,
       "component_spread_points": 5.0
     },
@@ -1319,7 +1232,7 @@
       "outcome": 0,
       "brier": 0.0676,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 0,
       "component_spread_points": null
     },
@@ -1331,7 +1244,7 @@
       "outcome": 0,
       "brier": 0.0676,
       "stage": "platform-only",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 0,
       "component_spread_points": null
     },
@@ -1343,7 +1256,7 @@
       "outcome": 1,
       "brier": 0.0729,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 5,
       "component_spread_points": 8.0
     },
@@ -1355,7 +1268,7 @@
       "outcome": 0,
       "brier": 0.0784,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 4,
       "component_spread_points": 16.0
     },
@@ -1379,7 +1292,7 @@
       "outcome": 0,
       "brier": 0.09,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 0,
       "component_spread_points": null
     },
@@ -1403,7 +1316,7 @@
       "outcome": 0,
       "brier": 0.09,
       "stage": "pre-evidence-qa",
-      "external_evidence_level": "adjacent_match_market",
+      "external_evidence_level": "direct_retrospective_stat",
       "component_count": 5,
       "component_spread_points": 8.0
     }
@@ -1449,9 +1362,22 @@
         "https://footystats.org/international/czech-republic-national-team-vs-south-africa-national-team-h2h-stats",
         "https://www.theguardian.com/football/live/2026/jun/18/czechia-v-south-africa-world-cup-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Team/match scoring odds are relevant but do not directly price the named player's goal/assist market.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Team/match scoring odds are relevant but do not directly price the named player's goal/assist market.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN goal participants resolve this named-player goal-or-assist market.",
+      "espn_evidence_basis": [
+        "Oswin Appollis ESPN goal/assist participant events: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760438",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN goal participants resolve this named-player goal-or-assist market.",
+      "external_evidence_basis": [
+        "Oswin Appollis ESPN goal/assist participant events: 0."
+      ]
     },
     {
       "market_id": "fb9ff126-e302-463c-b484-0394163389b4",
@@ -1493,9 +1419,22 @@
         "https://footystats.org/international/czech-republic-national-team-vs-south-africa-national-team-h2h-stats",
         "https://www.theguardian.com/football/live/2026/jun/18/czechia-v-south-africa-world-cup-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Totals/BTTS odds are adjacent to team half-scoring markets.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Totals/BTTS odds are adjacent to team half-scoring markets.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half goal events resolve team half-scoring market.",
+      "espn_evidence_basis": [
+        "RSA second-half goals: 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760438",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half goal events resolve team half-scoring market.",
+      "external_evidence_basis": [
+        "RSA second-half goals: 1."
+      ]
     },
     {
       "market_id": "477e29a9-42c4-41da-bed0-8ef8473fe952",
@@ -1536,11 +1475,24 @@
         "https://www.espn.com/soccer/match/_/gameId/760430/norway-iraq",
         "https://www.theguardian.com/football/live/2026/jun/16/iraq-v-norway-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Totals/BTTS odds are adjacent to team half-scoring markets.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Totals/BTTS odds are adjacent to team half-scoring markets.",
+      "external_market_evidence_basis": [
         "Total 2.5: Over -178, Under +144.",
         "BTTS Yes +152, No -200."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half goal events resolve team half-scoring market.",
+      "espn_evidence_basis": [
+        "NOR second-half goals: 2."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760430",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half goal events resolve team half-scoring market.",
+      "external_evidence_basis": [
+        "NOR second-half goals: 2."
       ]
     },
     {
@@ -1582,10 +1534,23 @@
         "https://www.espn.com/soccer/match/_/gameId/760430/norway-iraq",
         "https://www.theguardian.com/football/live/2026/jun/16/iraq-v-norway-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for offside props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for offside props.",
+      "external_market_evidence_basis": [
         "Moneyline: Iraq +1400, Norway -600, draw +600."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "espn_evidence_basis": [
+        "NOR offsides: 0; threshold: 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760430",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "external_evidence_basis": [
+        "NOR offsides: 0; threshold: 2."
       ]
     },
     {
@@ -1627,10 +1592,23 @@
         "https://www.espn.com/soccer/match/_/gameId/760430/norway-iraq",
         "https://www.theguardian.com/football/live/2026/jun/16/iraq-v-norway-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
+      "external_market_evidence_basis": [
         "Moneyline: Iraq +1400, Norway -600, draw +600."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "espn_evidence_basis": [
+        "Fouls Committed: NOR 13, IRQ 12."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760430",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "external_evidence_basis": [
+        "Fouls Committed: NOR 13, IRQ 12."
       ]
     },
     {
@@ -1672,11 +1650,24 @@
         "https://www.espn.com/soccer/match/_/gameId/760430/norway-iraq",
         "https://www.theguardian.com/football/live/2026/jun/16/iraq-v-norway-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Iraq +1400, Norway -600, draw +600.",
         "Total 2.5: Over -178, Under +144."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "espn_evidence_basis": [
+        "Second-half SOT: IRQ 0, NOR 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760430",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "external_evidence_basis": [
+        "Second-half SOT: IRQ 0, NOR 2."
       ]
     },
     {
@@ -1718,11 +1709,24 @@
         "https://www.espn.com/soccer/match/_/gameId/760430/norway-iraq",
         "https://www.theguardian.com/football/live/2026/jun/16/iraq-v-norway-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Iraq +1400, Norway -600, draw +600.",
         "Total 2.5: Over -178, Under +144."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve total SOT threshold.",
+      "espn_evidence_basis": [
+        "Second-half SOT total: 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760430",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve total SOT threshold.",
+      "external_evidence_basis": [
+        "Second-half SOT total: 2."
       ]
     },
     {
@@ -1764,12 +1768,25 @@
         "https://www.espn.com/soccer/match/_/gameId/760430/norway-iraq",
         "https://www.theguardian.com/football/live/2026/jun/16/iraq-v-norway-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline, totals, or BTTS odds are adjacent to team-scoring probability but do not directly price this exact market.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline, totals, or BTTS odds are adjacent to team-scoring probability but do not directly price this exact market.",
+      "external_market_evidence_basis": [
         "Moneyline: Iraq +1400, Norway -600, draw +600.",
         "Total 2.5: Over -178, Under +144.",
         "BTTS Yes +152, No -200."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves team scoring market.",
+      "espn_evidence_basis": [
+        "IRQ final goals: 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760430",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN final score resolves team scoring market.",
+      "external_evidence_basis": [
+        "IRQ final goals: 1."
       ]
     },
     {
@@ -1811,11 +1828,24 @@
         "https://www.espn.com/soccer/match/_/gameId/760430/norway-iraq",
         "https://www.theguardian.com/football/live/2026/jun/16/iraq-v-norway-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Iraq +1400, Norway -600, draw +600.",
         "Total 2.5: Over -178, Under +144."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "espn_evidence_basis": [
+        "IRQ shots on target: 1; threshold: 3."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760430",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "external_evidence_basis": [
+        "IRQ shots on target: 1; threshold: 3."
       ]
     },
     {
@@ -1857,12 +1887,25 @@
         "https://www.espn.com/soccer/match/_/gameId/760430/norway-iraq",
         "https://www.theguardian.com/football/live/2026/jun/16/iraq-v-norway-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Team/match scoring odds are relevant but do not directly price the named player's goal/assist market.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Team/match scoring odds are relevant but do not directly price the named player's goal/assist market.",
+      "external_market_evidence_basis": [
         "Moneyline: Iraq +1400, Norway -600, draw +600.",
         "Total 2.5: Over -178, Under +144.",
         "BTTS Yes +152, No -200."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN goal participants resolve this named-player goal-or-assist market.",
+      "espn_evidence_basis": [
+        "Mohanad Ali ESPN goal/assist participant events: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760430",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN goal participants resolve this named-player goal-or-assist market.",
+      "external_evidence_basis": [
+        "Mohanad Ali ESPN goal/assist participant events: 0."
       ]
     },
     {
@@ -1904,6 +1947,20 @@
         "https://www.espn.com/soccer/match/_/gameId/760430/norway-iraq",
         "https://www.theguardian.com/football/live/2026/jun/16/iraq-v-norway-world-cup-2026-live"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
+      "external_market_evidence_basis": [
+        "Total 2.5: Over -178, Under +144.",
+        "BTTS Yes +152, No -200."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves total-goals threshold.",
+      "espn_evidence_basis": [
+        "Final total goals: 5."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760430",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
       "external_evidence_basis": [
@@ -1948,6 +2005,20 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-argentina-algeria-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760433/algeria-argentina"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
+      "external_market_evidence_basis": [
+        "Total 2.5: Over -104, Under -118.",
+        "BTTS Yes +130, No -166."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves total-goals threshold.",
+      "espn_evidence_basis": [
+        "Final total goals: 3."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760433",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
       "external_evidence_basis": [
@@ -1992,11 +2063,24 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-argentina-algeria-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760433/algeria-argentina"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Totals/BTTS odds are adjacent to team half-scoring markets.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Totals/BTTS odds are adjacent to team half-scoring markets.",
+      "external_market_evidence_basis": [
         "Total 2.5: Over -104, Under -118.",
         "BTTS Yes +130, No -166."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN first-half goal events resolve team half-scoring market.",
+      "espn_evidence_basis": [
+        "ARG first-half goals: 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760433",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN first-half goal events resolve team half-scoring market.",
+      "external_evidence_basis": [
+        "ARG first-half goals: 1."
       ]
     },
     {
@@ -2036,11 +2120,24 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-argentina-algeria-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760433/algeria-argentina"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
+      "external_market_evidence_basis": [
         "Moneyline: Argentina -260, Algeria +800, draw +360.",
         "Total 2.5: Over -104, Under -118."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "espn_evidence_basis": [
+        "Penalty kicks: 0; red cards: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760433",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "external_evidence_basis": [
+        "Penalty kicks: 0; red cards: 0."
       ]
     },
     {
@@ -2080,11 +2177,24 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-argentina-algeria-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760433/algeria-argentina"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Argentina -260, Algeria +800, draw +360.",
         "Total 2.5: Over -104, Under -118."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "espn_evidence_basis": [
+        "ALG shots on target: 1; threshold: 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760433",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "external_evidence_basis": [
+        "ALG shots on target: 1; threshold: 2."
       ]
     },
     {
@@ -2124,11 +2234,24 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-argentina-algeria-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760433/algeria-argentina"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Argentina -260, Algeria +800, draw +360.",
         "Total 2.5: Over -104, Under -118."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve total SOT threshold.",
+      "espn_evidence_basis": [
+        "Second-half SOT total: 5."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760433",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve total SOT threshold.",
+      "external_evidence_basis": [
+        "Second-half SOT total: 5."
       ]
     },
     {
@@ -2168,10 +2291,23 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-argentina-algeria-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760433/algeria-argentina"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for offside props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for offside props.",
+      "external_market_evidence_basis": [
         "Moneyline: Argentina -260, Algeria +800, draw +360."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "espn_evidence_basis": [
+        "ARG offsides: 3; threshold: 2."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760433",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "external_evidence_basis": [
+        "ARG offsides: 3; threshold: 2."
       ]
     },
     {
@@ -2213,11 +2349,24 @@
         "https://theanalyst.com/articles/england-vs-croatia-stats-world-cup-2026",
         "https://www.espn.com/soccer/story/_/id/49097138/england-croatia-live-world-cup-2026-latest-updates-commentary-score-result"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match odds are only loose proxies for corner props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match odds are only loose proxies for corner props.",
+      "external_market_evidence_basis": [
         "Moneyline: England -140, Croatia +420, draw +270.",
         "Total 2.5: Over +116, Under -142."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN corner events resolve half-specific corner comparison.",
+      "espn_evidence_basis": [
+        "Period 1 corners: CRO 1, ENG 3."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760437",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN corner events resolve half-specific corner comparison.",
+      "external_evidence_basis": [
+        "Period 1 corners: CRO 1, ENG 3."
       ]
     },
     {
@@ -2259,11 +2408,24 @@
         "https://theanalyst.com/articles/england-vs-croatia-stats-world-cup-2026",
         "https://www.espn.com/soccer/story/_/id/49097138/england-croatia-live-world-cup-2026-latest-updates-commentary-score-result"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: England -140, Croatia +420, draw +270.",
         "Total 2.5: Over +116, Under -142."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "espn_evidence_basis": [
+        "Luka Sučić ESPN SOT/goal events in full match: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760437",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "external_evidence_basis": [
+        "Luka Sučić ESPN SOT/goal events in full match: 0."
       ]
     },
     {
@@ -2305,6 +2467,19 @@
         "https://theanalyst.com/articles/england-vs-croatia-stats-world-cup-2026",
         "https://www.espn.com/soccer/story/_/id/49097138/england-croatia-live-world-cup-2026-latest-updates-commentary-score-result"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
+      "external_market_evidence_basis": [
+        "Moneyline: England -140, Croatia +420, draw +270."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves match-winner market.",
+      "espn_evidence_basis": [
+        "Final score: ENG 4, CRO 2."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760437",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
       "external_evidence_basis": [
@@ -2350,11 +2525,24 @@
         "https://theanalyst.com/articles/england-vs-croatia-stats-world-cup-2026",
         "https://www.espn.com/soccer/story/_/id/49097138/england-croatia-live-world-cup-2026-latest-updates-commentary-score-result"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: England -140, Croatia +420, draw +270.",
         "Total 2.5: Over +116, Under -142."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve named-player SOT market.",
+      "espn_evidence_basis": [
+        "Harry Kane ESPN SOT/goal events in period 2: 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760437",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve named-player SOT market.",
+      "external_evidence_basis": [
+        "Harry Kane ESPN SOT/goal events in period 2: 1."
       ]
     },
     {
@@ -2396,10 +2584,23 @@
         "https://theanalyst.com/articles/england-vs-croatia-stats-world-cup-2026",
         "https://www.espn.com/soccer/story/_/id/49097138/england-croatia-live-world-cup-2026-latest-updates-commentary-score-result"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for offside props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for offside props.",
+      "external_market_evidence_basis": [
         "Moneyline: England -140, Croatia +420, draw +270."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "espn_evidence_basis": [
+        "CRO offsides: 1; threshold: 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760437",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "external_evidence_basis": [
+        "CRO offsides: 1; threshold: 2."
       ]
     },
     {
@@ -2441,11 +2642,24 @@
         "https://theanalyst.com/articles/england-vs-croatia-stats-world-cup-2026",
         "https://www.espn.com/soccer/story/_/id/49097138/england-croatia-live-world-cup-2026-latest-updates-commentary-score-result"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: England -140, Croatia +420, draw +270.",
         "Total 2.5: Over +116, Under -142."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve both-teams SOT market.",
+      "espn_evidence_basis": [
+        "Period 2 SOT: ENG 9, CRO 3."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760437",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve both-teams SOT market.",
+      "external_evidence_basis": [
+        "Period 2 SOT: ENG 9, CRO 3."
       ]
     },
     {
@@ -2487,6 +2701,20 @@
         "https://theanalyst.com/articles/england-vs-croatia-stats-world-cup-2026",
         "https://www.espn.com/soccer/story/_/id/49097138/england-croatia-live-world-cup-2026-latest-updates-commentary-score-result"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
+      "external_market_evidence_basis": [
+        "Total 2.5: Over +116, Under -142.",
+        "BTTS Yes +108, No -130."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves BTTS plus total-goals combo.",
+      "espn_evidence_basis": [
+        "Final goals: ENG 4, CRO 2; total 6."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760437",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
       "external_evidence_basis": [
@@ -2533,11 +2761,24 @@
         "https://theanalyst.com/articles/england-vs-croatia-stats-world-cup-2026",
         "https://www.espn.com/soccer/story/_/id/49097138/england-croatia-live-world-cup-2026-latest-updates-commentary-score-result"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: England -140, Croatia +420, draw +270.",
         "Total 2.5: Over +116, Under -142."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "espn_evidence_basis": [
+        "Second-half SOT: ENG 9, CRO 3."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760437",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "external_evidence_basis": [
+        "Second-half SOT: ENG 9, CRO 3."
       ]
     },
     {
@@ -2579,11 +2820,24 @@
         "https://theanalyst.com/articles/england-vs-croatia-stats-world-cup-2026",
         "https://www.espn.com/soccer/story/_/id/49097138/england-croatia-live-world-cup-2026-latest-updates-commentary-score-result"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
+      "external_market_evidence_basis": [
         "Moneyline: England -140, Croatia +420, draw +270.",
         "Total 2.5: Over +116, Under -142."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "espn_evidence_basis": [
+        "Penalty kicks: 1; red cards: 0. Penalty events: Goal! England 1, Croatia 0. Harry Kane (England) converts the penalty with a right footed shot to the bottom right corner.."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760437",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "external_evidence_basis": [
+        "Penalty kicks: 1; red cards: 0. Penalty events: Goal! England 1, Croatia 0. Harry Kane (England) converts the penalty with a right footed shot to the bottom right corner.."
       ]
     },
     {
@@ -2625,10 +2879,23 @@
         "https://theanalyst.com/articles/england-vs-croatia-stats-world-cup-2026",
         "https://www.espn.com/soccer/story/_/id/49097138/england-croatia-live-world-cup-2026-latest-updates-commentary-score-result"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
+      "external_market_evidence_basis": [
         "Moneyline: England -140, Croatia +420, draw +270."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "espn_evidence_basis": [
+        "Fouls Committed: ENG 10, CRO 12."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760437",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "external_evidence_basis": [
+        "Fouls Committed: ENG 10, CRO 12."
       ]
     },
     {
@@ -2671,9 +2938,22 @@
         "https://footystats.org/international/czech-republic-national-team-vs-south-africa-national-team-h2h-stats",
         "https://www.theguardian.com/football/live/2026/jun/18/czechia-v-south-africa-world-cup-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match odds are only loose proxies for corner props.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match odds are only loose proxies for corner props.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN corner events resolve half-specific corner comparison.",
+      "espn_evidence_basis": [
+        "Period 2 corners: CZE 3, RSA 2."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760438",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN corner events resolve half-specific corner comparison.",
+      "external_evidence_basis": [
+        "Period 2 corners: CZE 3, RSA 2."
+      ]
     },
     {
       "market_id": "6c15d111-1cfa-4116-8d72-1302b2c49f8c",
@@ -2715,9 +2995,22 @@
         "https://footystats.org/international/czech-republic-national-team-vs-south-africa-national-team-h2h-stats",
         "https://www.theguardian.com/football/live/2026/jun/18/czechia-v-south-africa-world-cup-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "espn_evidence_basis": [
+        "Second-half SOT: CZE 2, RSA 4."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760438",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "external_evidence_basis": [
+        "Second-half SOT: CZE 2, RSA 4."
+      ]
     },
     {
       "market_id": "74de2dcf-c6f0-45cc-bc8d-dff630209ea5",
@@ -2759,9 +3052,22 @@
         "https://footystats.org/international/czech-republic-national-team-vs-south-africa-national-team-h2h-stats",
         "https://www.theguardian.com/football/live/2026/jun/18/czechia-v-south-africa-world-cup-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "espn_evidence_basis": [
+        "Penalty kicks: 1; red cards: 0. Penalty events: Goal! Czechia 1, South Africa 1. Teboho Mokoena (South Africa) converts the penalty with a right footed shot to the bottom left corner.."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760438",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "external_evidence_basis": [
+        "Penalty kicks: 1; red cards: 0. Penalty events: Goal! Czechia 1, South Africa 1. Teboho Mokoena (South Africa) converts the penalty with a right footed shot to the bottom left corner.."
+      ]
     },
     {
       "market_id": "d795aa03-c50c-401e-b65b-b42ded95fab1",
@@ -2803,9 +3109,22 @@
         "https://footystats.org/international/czech-republic-national-team-vs-south-africa-national-team-h2h-stats",
         "https://www.theguardian.com/football/live/2026/jun/18/czechia-v-south-africa-world-cup-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for offside props.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for offside props.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "espn_evidence_basis": [
+        "CZE offsides: 2; threshold: 2."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760438",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "external_evidence_basis": [
+        "CZE offsides: 2; threshold: 2."
+      ]
     },
     {
       "market_id": "d18561f9-e0de-49af-aed0-29e17d4246cb",
@@ -2847,6 +3166,20 @@
         "https://footystats.org/international/czech-republic-national-team-vs-south-africa-national-team-h2h-stats",
         "https://www.theguardian.com/football/live/2026/jun/18/czechia-v-south-africa-world-cup-live"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
+      "external_market_evidence_basis": [
+        "Under 2.5 was favored around -150.",
+        "Under 2.5 was around -122."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves total-goals threshold.",
+      "espn_evidence_basis": [
+        "Final total goals: 2."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760438",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
       "external_evidence_basis": [
@@ -2894,6 +3227,19 @@
         "https://footystats.org/international/czech-republic-national-team-vs-south-africa-national-team-h2h-stats",
         "https://www.theguardian.com/football/live/2026/jun/18/czechia-v-south-africa-world-cup-live"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
+      "external_market_evidence_basis": [
+        "Under 2.5 was favored around -150."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves match-winner market.",
+      "espn_evidence_basis": [
+        "Final score: CZE 1, RSA 1."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760438",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
       "external_evidence_basis": [
@@ -2940,9 +3286,22 @@
         "https://footystats.org/international/czech-republic-national-team-vs-south-africa-national-team-h2h-stats",
         "https://www.theguardian.com/football/live/2026/jun/18/czechia-v-south-africa-world-cup-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "espn_evidence_basis": [
+        "Patrik Schick ESPN SOT/goal events in full match: 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760438",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "external_evidence_basis": [
+        "Patrik Schick ESPN SOT/goal events in full match: 1."
+      ]
     },
     {
       "market_id": "38f2e44c-f225-4ec6-8fda-83c06438c7d9",
@@ -2981,6 +3340,19 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-argentina-algeria-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760433/algeria-argentina"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
+      "external_market_evidence_basis": [
+        "Moneyline: Argentina -260, Algeria +800, draw +360."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves match-winner market.",
+      "espn_evidence_basis": [
+        "Final score: ARG 3, ALG 0."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760433",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
       "external_evidence_basis": [
@@ -3026,11 +3398,24 @@
         "https://www.espn.com/soccer/match/_/gameId/760430/norway-iraq",
         "https://www.theguardian.com/football/live/2026/jun/16/iraq-v-norway-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
+      "external_market_evidence_basis": [
         "Moneyline: Iraq +1400, Norway -600, draw +600.",
         "Total 2.5: Over -178, Under +144."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "espn_evidence_basis": [
+        "Penalty kicks: 0; red cards: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760430",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "external_evidence_basis": [
+        "Penalty kicks: 0; red cards: 0."
       ]
     },
     {
@@ -3070,12 +3455,25 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-argentina-algeria-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760433/algeria-argentina"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline, totals, or BTTS odds are adjacent to team-scoring probability but do not directly price this exact market.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline, totals, or BTTS odds are adjacent to team-scoring probability but do not directly price this exact market.",
+      "external_market_evidence_basis": [
         "Moneyline: Argentina -260, Algeria +800, draw +360.",
         "Total 2.5: Over -104, Under -118.",
         "BTTS Yes +130, No -166."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN goal sequence resolves first-goal plus second-half scoring combo.",
+      "espn_evidence_basis": [
+        "First goal: ARG; second-half goals for ALG: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760433",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN goal sequence resolves first-goal plus second-half scoring combo.",
+      "external_evidence_basis": [
+        "First goal: ARG; second-half goals for ALG: 0."
       ]
     },
     {
@@ -3115,11 +3513,24 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-argentina-algeria-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760433/algeria-argentina"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Argentina -260, Algeria +800, draw +360.",
         "Total 2.5: Over -104, Under -118."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "espn_evidence_basis": [
+        "Riyad Mahrez ESPN SOT/goal events in full match: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760433",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "external_evidence_basis": [
+        "Riyad Mahrez ESPN SOT/goal events in full match: 0."
       ]
     },
     {
@@ -3159,10 +3570,23 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-argentina-algeria-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760433/algeria-argentina"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
+      "external_market_evidence_basis": [
         "Moneyline: Argentina -260, Algeria +800, draw +360."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "espn_evidence_basis": [
+        "Fouls Committed: ALG 8, ARG 13."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760433",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "external_evidence_basis": [
+        "Fouls Committed: ALG 8, ARG 13."
       ]
     },
     {
@@ -3205,10 +3629,23 @@
         "https://footystats.org/international/czech-republic-national-team-vs-south-africa-national-team-h2h-stats",
         "https://www.theguardian.com/football/live/2026/jun/18/czechia-v-south-africa-world-cup-live"
       ],
-      "external_evidence_level": "direct_or_adjacent_stat",
-      "external_evidence_reason": "External source includes foul-rate/foul-count evidence.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "direct_or_adjacent_stat",
+      "external_market_evidence_reason": "External source includes foul-rate/foul-count evidence.",
+      "external_market_evidence_basis": [
         "Pre-match team-rate page showed Czechia committing more fouls per match than South Africa."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "espn_evidence_basis": [
+        "Fouls Committed: RSA 10, CZE 12."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760438",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "external_evidence_basis": [
+        "Fouls Committed: RSA 10, CZE 12."
       ]
     },
     {
@@ -3250,12 +3687,25 @@
         "https://en.as.com/soccer/world-cup/portugal-vs-dr-congo-live-online-score-stats-goals-and-updates-fifa-world-cup-2026-f202606-d/",
         "https://www.theguardian.com/football/live/2026/jun/17/portugal-v-dr-congo-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Team/match scoring odds are relevant but do not directly price the named player's goal/assist market.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Team/match scoring odds are relevant but do not directly price the named player's goal/assist market.",
+      "external_market_evidence_basis": [
         "Moneyline: Portugal -350, DR Congo +1000, draw +420.",
         "Total 2.5: Over -128, Under +104.",
         "BTTS Yes +128, No -164."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN goal events resolve this named-player goal market.",
+      "espn_evidence_basis": [
+        "Gonçalo Ramos ESPN goal events: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760435",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN goal events resolve this named-player goal market.",
+      "external_evidence_basis": [
+        "Gonçalo Ramos ESPN goal events: 0."
       ]
     },
     {
@@ -3297,11 +3747,24 @@
         "https://en.as.com/soccer/world-cup/portugal-vs-dr-congo-live-online-score-stats-goals-and-updates-fifa-world-cup-2026-f202606-d/",
         "https://www.theguardian.com/football/live/2026/jun/17/portugal-v-dr-congo-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match odds are only loose proxies for corner props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match odds are only loose proxies for corner props.",
+      "external_market_evidence_basis": [
         "Moneyline: Portugal -350, DR Congo +1000, draw +420.",
         "Total 2.5: Over -128, Under +104."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN corner events resolve half-specific total-corners threshold.",
+      "espn_evidence_basis": [
+        "Period 2 corners: 5."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760435",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN corner events resolve half-specific total-corners threshold.",
+      "external_evidence_basis": [
+        "Period 2 corners: 5."
       ]
     },
     {
@@ -3343,11 +3806,24 @@
         "https://en.as.com/soccer/world-cup/portugal-vs-dr-congo-live-online-score-stats-goals-and-updates-fifa-world-cup-2026-f202606-d/",
         "https://www.theguardian.com/football/live/2026/jun/17/portugal-v-dr-congo-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
+      "external_market_evidence_basis": [
         "Moneyline: Portugal -350, DR Congo +1000, draw +420.",
         "Total 2.5: Over -128, Under +104."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "espn_evidence_basis": [
+        "Penalty kicks: 0; red cards: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760435",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "external_evidence_basis": [
+        "Penalty kicks: 0; red cards: 0."
       ]
     },
     {
@@ -3389,6 +3865,20 @@
         "https://en.as.com/soccer/world-cup/portugal-vs-dr-congo-live-online-score-stats-goals-and-updates-fifa-world-cup-2026-f202606-d/",
         "https://www.theguardian.com/football/live/2026/jun/17/portugal-v-dr-congo-world-cup-2026-live"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
+      "external_market_evidence_basis": [
+        "Total 2.5: Over -128, Under +104.",
+        "BTTS Yes +128, No -164."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves BTTS plus total-goals combo.",
+      "espn_evidence_basis": [
+        "Final goals: POR 1, COD 1; total 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760435",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
       "external_evidence_basis": [
@@ -3435,10 +3925,23 @@
         "https://en.as.com/soccer/world-cup/portugal-vs-dr-congo-live-online-score-stats-goals-and-updates-fifa-world-cup-2026-f202606-d/",
         "https://www.theguardian.com/football/live/2026/jun/17/portugal-v-dr-congo-world-cup-2026-live"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
+      "external_market_evidence_basis": [
         "Moneyline: Portugal -350, DR Congo +1000, draw +420."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "espn_evidence_basis": [
+        "Fouls Committed: COD 10, POR 9."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760435",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "external_evidence_basis": [
+        "Fouls Committed: COD 10, POR 9."
       ]
     },
     {
@@ -3479,9 +3982,22 @@
         "https://www.cbssports.com/soccer/news/senegal-vs-france-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-tuesday/",
         "https://www.espn.com/soccer/match/_/gameId/760432"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for offside props.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for offside props.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "espn_evidence_basis": [
+        "FRA offsides: 1; threshold: 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760432",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "external_evidence_basis": [
+        "FRA offsides: 1; threshold: 2."
+      ]
     },
     {
       "market_id": "02f1082e-cb12-43c6-aadb-0e8b89e66f49",
@@ -3521,9 +4037,22 @@
         "https://www.cbssports.com/soccer/news/senegal-vs-france-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-tuesday/",
         "https://www.espn.com/soccer/match/_/gameId/760432"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for card props.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for card props.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half card events resolve team card threshold.",
+      "espn_evidence_basis": [
+        "SEN second-half cards: 0; threshold: 1."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760432",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half card events resolve team card threshold.",
+      "external_evidence_basis": [
+        "SEN second-half cards: 0; threshold: 1."
+      ]
     },
     {
       "market_id": "0e4aecca-bdbd-4278-9517-eb414017bd76",
@@ -3562,6 +4091,19 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-austria-jordan-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760431/jordan-austria"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
+      "external_market_evidence_basis": [
+        "Moneyline: Austria -270, Jordan +750, draw +425."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves match-winner market.",
+      "espn_evidence_basis": [
+        "Final score: AUT 3, JOR 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760431",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
       "external_evidence_basis": [
@@ -3607,10 +4149,23 @@
         "https://en.as.com/soccer/world-cup/portugal-vs-dr-congo-live-online-score-stats-goals-and-updates-fifa-world-cup-2026-f202606-d/",
         "https://www.theguardian.com/football/live/2026/jun/17/portugal-v-dr-congo-world-cup-2026-live"
       ],
-      "external_evidence_level": "direct_or_adjacent_stat",
-      "external_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "direct_or_adjacent_stat",
+      "external_market_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
+      "external_market_evidence_basis": [
         "Portugal had very low shot and shot-on-target output despite being favored."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "espn_evidence_basis": [
+        "COD shots on target: 2; threshold: 4."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760435",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "external_evidence_basis": [
+        "COD shots on target: 2; threshold: 4."
       ]
     },
     {
@@ -3636,9 +4191,9 @@
       "has_market_anchor_in_rationale": true,
       "last_forecast_at": "2026-06-17T22:51:23.784501+00:00",
       "last_model_forecast_at": null,
-      "external_source_count": 3,
+      "external_source_count": 4,
       "external_odds_source_count": 2,
-      "external_stats_source_count": 1,
+      "external_stats_source_count": 2,
       "external_recap_source_count": 0,
       "external_odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
       "external_result_summary": "Ghana beat Panama 1-0 in a low-event match.",
@@ -3650,15 +4205,29 @@
       "external_source_urls": [
         "https://www.foxsports.com/stories/soccer/2026-world-cup-ghana-panama-odds-prediction-picks",
         "https://www.covers.com/world-cup/ghana-vs-panama-prediction-top-picks-odds-today-6-17-2026",
-        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage"
+        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage",
+        "https://www.rotowire.com/soccer/headlines/antoine-semenyo-news-sparks-stoppage-time-winning-goal-519906"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline, totals, or BTTS odds are adjacent to team-scoring probability but do not directly price this exact market.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline, totals, or BTTS odds are adjacent to team-scoring probability but do not directly price this exact market.",
+      "external_market_evidence_basis": [
         "Moneyline: Ghana +130, Panama +220, draw +220.",
         "Total 2.5: Over +138, Under -170.",
         "BTTS Yes +100, No -110.",
         "A total shots-on-target market of 9-plus resolved at 6."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half goal sequence resolves first-second-half-goal market.",
+      "espn_evidence_basis": [
+        "First second-half goal: GHA."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760434",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half goal sequence resolves first-second-half-goal market.",
+      "external_evidence_basis": [
+        "First second-half goal: GHA."
       ]
     },
     {
@@ -3684,9 +4253,9 @@
       "has_market_anchor_in_rationale": true,
       "last_forecast_at": "2026-06-17T22:51:23.784501+00:00",
       "last_model_forecast_at": null,
-      "external_source_count": 3,
+      "external_source_count": 4,
       "external_odds_source_count": 2,
-      "external_stats_source_count": 1,
+      "external_stats_source_count": 2,
       "external_recap_source_count": 0,
       "external_odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
       "external_result_summary": "Ghana beat Panama 1-0 in a low-event match.",
@@ -3698,12 +4267,26 @@
       "external_source_urls": [
         "https://www.foxsports.com/stories/soccer/2026-world-cup-ghana-panama-odds-prediction-picks",
         "https://www.covers.com/world-cup/ghana-vs-panama-prediction-top-picks-odds-today-6-17-2026",
-        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage"
+        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage",
+        "https://www.rotowire.com/soccer/headlines/antoine-semenyo-news-sparks-stoppage-time-winning-goal-519906"
       ],
-      "external_evidence_level": "direct_or_adjacent_stat",
-      "external_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "direct_or_adjacent_stat",
+      "external_market_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
+      "external_market_evidence_basis": [
         "A total shots-on-target market of 9-plus resolved at 6."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "espn_evidence_basis": [
+        "GHA shots on target: 2; threshold: 3."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760434",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "external_evidence_basis": [
+        "GHA shots on target: 2; threshold: 3."
       ]
     },
     {
@@ -3743,11 +4326,24 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-austria-jordan-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760431/jordan-austria"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match odds are only loose proxies for corner props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match odds are only loose proxies for corner props.",
+      "external_market_evidence_basis": [
         "Moneyline: Austria -270, Jordan +750, draw +425.",
         "Total 2.5: Over -135, Under +110."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves corner comparison.",
+      "espn_evidence_basis": [
+        "Corners: JOR 3, AUT 4."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760431",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves corner comparison.",
+      "external_evidence_basis": [
+        "Corners: JOR 3, AUT 4."
       ]
     },
     {
@@ -3789,12 +4385,25 @@
         "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
         "https://www.theguardian.com/football/live/2026/jun/18/fifa-world-cup-2026-live-uzbekistan-v-colombia-updates-uzb-vs-col-group-k-match-score-latest"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match odds are only loose proxies for penalty/red-card likelihood.",
+      "external_market_evidence_basis": [
         "Moneyline: Uzbekistan +850, Colombia -280, draw +370.",
         "Total 2.5: Over -110, Under -115.",
         "The match total went over 2.5."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "espn_evidence_basis": [
+        "Penalty kicks: 0; red cards: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760436",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN penalty/red-card events and red-card totals resolve this market.",
+      "external_evidence_basis": [
+        "Penalty kicks: 0; red cards: 0."
       ]
     },
     {
@@ -3835,9 +4444,22 @@
         "https://www.cbssports.com/soccer/news/senegal-vs-france-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-tuesday/",
         "https://www.espn.com/soccer/match/_/gameId/760432"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline, totals, or BTTS odds are adjacent to team-scoring probability but do not directly price this exact market.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline, totals, or BTTS odds are adjacent to team-scoring probability but do not directly price this exact market.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves BTTS plus total-goals combo.",
+      "espn_evidence_basis": [
+        "Final goals: FRA 3, SEN 1; total 4."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760432",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN final score resolves BTTS plus total-goals combo.",
+      "external_evidence_basis": [
+        "Final goals: FRA 3, SEN 1; total 4."
+      ]
     },
     {
       "market_id": "d3f41171-82f4-426d-9bc5-126e9b50f9e4",
@@ -3876,10 +4498,23 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-austria-jordan-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760431/jordan-austria"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for card props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for card props.",
+      "external_market_evidence_basis": [
         "Moneyline: Austria -270, Jordan +750, draw +425."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves total-cards threshold.",
+      "espn_evidence_basis": [
+        "Total cards: 1; threshold: 4."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760431",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves total-cards threshold.",
+      "external_evidence_basis": [
+        "Total cards: 1; threshold: 4."
       ]
     },
     {
@@ -3919,11 +4554,24 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-austria-jordan-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760431/jordan-austria"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Austria -270, Jordan +750, draw +425.",
         "Total 2.5: Over -135, Under +110."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "espn_evidence_basis": [
+        "Second-half SOT: JOR 1, AUT 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760431",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "external_evidence_basis": [
+        "Second-half SOT: JOR 1, AUT 2."
       ]
     },
     {
@@ -3963,6 +4611,20 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-austria-jordan-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760431/jordan-austria"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
+      "external_market_evidence_basis": [
+        "Total 2.5: Over -135, Under +110.",
+        "BTTS Yes +104, No -132."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves total-goals threshold.",
+      "espn_evidence_basis": [
+        "Final total goals: 4."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760431",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
       "external_evidence_basis": [
@@ -4007,11 +4669,24 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-austria-jordan-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760431/jordan-austria"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Austria -270, Jordan +750, draw +425.",
         "Total 2.5: Over -135, Under +110."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "espn_evidence_basis": [
+        "Mousa Al-Taamari ESPN SOT/goal events in full match: 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760431",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "external_evidence_basis": [
+        "Mousa Al-Taamari ESPN SOT/goal events in full match: 1."
       ]
     },
     {
@@ -4051,11 +4726,24 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-austria-jordan-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760431/jordan-austria"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Austria -270, Jordan +750, draw +425.",
         "Total 2.5: Over -135, Under +110."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "espn_evidence_basis": [
+        "Marcel Sabitzer ESPN SOT/goal events in full match: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760431",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "external_evidence_basis": [
+        "Marcel Sabitzer ESPN SOT/goal events in full match: 0."
       ]
     },
     {
@@ -4095,11 +4783,24 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-austria-jordan-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760431/jordan-austria"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Austria -270, Jordan +750, draw +425.",
         "Total 2.5: Over -135, Under +110."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "espn_evidence_basis": [
+        "AUT shots on target: 4; threshold: 6."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760431",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "external_evidence_basis": [
+        "AUT shots on target: 4; threshold: 6."
       ]
     },
     {
@@ -4139,11 +4840,24 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-austria-jordan-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760431/jordan-austria"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Totals/BTTS odds are adjacent to team half-scoring markets.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Totals/BTTS odds are adjacent to team half-scoring markets.",
+      "external_market_evidence_basis": [
         "Total 2.5: Over -135, Under +110.",
         "BTTS Yes +104, No -132."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half goal events resolve team half-scoring market.",
+      "espn_evidence_basis": [
+        "AUT second-half goals: 2."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760431",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half goal events resolve team half-scoring market.",
+      "external_evidence_basis": [
+        "AUT second-half goals: 2."
       ]
     },
     {
@@ -4183,10 +4897,23 @@
         "https://www.foxsports.com/stories/soccer/2026-world-cup-austria-jordan-odds-prediction-picks",
         "https://www.espn.com/soccer/match/_/gameId/760431/jordan-austria"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
+      "external_market_evidence_basis": [
         "Moneyline: Austria -270, Jordan +750, draw +425."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "espn_evidence_basis": [
+        "Fouls Committed: JOR 7, AUT 12."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760431",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "external_evidence_basis": [
+        "Fouls Committed: JOR 7, AUT 12."
       ]
     },
     {
@@ -4227,9 +4954,22 @@
         "https://www.cbssports.com/soccer/news/senegal-vs-france-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-tuesday/",
         "https://www.espn.com/soccer/match/_/gameId/760432"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for offside props.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for offside props.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "espn_evidence_basis": [
+        "SEN offsides: 3; threshold: 2."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760432",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "external_evidence_basis": [
+        "SEN offsides: 3; threshold: 2."
+      ]
     },
     {
       "market_id": "44edc25a-6d65-4602-a0f0-7319d4731fbd",
@@ -4269,9 +5009,22 @@
         "https://www.cbssports.com/soccer/news/senegal-vs-france-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-tuesday/",
         "https://www.espn.com/soccer/match/_/gameId/760432"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "espn_evidence_basis": [
+        "Second-half SOT: FRA 8, SEN 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760432",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "external_evidence_basis": [
+        "Second-half SOT: FRA 8, SEN 1."
+      ]
     },
     {
       "market_id": "d09a87e1-f556-40d1-97c8-ecbe8bbb83ca",
@@ -4311,9 +5064,22 @@
         "https://www.cbssports.com/soccer/news/senegal-vs-france-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-tuesday/",
         "https://www.espn.com/soccer/match/_/gameId/760432"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Team/match scoring odds are relevant but do not directly price the named player's goal/assist market.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Team/match scoring odds are relevant but do not directly price the named player's goal/assist market.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN goal events resolve this named-player goal market.",
+      "espn_evidence_basis": [
+        "Sadio Mané ESPN goal events: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760432",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN goal events resolve this named-player goal market.",
+      "external_evidence_basis": [
+        "Sadio Mané ESPN goal events: 0."
+      ]
     },
     {
       "market_id": "6f0a2ca7-d1e8-4f11-ab6b-cce2e91448a2",
@@ -4353,11 +5119,24 @@
         "https://www.cbssports.com/soccer/news/senegal-vs-france-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-tuesday/",
         "https://www.espn.com/soccer/match/_/gameId/760432"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match moneyline is relevant but does not directly price halftime or partial-result framing.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match moneyline is relevant but does not directly price halftime or partial-result framing.",
+      "external_market_evidence_basis": [
         "Pre-match article framed France as a leading World Cup favorite.",
         "France was listed among the World Cup favorites and as group favorite."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN first-half goal events resolve halftime leader state.",
+      "espn_evidence_basis": [
+        "Halftime goals: FRA 0, SEN 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760432",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN first-half goal events resolve halftime leader state.",
+      "external_evidence_basis": [
+        "Halftime goals: FRA 0, SEN 0."
       ]
     },
     {
@@ -4398,6 +5177,20 @@
         "https://www.cbssports.com/soccer/news/senegal-vs-france-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-tuesday/",
         "https://www.espn.com/soccer/match/_/gameId/760432"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
+      "external_market_evidence_basis": [
+        "Pre-match article framed France as a leading World Cup favorite.",
+        "France was listed among the World Cup favorites and as group favorite."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves match-winner market.",
+      "espn_evidence_basis": [
+        "Final score: FRA 3, SEN 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760432",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
       "external_evidence_basis": [
@@ -4443,9 +5236,22 @@
         "https://www.cbssports.com/soccer/news/senegal-vs-france-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-tuesday/",
         "https://www.espn.com/soccer/match/_/gameId/760432"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "espn_evidence_basis": [
+        "SEN shots on target: 2; threshold: 4."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760432",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves team SOT threshold.",
+      "external_evidence_basis": [
+        "SEN shots on target: 2; threshold: 4."
+      ]
     },
     {
       "market_id": "fc032969-f65c-4e9f-913b-c21f5474b020",
@@ -4485,9 +5291,22 @@
         "https://www.cbssports.com/soccer/news/senegal-vs-france-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-tuesday/",
         "https://www.espn.com/soccer/match/_/gameId/760432"
       ],
-      "external_evidence_level": "match_context_only",
-      "external_evidence_reason": "External sources cover the match but not this market family with a direct or adjacent market/stat line.",
-      "external_evidence_basis": []
+      "external_market_evidence_level": "match_context_only",
+      "external_market_evidence_reason": "External sources cover the match but not this market family with a direct or adjacent market/stat line.",
+      "external_market_evidence_basis": [],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN first-half goal events resolve team half-scoring market.",
+      "espn_evidence_basis": [
+        "FRA first-half goals: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760432",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN first-half goal events resolve team half-scoring market.",
+      "external_evidence_basis": [
+        "FRA first-half goals: 0."
+      ]
     },
     {
       "market_id": "43814d1f-78eb-4d87-883c-624855d75fd8",
@@ -4512,9 +5331,9 @@
       "has_market_anchor_in_rationale": true,
       "last_forecast_at": "2026-06-17T22:51:23.784501+00:00",
       "last_model_forecast_at": null,
-      "external_source_count": 3,
+      "external_source_count": 4,
       "external_odds_source_count": 2,
-      "external_stats_source_count": 1,
+      "external_stats_source_count": 2,
       "external_recap_source_count": 0,
       "external_odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
       "external_result_summary": "Ghana beat Panama 1-0 in a low-event match.",
@@ -4526,12 +5345,26 @@
       "external_source_urls": [
         "https://www.foxsports.com/stories/soccer/2026-world-cup-ghana-panama-odds-prediction-picks",
         "https://www.covers.com/world-cup/ghana-vs-panama-prediction-top-picks-odds-today-6-17-2026",
-        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage"
+        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage",
+        "https://www.rotowire.com/soccer/headlines/antoine-semenyo-news-sparks-stoppage-time-winning-goal-519906"
       ],
-      "external_evidence_level": "direct_or_adjacent_stat",
-      "external_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "direct_or_adjacent_stat",
+      "external_market_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
+      "external_market_evidence_basis": [
         "A total shots-on-target market of 9-plus resolved at 6."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "espn_evidence_basis": [
+        "José Fajardo ESPN SOT/goal events in full match: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760434",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "external_evidence_basis": [
+        "José Fajardo ESPN SOT/goal events in full match: 0."
       ]
     },
     {
@@ -4557,9 +5390,9 @@
       "has_market_anchor_in_rationale": false,
       "last_forecast_at": "2026-06-17T22:35:47.351831+00:00",
       "last_model_forecast_at": "2026-06-17T22:51:23.784501+00:00",
-      "external_source_count": 3,
+      "external_source_count": 4,
       "external_odds_source_count": 2,
-      "external_stats_source_count": 1,
+      "external_stats_source_count": 2,
       "external_recap_source_count": 0,
       "external_odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
       "external_result_summary": "Ghana beat Panama 1-0 in a low-event match.",
@@ -4571,12 +5404,26 @@
       "external_source_urls": [
         "https://www.foxsports.com/stories/soccer/2026-world-cup-ghana-panama-odds-prediction-picks",
         "https://www.covers.com/world-cup/ghana-vs-panama-prediction-top-picks-odds-today-6-17-2026",
-        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage"
+        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage",
+        "https://www.rotowire.com/soccer/headlines/antoine-semenyo-news-sparks-stoppage-time-winning-goal-519906"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for foul-market game script.",
+      "external_market_evidence_basis": [
         "Moneyline: Ghana +130, Panama +220, draw +220."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "espn_evidence_basis": [
+        "Fouls Committed: GHA 9, PAN 11."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760434",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves fouls committed comparison.",
+      "external_evidence_basis": [
+        "Fouls Committed: GHA 9, PAN 11."
       ]
     },
     {
@@ -4602,9 +5449,9 @@
       "has_market_anchor_in_rationale": false,
       "last_forecast_at": "2026-06-17T22:35:47.351831+00:00",
       "last_model_forecast_at": "2026-06-17T22:51:23.784501+00:00",
-      "external_source_count": 3,
+      "external_source_count": 4,
       "external_odds_source_count": 2,
-      "external_stats_source_count": 1,
+      "external_stats_source_count": 2,
       "external_recap_source_count": 0,
       "external_odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
       "external_result_summary": "Ghana beat Panama 1-0 in a low-event match.",
@@ -4616,12 +5463,26 @@
       "external_source_urls": [
         "https://www.foxsports.com/stories/soccer/2026-world-cup-ghana-panama-odds-prediction-picks",
         "https://www.covers.com/world-cup/ghana-vs-panama-prediction-top-picks-odds-today-6-17-2026",
-        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage"
+        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage",
+        "https://www.rotowire.com/soccer/headlines/antoine-semenyo-news-sparks-stoppage-time-winning-goal-519906"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for card props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for card props.",
+      "external_market_evidence_basis": [
         "Moneyline: Ghana +130, Panama +220, draw +220."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves card comparison.",
+      "espn_evidence_basis": [
+        "Cards: PAN 2, GHA 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760434",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves card comparison.",
+      "external_evidence_basis": [
+        "Cards: PAN 2, GHA 1."
       ]
     },
     {
@@ -4647,9 +5508,9 @@
       "has_market_anchor_in_rationale": false,
       "last_forecast_at": null,
       "last_model_forecast_at": "2026-06-17T22:51:23.784501+00:00",
-      "external_source_count": 3,
+      "external_source_count": 4,
       "external_odds_source_count": 2,
-      "external_stats_source_count": 1,
+      "external_stats_source_count": 2,
       "external_recap_source_count": 0,
       "external_odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
       "external_result_summary": "Ghana beat Panama 1-0 in a low-event match.",
@@ -4661,12 +5522,26 @@
       "external_source_urls": [
         "https://www.foxsports.com/stories/soccer/2026-world-cup-ghana-panama-odds-prediction-picks",
         "https://www.covers.com/world-cup/ghana-vs-panama-prediction-top-picks-odds-today-6-17-2026",
-        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage"
+        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage",
+        "https://www.rotowire.com/soccer/headlines/antoine-semenyo-news-sparks-stoppage-time-winning-goal-519906"
       ],
-      "external_evidence_level": "direct_or_adjacent_stat",
-      "external_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "direct_or_adjacent_stat",
+      "external_market_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
+      "external_market_evidence_basis": [
         "A total shots-on-target market of 9-plus resolved at 6."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "espn_evidence_basis": [
+        "Second-half SOT: GHA 2, PAN 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760434",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "external_evidence_basis": [
+        "Second-half SOT: GHA 2, PAN 2."
       ]
     },
     {
@@ -4692,9 +5567,9 @@
       "has_market_anchor_in_rationale": true,
       "last_forecast_at": "2026-06-17T22:51:23.784501+00:00",
       "last_model_forecast_at": null,
-      "external_source_count": 3,
+      "external_source_count": 4,
       "external_odds_source_count": 2,
-      "external_stats_source_count": 1,
+      "external_stats_source_count": 2,
       "external_recap_source_count": 0,
       "external_odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
       "external_result_summary": "Ghana beat Panama 1-0 in a low-event match.",
@@ -4706,12 +5581,26 @@
       "external_source_urls": [
         "https://www.foxsports.com/stories/soccer/2026-world-cup-ghana-panama-odds-prediction-picks",
         "https://www.covers.com/world-cup/ghana-vs-panama-prediction-top-picks-odds-today-6-17-2026",
-        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage"
+        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage",
+        "https://www.rotowire.com/soccer/headlines/antoine-semenyo-news-sparks-stoppage-time-winning-goal-519906"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for offside props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for offside props.",
+      "external_market_evidence_basis": [
         "Moneyline: Ghana +130, Panama +220, draw +220."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "espn_evidence_basis": [
+        "PAN offsides: 1; threshold: 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760434",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "external_evidence_basis": [
+        "PAN offsides: 1; threshold: 2."
       ]
     },
     {
@@ -4737,9 +5626,9 @@
       "has_market_anchor_in_rationale": true,
       "last_forecast_at": "2026-06-17T22:35:47.351831+00:00",
       "last_model_forecast_at": "2026-06-17T22:51:23.784501+00:00",
-      "external_source_count": 3,
+      "external_source_count": 4,
       "external_odds_source_count": 2,
-      "external_stats_source_count": 1,
+      "external_stats_source_count": 2,
       "external_recap_source_count": 0,
       "external_odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
       "external_result_summary": "Ghana beat Panama 1-0 in a low-event match.",
@@ -4751,8 +5640,22 @@
       "external_source_urls": [
         "https://www.foxsports.com/stories/soccer/2026-world-cup-ghana-panama-odds-prediction-picks",
         "https://www.covers.com/world-cup/ghana-vs-panama-prediction-top-picks-odds-today-6-17-2026",
-        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage"
+        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage",
+        "https://www.rotowire.com/soccer/headlines/antoine-semenyo-news-sparks-stoppage-time-winning-goal-519906"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
+      "external_market_evidence_basis": [
+        "Moneyline: Ghana +130, Panama +220, draw +220."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves match-winner market.",
+      "espn_evidence_basis": [
+        "Final score: GHA 1, PAN 0."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760434",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
       "external_evidence_basis": [
@@ -4782,9 +5685,9 @@
       "has_market_anchor_in_rationale": false,
       "last_forecast_at": "2026-06-17T22:51:23.784501+00:00",
       "last_model_forecast_at": null,
-      "external_source_count": 3,
+      "external_source_count": 4,
       "external_odds_source_count": 2,
-      "external_stats_source_count": 1,
+      "external_stats_source_count": 2,
       "external_recap_source_count": 0,
       "external_odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
       "external_result_summary": "Ghana beat Panama 1-0 in a low-event match.",
@@ -4796,8 +5699,25 @@
       "external_source_urls": [
         "https://www.foxsports.com/stories/soccer/2026-world-cup-ghana-panama-odds-prediction-picks",
         "https://www.covers.com/world-cup/ghana-vs-panama-prediction-top-picks-odds-today-6-17-2026",
-        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage"
+        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage",
+        "https://www.rotowire.com/soccer/headlines/antoine-semenyo-news-sparks-stoppage-time-winning-goal-519906"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
+      "external_market_evidence_basis": [
+        "Total 2.5: Over +138, Under -170.",
+        "BTTS Yes +100, No -110.",
+        "Under 2.5 was around -150.",
+        "A total shots-on-target market of 9-plus resolved at 6."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half goal events resolve second-half total-goals threshold.",
+      "espn_evidence_basis": [
+        "Second-half goals: 1."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760434",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
       "external_evidence_basis": [
@@ -4830,9 +5750,9 @@
       "has_market_anchor_in_rationale": false,
       "last_forecast_at": null,
       "last_model_forecast_at": "2026-06-17T22:51:23.784501+00:00",
-      "external_source_count": 3,
+      "external_source_count": 4,
       "external_odds_source_count": 2,
-      "external_stats_source_count": 1,
+      "external_stats_source_count": 2,
       "external_recap_source_count": 0,
       "external_odds_summary": "Ghana was only a slight favorite around +127 to +130, Panama around +220 to +245, draw around +220 to +245; Under 2.5 was materially favored.",
       "external_result_summary": "Ghana beat Panama 1-0 in a low-event match.",
@@ -4844,12 +5764,26 @@
       "external_source_urls": [
         "https://www.foxsports.com/stories/soccer/2026-world-cup-ghana-panama-odds-prediction-picks",
         "https://www.covers.com/world-cup/ghana-vs-panama-prediction-top-picks-odds-today-6-17-2026",
-        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage"
+        "https://fansided.com/soccer/ghana-vs-panama-live-score-team-player-stats-world-cup-group-stage",
+        "https://www.rotowire.com/soccer/headlines/antoine-semenyo-news-sparks-stoppage-time-winning-goal-519906"
       ],
-      "external_evidence_level": "direct_or_adjacent_stat",
-      "external_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "direct_or_adjacent_stat",
+      "external_market_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
+      "external_market_evidence_basis": [
         "A total shots-on-target market of 9-plus resolved at 6."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "espn_evidence_basis": [
+        "Antoine Semenyo ESPN SOT/goal events in full match: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": false,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760434",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "external_evidence_basis": [
+        "Antoine Semenyo ESPN SOT/goal events in full match: 0."
       ]
     },
     {
@@ -4891,10 +5825,23 @@
         "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
         "https://www.theguardian.com/football/live/2026/jun/18/fifa-world-cup-2026-live-uzbekistan-v-colombia-updates-uzb-vs-col-group-k-match-score-latest"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match moneyline is relevant but does not directly price halftime or partial-result framing.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match moneyline is relevant but does not directly price halftime or partial-result framing.",
+      "external_market_evidence_basis": [
         "Moneyline: Uzbekistan +850, Colombia -280, draw +370."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN first-half goal events resolve halftime tie state.",
+      "espn_evidence_basis": [
+        "Halftime goals: UZB 0, COL 1."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760436",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN first-half goal events resolve halftime tie state.",
+      "external_evidence_basis": [
+        "Halftime goals: UZB 0, COL 1."
       ]
     },
     {
@@ -4936,6 +5883,21 @@
         "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
         "https://www.theguardian.com/football/live/2026/jun/18/fifa-world-cup-2026-live-uzbekistan-v-colombia-updates-uzb-vs-col-group-k-match-score-latest"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
+      "external_market_evidence_basis": [
+        "Total 2.5: Over -110, Under -115.",
+        "BTTS Yes +124, No -154.",
+        "The match total went over 2.5."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves total-goals threshold.",
+      "espn_evidence_basis": [
+        "Final total goals: 4."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760436",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
       "external_evidence_basis": [
@@ -4983,12 +5945,25 @@
         "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
         "https://www.theguardian.com/football/live/2026/jun/18/fifa-world-cup-2026-live-uzbekistan-v-colombia-updates-uzb-vs-col-group-k-match-score-latest"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Totals/BTTS odds are adjacent to team half-scoring markets.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Totals/BTTS odds are adjacent to team half-scoring markets.",
+      "external_market_evidence_basis": [
         "Total 2.5: Over -110, Under -115.",
         "BTTS Yes +124, No -154.",
         "The match total went over 2.5."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half goal events resolve team half-scoring market.",
+      "espn_evidence_basis": [
+        "COL second-half goals: 2."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760436",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half goal events resolve team half-scoring market.",
+      "external_evidence_basis": [
+        "COL second-half goals: 2."
       ]
     },
     {
@@ -5030,10 +6005,23 @@
         "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
         "https://www.theguardian.com/football/live/2026/jun/18/fifa-world-cup-2026-live-uzbekistan-v-colombia-updates-uzb-vs-col-group-k-match-score-latest"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline context is a weak proxy for offside props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline context is a weak proxy for offside props.",
+      "external_market_evidence_basis": [
         "Moneyline: Uzbekistan +850, Colombia -280, draw +370."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "espn_evidence_basis": [
+        "UZB offsides: 0; threshold: 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760436",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves offsides threshold.",
+      "external_evidence_basis": [
+        "UZB offsides: 0; threshold: 2."
       ]
     },
     {
@@ -5075,12 +6063,25 @@
         "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
         "https://www.theguardian.com/football/live/2026/jun/18/fifa-world-cup-2026-live-uzbekistan-v-colombia-updates-uzb-vs-col-group-k-match-score-latest"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Uzbekistan +850, Colombia -280, draw +370.",
         "Total 2.5: Over -110, Under -115.",
         "The match total went over 2.5."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "espn_evidence_basis": [
+        "Second-half SOT: COL 2, UZB 2."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760436",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "external_evidence_basis": [
+        "Second-half SOT: COL 2, UZB 2."
       ]
     },
     {
@@ -5122,12 +6123,25 @@
         "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
         "https://www.theguardian.com/football/live/2026/jun/18/fifa-world-cup-2026-live-uzbekistan-v-colombia-updates-uzb-vs-col-group-k-match-score-latest"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match odds are only loose proxies for corner props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match odds are only loose proxies for corner props.",
+      "external_market_evidence_basis": [
         "Moneyline: Uzbekistan +850, Colombia -280, draw +370.",
         "Total 2.5: Over -110, Under -115.",
         "The match total went over 2.5."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN team box score resolves corner threshold.",
+      "espn_evidence_basis": [
+        "UZB corners: 3; threshold: 5."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760436",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN team box score resolves corner threshold.",
+      "external_evidence_basis": [
+        "UZB corners: 3; threshold: 5."
       ]
     },
     {
@@ -5169,6 +6183,19 @@
         "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
         "https://www.theguardian.com/football/live/2026/jun/18/fifa-world-cup-2026-live-uzbekistan-v-colombia-updates-uzb-vs-col-group-k-match-score-latest"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "A player goalscorer market was found for the named player.",
+      "external_market_evidence_basis": [
+        "Anytime goalscorer props included Luis Díaz +135 and Eldor Shomurodov +390."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN goal participants resolve this named-player goal-or-assist market.",
+      "espn_evidence_basis": [
+        "Eldor Shomurodov ESPN goal/assist participant events: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760436",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "A player goalscorer market was found for the named player.",
       "external_evidence_basis": [
@@ -5214,13 +6241,26 @@
         "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
         "https://www.theguardian.com/football/live/2026/jun/18/fifa-world-cup-2026-live-uzbekistan-v-colombia-updates-uzb-vs-col-group-k-match-score-latest"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Moneyline, totals, or BTTS odds are adjacent to team-scoring probability but do not directly price this exact market.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Moneyline, totals, or BTTS odds are adjacent to team-scoring probability but do not directly price this exact market.",
+      "external_market_evidence_basis": [
         "Moneyline: Uzbekistan +850, Colombia -280, draw +370.",
         "Total 2.5: Over -110, Under -115.",
         "BTTS Yes +124, No -154.",
         "The match total went over 2.5."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves team scoring market.",
+      "espn_evidence_basis": [
+        "UZB final goals: 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760436",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN final score resolves team scoring market.",
+      "external_evidence_basis": [
+        "UZB final goals: 1."
       ]
     },
     {
@@ -5262,12 +6302,25 @@
         "https://www.foxsports.com/soccer/fifa-world-cup-men-uzbekistan-vs-colombia-jun-17-2026-game-boxscore-647639",
         "https://www.theguardian.com/football/live/2026/jun/18/fifa-world-cup-2026-live-uzbekistan-v-colombia-updates-uzb-vs-col-group-k-match-score-latest"
       ],
-      "external_evidence_level": "adjacent_match_market",
-      "external_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "adjacent_match_market",
+      "external_market_evidence_reason": "Match winner/total odds are only loose proxies for shot-on-target props.",
+      "external_market_evidence_basis": [
         "Moneyline: Uzbekistan +850, Colombia -280, draw +370.",
         "Total 2.5: Over -110, Under -115.",
         "The match total went over 2.5."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve named-player SOT market.",
+      "espn_evidence_basis": [
+        "Luis Díaz ESPN SOT/goal events in period 2: 1."
+      ],
+      "espn_resolved_outcome": 1,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760436",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve named-player SOT market.",
+      "external_evidence_basis": [
+        "Luis Díaz ESPN SOT/goal events in period 2: 1."
       ]
     },
     {
@@ -5309,10 +6362,23 @@
         "https://en.as.com/soccer/world-cup/portugal-vs-dr-congo-live-online-score-stats-goals-and-updates-fifa-world-cup-2026-f202606-d/",
         "https://www.theguardian.com/football/live/2026/jun/17/portugal-v-dr-congo-world-cup-2026-live"
       ],
-      "external_evidence_level": "direct_or_adjacent_stat",
-      "external_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "direct_or_adjacent_stat",
+      "external_market_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
+      "external_market_evidence_basis": [
         "Portugal had very low shot and shot-on-target output despite being favored."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "espn_evidence_basis": [
+        "Second-half SOT: POR 0, COD 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760435",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN second-half shot-on-target and goal events resolve team SOT comparison.",
+      "external_evidence_basis": [
+        "Second-half SOT: POR 0, COD 0."
       ]
     },
     {
@@ -5354,6 +6420,20 @@
         "https://en.as.com/soccer/world-cup/portugal-vs-dr-congo-live-online-score-stats-goals-and-updates-fifa-world-cup-2026-f202606-d/",
         "https://www.theguardian.com/football/live/2026/jun/17/portugal-v-dr-congo-world-cup-2026-live"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
+      "external_market_evidence_basis": [
+        "Total 2.5: Over -128, Under +104.",
+        "BTTS Yes +128, No -164."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN goal events resolve half-to-half goal comparison.",
+      "espn_evidence_basis": [
+        "First-half goals: 2; second-half goals: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760435",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Totals and/or BTTS odds directly price the core goal-market leg.",
       "external_evidence_basis": [
@@ -5400,10 +6480,23 @@
         "https://en.as.com/soccer/world-cup/portugal-vs-dr-congo-live-online-score-stats-goals-and-updates-fifa-world-cup-2026-f202606-d/",
         "https://www.theguardian.com/football/live/2026/jun/17/portugal-v-dr-congo-world-cup-2026-live"
       ],
-      "external_evidence_level": "direct_or_adjacent_stat",
-      "external_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
-      "external_evidence_basis": [
+      "external_market_evidence_level": "direct_or_adjacent_stat",
+      "external_market_evidence_reason": "External source includes shots-on-target facts or a shots-on-target market, but may not match the exact team/player/half threshold.",
+      "external_market_evidence_basis": [
         "Portugal had very low shot and shot-on-target output despite being favored."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "espn_evidence_basis": [
+        "Cédric Bakambu ESPN SOT/goal events in full match: 0."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760435",
+      "external_evidence_level": "direct_retrospective_stat",
+      "external_evidence_reason": "ESPN shot-on-target and goal events resolve named-player SOT market.",
+      "external_evidence_basis": [
+        "Cédric Bakambu ESPN SOT/goal events in full match: 0."
       ]
     },
     {
@@ -5445,6 +6538,20 @@
         "https://en.as.com/soccer/world-cup/portugal-vs-dr-congo-live-online-score-stats-goals-and-updates-fifa-world-cup-2026-f202606-d/",
         "https://www.theguardian.com/football/live/2026/jun/17/portugal-v-dr-congo-world-cup-2026-live"
       ],
+      "external_market_evidence_level": "direct_market_line",
+      "external_market_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
+      "external_market_evidence_basis": [
+        "Moneyline: Portugal -350, DR Congo +1000, draw +420.",
+        "Portugal had very low shot and shot-on-target output despite being favored."
+      ],
+      "espn_evidence_level": "direct_retrospective_stat",
+      "espn_evidence_reason": "ESPN final score resolves match-winner market.",
+      "espn_evidence_basis": [
+        "Final score: POR 1, COD 1."
+      ],
+      "espn_resolved_outcome": 0,
+      "espn_outcome_matches_platform": true,
+      "espn_source_url": "https://www.espn.com/soccer/match/_/gameId/760435",
       "external_evidence_level": "direct_market_line",
       "external_evidence_reason": "Moneyline/favorite odds directly describe match-winner likelihood.",
       "external_evidence_basis": [
@@ -11141,13 +12248,15 @@
     "Component/model scoring is available only for markets present in saved forecast-history.json.",
     "External source enrichment is match-level unless a direct market/prop line is shown in the source facts.",
     "External evidence strength is conservative: generic moneyline/total context is not treated as direct evidence for SOT, cards, fouls, offsides, corners, or half-specific props.",
+    "ESPN retrospective resolver evidence is derived from reports/espn-match-stats.json and compared with SportsPredict settled outcomes.",
     "External odds are not available through the Jump API; source coverage comes from public odds, stats, and recap pages captured in reports/external-match-sources.json.",
     "Post-change split uses forecast-history timestamps, not Git metadata inside artifacts."
   ],
   "findings": [
     "Settled platform predictions: 90 markets, mean Brier 0.2154.",
     "External source coverage: 90/90 settled forecasts across 9 match groups.",
-    "Direct/specific evidence coverage: 25/90 settled forecasts.",
+    "Direct/specific evidence coverage: 90/90 settled forecasts.",
+    "ESPN retrospective resolver coverage: 90/90 settled forecasts; 1 disagree with platform outcomes.",
     "Family goals: n=14, mean Brier 0.2451, mean p 0.425 vs outcome rate 0.5 (bias -0.075).",
     "Family fouls: n=7, mean Brier 0.2403, mean p 0.5314 vs outcome rate 0.2857 (bias 0.2457).",
     "Family offsides: n=8, mean Brier 0.2387, mean p 0.5212 vs outcome rate 0.375 (bias 0.1463).",

@@ -11,10 +11,11 @@ coverage to all settled platform forecasts.
 - Settled platform forecasts scored: 90.
 - Settled match groups covered by external sources: 9 of 9.
 - Settled forecasts with at least one public odds/stat/recap source attached: 90 of 90.
-- Settled forecasts with direct market-line evidence or direct/adjacent stat evidence:
-  25 of 90.
-- Remaining limitation: most sources are match-level. Direct prop-level historical lines
-  are only available when the public page explicitly preserved that market.
+- Settled forecasts with direct/specific evidence after ESPN retrospective resolver:
+  90 of 90.
+- ESPN retrospective resolver disagreements with SportsPredict settlement: 1 of 90.
+- Remaining limitation: pre-match prop-line coverage is still incomplete. The ESPN layer
+  gives retrospective stat evidence, not historical bookmaker prices for every prop.
 
 ## Argentina vs Algeria
 
@@ -64,6 +65,9 @@ coverage to all settled platform forecasts.
 - Ghana won 1-0, and public stat summaries indicate a low total shots-on-target game.
 - Bot lesson: Ghana 3+ shots on target at `67%` was too high for a slight favorite in an
   under-leaning match without a direct SOT line.
+- Data-quality flag: SportsPredict settled Antoine Semenyo 1+ SOT as true, but ESPN's
+  event resolver and RotoWire both show zero Semenyo shots on goal. Treat that market as
+  platform/external-source disputed until the platform resolver can be inspected.
 
 ## Iraq vs Norway
 
@@ -96,9 +100,8 @@ coverage to all settled platform forecasts.
   punish odds anchors.
 - The clearest bot-specific weakness remains noisy stat-prop overconfidence: shots on
   target, fouls, offsides, cards, and half-specific variants.
-- The new evidence-strength table sharpens this: records with direct/adjacent stat
-  evidence have mean forecast `51.5%` against a `12.5%` hit rate so far. Sample size is
-  only 8, but the direction matches the family-level SOT/foul/card pattern.
+- The ESPN resolver closes the direct retrospective evidence gap, and the remaining
+  systematic pattern still matches the family-level SOT/foul/card overconfidence.
 - Team quality and possession should be weak evidence for stat dominance unless backed by
   direct team/player rates or a public prop line.
 - Correlated combo markets need explicit leg decomposition and recombination; treating
