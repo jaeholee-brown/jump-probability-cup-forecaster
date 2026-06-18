@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-18T18:29:24.016416+00:00",
+  "generated_at": "2026-06-18T18:30:08.776602+00:00",
   "event": {
     "id": "aa5572ec-5930-4d99-b06b-f8966333d172",
     "title": "Jump Trading Probability Cup",
@@ -446,6 +446,96 @@
       "outcome_rate": 0.0,
       "bias_probability_minus_outcome": 0.58,
       "mean_abs_error": 0.58
+    }
+  },
+  "external_evidence_gaps_by_family": {
+    "shots-on-target": {
+      "count": 20,
+      "mean_brier": 0.2089,
+      "mean_probability": 0.4925,
+      "outcome_rate": 0.4,
+      "bias_probability_minus_outcome": 0.0925,
+      "mean_abs_error": 0.4455
+    },
+    "offsides": {
+      "count": 8,
+      "mean_brier": 0.2387,
+      "mean_probability": 0.5212,
+      "outcome_rate": 0.375,
+      "bias_probability_minus_outcome": 0.1463,
+      "mean_abs_error": 0.4863
+    },
+    "fouls": {
+      "count": 6,
+      "mean_brier": 0.2403,
+      "mean_probability": 0.5383,
+      "outcome_rate": 0.3333,
+      "bias_probability_minus_outcome": 0.205,
+      "mean_abs_error": 0.4783
+    },
+    "other": {
+      "count": 6,
+      "mean_brier": 0.194,
+      "mean_probability": 0.6,
+      "outcome_rate": 0.8333,
+      "bias_probability_minus_outcome": -0.2333,
+      "mean_abs_error": 0.4267
+    },
+    "penalty-red": {
+      "count": 6,
+      "mean_brier": 0.2339,
+      "mean_probability": 0.4117,
+      "outcome_rate": 0.3333,
+      "bias_probability_minus_outcome": 0.0783,
+      "mean_abs_error": 0.475
+    },
+    "corners": {
+      "count": 5,
+      "mean_brier": 0.1444,
+      "mean_probability": 0.394,
+      "outcome_rate": 0.4,
+      "bias_probability_minus_outcome": -0.006,
+      "mean_abs_error": 0.37
+    },
+    "goals": {
+      "count": 5,
+      "mean_brier": 0.2599,
+      "mean_probability": 0.348,
+      "outcome_rate": 0.6,
+      "bias_probability_minus_outcome": -0.252,
+      "mean_abs_error": 0.484
+    },
+    "cards": {
+      "count": 3,
+      "mean_brier": 0.2998,
+      "mean_probability": 0.5333,
+      "outcome_rate": 0.3333,
+      "bias_probability_minus_outcome": 0.2,
+      "mean_abs_error": 0.5467
+    },
+    "player-goal": {
+      "count": 2,
+      "mean_brier": 0.0482,
+      "mean_probability": 0.215,
+      "outcome_rate": 0.0,
+      "bias_probability_minus_outcome": 0.215,
+      "mean_abs_error": 0.215
+    },
+    "player-goal-assist": {
+      "count": 2,
+      "mean_brier": 0.045,
+      "mean_probability": 0.21,
+      "outcome_rate": 0.0,
+      "bias_probability_minus_outcome": 0.21,
+      "mean_abs_error": 0.21
+    },
+    "result": {
+      "count": 2,
+      "mean_brier": 0.194,
+      "mean_probability": 0.44,
+      "outcome_rate": 0.0,
+      "bias_probability_minus_outcome": 0.44,
+      "mean_abs_error": 0.44
     }
   },
   "component_summary": {

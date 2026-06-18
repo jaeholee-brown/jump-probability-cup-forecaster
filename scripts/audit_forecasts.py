@@ -614,6 +614,23 @@ def _disagreement_bins(records: list[dict[str, Any]]) -> dict[str, dict[str, Any
     return _group_summary(enriched, "spread_bucket")
 
 
+def _specific_evidence_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        record
+        for record in records
+        if record.get("external_evidence_level") in {"direct_market_line", "direct_or_adjacent_stat"}
+    ]
+
+
+def _external_evidence_gap_summary(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    gap_records = [
+        record
+        for record in records
+        if record.get("external_evidence_level") not in {"direct_market_line", "direct_or_adjacent_stat"}
+    ]
+    return _group_summary(gap_records, "family")
+
+
 def _external_coverage(records: list[dict[str, Any]], external_sources: dict[str, dict[str, Any]]) -> dict[str, Any]:
     by_match: dict[str, dict[str, Any]] = {}
     for match_name, rows in _records_by_match(records).items():
@@ -639,11 +656,7 @@ def _external_coverage(records: list[dict[str, Any]], external_sources: dict[str
         "settled_matches": len(by_match),
         "settled_records": len(records),
         "settled_records_with_sources": sum(1 for row in records if int(row.get("external_source_count") or 0) > 0),
-        "settled_records_with_direct_or_adjacent_evidence": sum(
-            1
-            for row in records
-            if row.get("external_evidence_level") in {"direct_market_line", "direct_or_adjacent_stat"}
-        ),
+        "settled_records_with_direct_or_adjacent_evidence": len(_specific_evidence_records(records)),
         "matches_missing_sources": missing,
         "by_match": by_match,
     }
@@ -738,6 +751,8 @@ def _report_markdown(report: dict[str, Any]) -> str:
     lines.append(_markdown_external_coverage(report["external_source_coverage"]))
     lines.extend(["", "## External Evidence Strength", ""])
     lines.append(_markdown_summary_rows(report["external_evidence_bins"]))
+    lines.extend(["", "## External Evidence Gaps By Family", ""])
+    lines.append(_markdown_summary_rows(report["external_evidence_gaps_by_family"]))
     lines.extend(["", "## Worst Settled Markets", ""])
     lines.append(_markdown_record_rows(report["worst_markets"]))
     lines.extend(["", "## Best Settled Markets", ""])
@@ -854,6 +869,7 @@ def build_report(args: argparse.Namespace, platform: dict[str, Any]) -> dict[str
         "market_anchor_bins": _group_summary(records, "has_market_anchor_in_rationale"),
         "external_source_coverage": external_coverage,
         "external_evidence_bins": _group_summary(records, "external_evidence_level"),
+        "external_evidence_gaps_by_family": _external_evidence_gap_summary(records),
         "component_summary": _component_summary(component_records),
         "component_by_family": {
             family: _component_summary([row for row in component_records if row["family"] == family])

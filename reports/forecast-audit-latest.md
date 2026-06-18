@@ -1,6 +1,6 @@
 # Forecast Audit
 
-Generated: `2026-06-18T18:29:24.016416+00:00`
+Generated: `2026-06-18T18:30:08.776602+00:00`
 
 ## Executive Findings
 
@@ -94,6 +94,22 @@ Generated: `2026-06-18T18:29:24.016416+00:00`
 | direct_or_adjacent_stat | 8 | 0.248 | 0.515 | 0.125 | 0.39 | 0.48 |
 | adjacent_match_market | 64 | 0.2071 | 0.4653 | 0.4062 | 0.0591 | 0.4397 |
 | match_context_only | 1 | 0.3364 | 0.58 | 0.0 | 0.58 | 0.58 |
+
+## External Evidence Gaps By Family
+
+| group | count | mean_brier | mean_probability | outcome_rate | bias_probability_minus_outcome | mean_abs_error |
+| --- | --- | --- | --- | --- | --- | --- |
+| shots-on-target | 20 | 0.2089 | 0.4925 | 0.4 | 0.0925 | 0.4455 |
+| offsides | 8 | 0.2387 | 0.5212 | 0.375 | 0.1463 | 0.4863 |
+| fouls | 6 | 0.2403 | 0.5383 | 0.3333 | 0.205 | 0.4783 |
+| other | 6 | 0.194 | 0.6 | 0.8333 | -0.2333 | 0.4267 |
+| penalty-red | 6 | 0.2339 | 0.4117 | 0.3333 | 0.0783 | 0.475 |
+| corners | 5 | 0.1444 | 0.394 | 0.4 | -0.006 | 0.37 |
+| goals | 5 | 0.2599 | 0.348 | 0.6 | -0.252 | 0.484 |
+| cards | 3 | 0.2998 | 0.5333 | 0.3333 | 0.2 | 0.5467 |
+| player-goal | 2 | 0.0482 | 0.215 | 0.0 | 0.215 | 0.215 |
+| player-goal-assist | 2 | 0.045 | 0.21 | 0.0 | 0.21 | 0.21 |
+| result | 2 | 0.194 | 0.44 | 0.0 | 0.44 | 0.44 |
 
 ## Worst Settled Markets
 
