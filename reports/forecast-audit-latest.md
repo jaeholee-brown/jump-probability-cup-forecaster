@@ -1,0 +1,115 @@
+# Forecast Audit
+
+Generated: `2026-06-18T18:12:57.521430+00:00`
+
+## Executive Findings
+
+- Settled platform predictions: 90 markets, mean Brier 0.2154.
+- Family goals: n=14, mean Brier 0.2451, mean p 0.425 vs outcome rate 0.5 (bias -0.075).
+- Family fouls: n=7, mean Brier 0.2403, mean p 0.5314 vs outcome rate 0.2857 (bias 0.2457).
+- Family offsides: n=8, mean Brier 0.2387, mean p 0.5212 vs outcome rate 0.375 (bias 0.1463).
+- Family penalty-red: n=6, mean Brier 0.2339, mean p 0.4117 vs outcome rate 0.3333 (bias 0.0783).
+- Family result: n=9, mean Brier 0.2222, mean p 0.5878 vs outcome rate 0.5556 (bias 0.0322).
+- Stage pre-evidence-qa: n=70, mean Brier 0.2108, bias 0.1051.
+- Stage platform-only: n=10, mean Brier 0.2356, bias 0.11.
+- Stage post-evidence-qa: n=10, mean Brier 0.2273, bias -0.111.
+- Best component so far: claude-opus-4-8 n=61 mean Brier 0.2129; worst: grok-4.20-0309-reasoning n=66 mean Brier 0.2282.
+- Markets with explicit odds/market-anchor language in component rationales: n=27 mean Brier 0.2254; without: n=63 mean Brier 0.2111.
+
+## Platform Summary
+
+| metric | value |
+| --- | --- |
+| matches_seen | 47 |
+| markets_seen | 465 |
+| predictions_seen | 277 |
+| open_predictions | 187 |
+| results_seen | 90 |
+| settled_scored_predictions | 90 |
+| history_markets | 80 |
+| history_matches | 8 |
+| component_scored_predictions | 66 |
+| component_records | 299 |
+
+## By Family
+
+| group | count | mean_brier | mean_probability | outcome_rate | bias_probability_minus_outcome | mean_abs_error |
+| --- | --- | --- | --- | --- | --- | --- |
+| shots-on-target | 27 | 0.2193 | 0.4993 | 0.3333 | 0.1659 | 0.4541 |
+| goals | 14 | 0.2451 | 0.425 | 0.5 | -0.075 | 0.4793 |
+| result | 9 | 0.2222 | 0.5878 | 0.5556 | 0.0322 | 0.4478 |
+| offsides | 8 | 0.2387 | 0.5212 | 0.375 | 0.1463 | 0.4863 |
+| fouls | 7 | 0.2403 | 0.5314 | 0.2857 | 0.2457 | 0.48 |
+| other | 6 | 0.194 | 0.6 | 0.8333 | -0.2333 | 0.4267 |
+| penalty-red | 6 | 0.2339 | 0.4117 | 0.3333 | 0.0783 | 0.475 |
+| corners | 5 | 0.1444 | 0.394 | 0.4 | -0.006 | 0.37 |
+| cards | 3 | 0.2998 | 0.5333 | 0.3333 | 0.2 | 0.5467 |
+| player-goal-assist | 3 | 0.0508 | 0.2233 | 0.0 | 0.2233 | 0.2233 |
+| player-goal | 2 | 0.0482 | 0.215 | 0.0 | 0.215 | 0.215 |
+
+## Calibration Buckets
+
+| group | count | mean_brier | mean_probability | outcome_rate | bias_probability_minus_outcome | mean_abs_error |
+| --- | --- | --- | --- | --- | --- | --- |
+| 51-60 | 27 | 0.2548 | 0.5504 | 0.4444 | 0.1059 | 0.5015 |
+| 41-50 | 25 | 0.2431 | 0.4572 | 0.36 | 0.0972 | 0.4908 |
+| 21-40 | 21 | 0.1551 | 0.3143 | 0.1905 | 0.1238 | 0.3676 |
+| 61-80 | 15 | 0.2071 | 0.674 | 0.7333 | -0.0593 | 0.4247 |
+| 01-20 | 2 | 0.0306 | 0.175 | 0.0 | 0.175 | 0.175 |
+
+## Component Scores
+
+| group | count | mean_brier | mean_probability | outcome_rate | bias_probability_minus_outcome | mean_abs_error |
+| --- | --- | --- | --- | --- | --- | --- |
+| claude-opus-4-8 | 61 | 0.2129 | 0.4634 | 0.3607 | 0.1028 | 0.4438 |
+| grok-4.3 | 66 | 0.2214 | 0.4836 | 0.3636 | 0.12 | 0.4564 |
+| claude-opus-4-6 | 41 | 0.2219 | 0.4583 | 0.3659 | 0.0924 | 0.4524 |
+| gpt-5 | 65 | 0.2236 | 0.4889 | 0.3692 | 0.1197 | 0.4538 |
+| grok-4.20-0309-reasoning | 66 | 0.2282 | 0.4874 | 0.3636 | 0.1238 | 0.4653 |
+
+## Worst Settled Markets
+
+| match_name | question | family | probability_int | outcome | brier | stage | component_count | component_spread_points |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| POR vs COD | Will Portugal win the match? | result | 77 | 0 | 0.5929 | pre-evidence-qa | 5 | 1.0 |
+| ENG vs CRO | Will both teams score AND the match have 3 or more total goals? | goals | 32 | 1 | 0.4624 | pre-evidence-qa | 0 |  |
+| POR vs COD | In the second half, will Portugal have more shots on target than DR Congo? | shots-on-target | 68 | 0 | 0.4624 | pre-evidence-qa | 0 |  |
+| GHA vs PAN | Will Ghana have 3 or more shots on target? | shots-on-target | 67 | 0 | 0.4489 | pre-evidence-qa | 5 | 6.0 |
+| UZB vs COL | Will Uzbekistan score at least 1 goal? | goals | 35 | 1 | 0.4225 | pre-evidence-qa | 5 | 3.0 |
+| IRQ vs NOR | Will there be 4 or more total shots on target in the second half? | shots-on-target | 62 | 0 | 0.3844 | pre-evidence-qa | 4 | 13.0 |
+| ENG vs CRO | Will a penalty kick be awarded OR a red card be shown? | penalty-red | 38 | 1 | 0.3844 | pre-evidence-qa | 5 | 8.0 |
+| IRQ vs NOR | Will Iraq score at least 1 goal? | goals | 39 | 1 | 0.3721 | pre-evidence-qa | 4 | 5.0 |
+|  | Will Senegal receive at least 1 card in the second half? | cards | 59 | 0 | 0.3481 | platform-only | 0 |  |
+| ARG vs ALG | Will Algeria commit more fouls than Argentina? | fouls | 58 | 0 | 0.3364 | pre-evidence-qa | 4 | 1.0 |
+|  | Will both teams score AND the match have 3 or more total goals? | goals | 42 | 1 | 0.3364 | platform-only | 0 |  |
+|  | Will France score in the first half? | other | 58 | 0 | 0.3364 | platform-only | 0 |  |
+| UZB vs COL | Will Colombia have more shots on target than Uzbekistan in the second half? | shots-on-target | 58 | 0 | 0.3364 | pre-evidence-qa | 5 | 8.0 |
+| CZE vs RSA | Will South Africa score in the second half? | other | 43 | 1 | 0.3249 | post-evidence-qa | 5 | 4.0 |
+| CZE vs RSA | Will a penalty kick be awarded OR a red card be shown in the match? | penalty-red | 43 | 1 | 0.3249 | post-evidence-qa | 5 | 5.0 |
+
+## Best Settled Markets
+
+| match_name | question | family | probability_int | outcome | brier | stage | component_count | component_spread_points |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| POR vs COD | Will Gonçalo Ramos score a goal (excluding own goals)? | player-goal | 17 | 0 | 0.0289 | pre-evidence-qa | 5 | 7.0 |
+| IRQ vs NOR | Will Mohanad Ali score or assist a goal (excluding own goals)? | player-goal-assist | 18 | 0 | 0.0324 | pre-evidence-qa | 4 | 13.0 |
+| AUT vs JOR | Will Jordan have more shots on target than Austria in the second half? | shots-on-target | 22 | 0 | 0.0484 | pre-evidence-qa | 4 | 6.0 |
+| CZE vs RSA | Will Oswin Appollis score or assist a goal (excluding own goals)? | player-goal-assist | 24 | 0 | 0.0576 | post-evidence-qa | 0 |  |
+| IRQ vs NOR | Will Iraq have more shots on target than Norway in the second half? | shots-on-target | 24 | 0 | 0.0576 | pre-evidence-qa | 3 | 5.0 |
+| AUT vs JOR | Will Austria win the match? | result | 75 | 1 | 0.0625 | pre-evidence-qa | 4 | 1.0 |
+| UZB vs COL | Will Eldor Shomurodov score or assist a goal (excluding own goals)? | player-goal-assist | 25 | 0 | 0.0625 | pre-evidence-qa | 5 | 12.0 |
+| AUT vs JOR | Will Jordan finish with more corner kicks than Austria? | corners | 26 | 0 | 0.0676 | pre-evidence-qa | 0 |  |
+|  | Will Sadio Mané score a goal (excluding own goals)? | player-goal | 26 | 0 | 0.0676 | platform-only | 0 |  |
+| POR vs COD | Will DR Congo commit more fouls than Portugal? | fouls | 73 | 1 | 0.0729 | pre-evidence-qa | 5 | 8.0 |
+| ARG vs ALG | Will Argentina score the first goal of the game and Algeria score in the second half? | goals | 28 | 0 | 0.0784 | pre-evidence-qa | 4 | 16.0 |
+| ARG vs ALG | Will Argentina win the match? | result | 71 | 1 | 0.0841 | pre-evidence-qa | 0 |  |
+| ENG vs CRO | At halftime, will Croatia have more corner kicks than England? | corners | 30 | 0 | 0.09 | pre-evidence-qa | 0 |  |
+| POR vs COD | Will both teams score AND the match have 3 or more total goals? | goals | 30 | 0 | 0.09 | pre-evidence-qa | 5 | 3.0 |
+| GHA vs PAN | Will Panama score the first goal of the second half? | goals | 30 | 0 | 0.09 | pre-evidence-qa | 5 | 8.0 |
+
+## Data Notes
+
+- Platform-level scoring uses SportsPredict /results and covers every settled submitted prediction returned by the API.
+- Component/model scoring is available only for markets present in saved forecast-history.json.
+- External odds are not available through the Jump API; this report flags explicit odds/market-anchor language in saved rationales as a proxy until a historical odds feed is attached.
+- Post-change split uses forecast-history timestamps, not Git metadata inside artifacts.
