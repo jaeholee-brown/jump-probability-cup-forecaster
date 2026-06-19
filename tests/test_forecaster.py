@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, TypeVar
 
@@ -36,6 +37,7 @@ class SuccessfulAdapter:
     def __init__(self, provider: str = "openai") -> None:
         self.provider = provider
         self.reasoning_efforts: list[str] = []
+        self.user_inputs: list[dict[str, Any]] = []
 
     async def structured_response(
         self,
@@ -49,6 +51,7 @@ class SuccessfulAdapter:
         tools: list[dict[str, Any]] | None = None,
     ) -> T:
         self.reasoning_efforts.append(reasoning_effort)
+        self.user_inputs.append(json.loads(user_input))
         return schema_model.model_validate(
             {
                 "match_id": "match",
@@ -77,7 +80,8 @@ async def test_forecast_match_logs_variant_progress_without_evidence_text(caplog
         use_grok_forecast=False,
         use_claude_forecast=False,
     )
-    forecaster = MatchForecaster(settings, openai=SuccessfulAdapter())
+    adapter = SuccessfulAdapter()
+    forecaster = MatchForecaster(settings, openai=adapter)
     match = Match(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z")
     market = Market(
         id="market",
@@ -98,6 +102,8 @@ async def test_forecast_match_logs_variant_progress_without_evidence_text(caplog
     forecasts = await forecaster.forecast_match(match=match, markets=[market], evidence=evidence)
 
     assert forecasts[0].market_id == "market"
+    assert adapter.user_inputs[0]["markets"][0]["profile"]["family"] == "match_result"
+    assert adapter.user_inputs[0]["market_profiles"][0]["family"] == "match_result"
     assert "Forecast variant start match_id=match provider=openai model=gpt-5" in caplog.text
     assert "Forecast variant end match_id=match provider=openai model=gpt-5" in caplog.text
     assert "private evidence" not in caplog.text
@@ -318,3 +324,69 @@ def test_aggregate_leaves_grok_boundary_probability_when_rationale_has_no_number
 
     assert forecast.component_probabilities == [0.01]
     assert forecast.metadata["probability_repairs"] == []
+
+
+def test_aggregate_applies_conservative_penalty_taker_coherence_floor() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+    )
+    forecaster = MatchForecaster(settings)
+    penalty_market = Market(
+        id="penalty",
+        question="Will a penalty be awarded in Switzerland vs Bosnia?",
+        status="open",
+        match=MarketMatch(
+            id="match",
+            name="Switzerland vs Bosnia",
+            closing_time="2026-06-20T12:00:00Z",
+        ),
+        lobby_id="lobby",
+    )
+    xhaka_market = Market(
+        id="xhaka_sot",
+        question="Will Granit Xhaka have 1+ shot on target?",
+        status="open",
+        match=MarketMatch(
+            id="match",
+            name="Switzerland vs Bosnia",
+            closing_time="2026-06-20T12:00:00Z",
+        ),
+        lobby_id="lobby",
+    )
+    batch = ForecastBatch(
+        match_id="match",
+        match_name="Switzerland vs Bosnia",
+        model="gpt-5",
+        prompt_variant="base_rate_frequency",
+        provider="openai",
+        weight=1.0,
+        forecasts=[
+            MarketForecast(
+                market_id="penalty",
+                question=penalty_market.question,
+                reference_class="Broad penalty-award rates.",
+                probability_rationale="Penalty award path is material. Final probability: 0.30",
+                probability=0.30,
+                confidence="medium",
+                evidence_quality="medium",
+            ),
+            MarketForecast(
+                market_id="xhaka_sot",
+                question=xhaka_market.question,
+                reference_class="Midfielder SOT rates plus penalty role.",
+                yes_reasons=["Xhaka is the likely penalty taker."],
+                probability_rationale="Open-play SOT is low, but penalty role adds a path. Final probability: 0.10",
+                probability=0.10,
+                confidence="medium",
+                evidence_quality="medium",
+            ),
+        ],
+    )
+
+    forecasts = forecaster._aggregate([penalty_market, xhaka_market], [batch])
+    xhaka = next(forecast for forecast in forecasts if forecast.market_id == "xhaka_sot")
+
+    assert xhaka.probability >= 0.13
+    assert xhaka.metadata["coherence_adjustments"][0]["old_probability"] < xhaka.probability
+    assert "penalty-taker channel" in xhaka.metadata["coherence_adjustments"][0]["reason"]

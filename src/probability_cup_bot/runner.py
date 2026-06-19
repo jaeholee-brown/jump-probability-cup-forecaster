@@ -15,6 +15,7 @@ from probability_cup_bot.config import Settings
 from probability_cup_bot.evidence import EvidenceCollector
 from probability_cup_bot.firecrawl import FirecrawlClient
 from probability_cup_bot.forecaster import MatchForecaster
+from probability_cup_bot.market_analysis import profile_market
 from probability_cup_bot.models import (
     AggregatedForecast,
     Market,
@@ -832,6 +833,7 @@ class ForecastRunner:
                 forecast = forecasts_by_market.get(market.id)
                 if forecast is None:
                     continue
+                market_profile = profile_market(market.id, market.question, match.name)
                 spread = self._component_spread_points(forecast.component_probabilities)
                 match_spreads.append(spread)
                 confidences.append(forecast.confidence)
@@ -842,12 +844,15 @@ class ForecastRunner:
                         "last_forecast_at": now,
                         "match_id": match.id,
                         "question": market.question,
+                        "market_family": market_profile.family,
+                        "market_profile": market_profile.model_payload(),
                         "probability_int": forecast.probability_int,
                         "probability": forecast.probability,
                         "component_spread_points": spread,
                         "confidence": forecast.confidence,
                         "evidence_quality": forecast.evidence_quality,
                         "component_count": len(forecast.component_probabilities),
+                        "coherence_adjustments": forecast.metadata.get("coherence_adjustments", []),
                         "components": self._component_records(forecast),
                     }
                 else:
@@ -856,8 +861,12 @@ class ForecastRunner:
                         {
                             "match_id": match.id,
                             "question": market.question,
+                            "market_family": market_profile.family,
+                            "market_profile": market_profile.model_payload(),
                         },
                     )
+                    updated["markets"][market.id]["market_family"] = market_profile.family
+                    updated["markets"][market.id]["market_profile"] = market_profile.model_payload()
                     updated["markets"][market.id]["last_model_forecast_at"] = now
                     updated["markets"][market.id]["last_skipped_probability_int"] = forecast.probability_int
             if match_spreads:

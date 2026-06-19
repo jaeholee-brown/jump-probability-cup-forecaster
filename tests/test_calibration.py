@@ -20,6 +20,7 @@ def test_calibration_report_scores_components_and_suggests_weights() -> None:
             "markets": {
                 "market": {
                     "question": "Will A win?",
+                    "market_family": "match_result",
                     "components": [
                         {
                             "model": "good",
@@ -44,5 +45,10 @@ def test_calibration_report_scores_components_and_suggests_weights() -> None:
     )
 
     assert report["settled_market_count"] == 1
+    assert report["market_families"]["match_result"]["count"] == 1
+    assert (
+        report["models_by_family"]["match_result"]["good"]["mean_brier"]
+        < report["models_by_family"]["match_result"]["bad"]["mean_brier"]
+    )
     assert report["models"]["good"]["mean_brier"] < report["models"]["bad"]["mean_brier"]
     assert report["suggested_multipliers"]["good"] > report["suggested_multipliers"]["bad"]

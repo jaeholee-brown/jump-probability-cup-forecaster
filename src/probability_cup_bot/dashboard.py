@@ -67,6 +67,7 @@ def build_dashboard_data(
                 "match_id": match.id if match else (market.match.id if market else ""),
                 "match_name": match.name if match else (market.match.name if market else ""),
                 "question": market.question if market else prediction.question or "",
+                "market_family": market_history.get("market_family"),
                 "probability": prediction.probability_int,
                 "platform_market_status": prediction.market_status or (market.status if market else ""),
                 "created_date": prediction.created_date,

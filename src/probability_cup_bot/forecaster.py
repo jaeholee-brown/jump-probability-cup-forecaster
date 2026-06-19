@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from probability_cup_bot.anthropic_adapter import AnthropicAdapter
 from probability_cup_bot.config import Settings
+from probability_cup_bot.market_analysis import profile_markets
 from probability_cup_bot.models import (
     AggregatedForecast,
     ForecastBatch,
@@ -154,6 +155,7 @@ class MatchForecaster:
         tools: list[dict[str, str]] | None = None,
     ) -> ForecastBatch:
         instructions = f"{FORECASTING_INSTRUCTIONS}\n\nVariant emphasis:\n{variant_instruction}"
+        profiles = profile_markets(markets)
         user_input = json.dumps(
             {
                 "match": match.model_dump(),
@@ -163,9 +165,11 @@ class MatchForecaster:
                         "question": market.question,
                         "status": market.status,
                         "closing_time": market.match.closing_time,
+                        "profile": profiles[market.id].model_payload(),
                     }
                     for market in markets
                 ],
+                "market_profiles": [profiles[market.id].model_payload() for market in markets],
                 "evidence": evidence.model_dump(),
                 "output_requirements": (
                     "Return exactly one forecast for every market id. Decimals must be between "
@@ -302,6 +306,7 @@ class MatchForecaster:
         markets: list[Market],
         batches: list[ForecastBatch],
     ) -> list[AggregatedForecast]:
+        profiles = profile_markets(markets)
         by_market: dict[str, list[tuple[ForecastBatch, MarketForecast]]] = defaultdict(list)
         for batch in batches:
             for forecast in batch.forecasts:
@@ -309,6 +314,7 @@ class MatchForecaster:
 
         output: list[AggregatedForecast] = []
         for market in markets:
+            profile = profiles[market.id]
             components = by_market.get(market.id, [])
             if not components:
                 continue
@@ -346,6 +352,8 @@ class MatchForecaster:
                     evidence_quality=evidence_quality,
                     notes=f"Aggregated {len(components)} variants by log-odds mean.",
                     metadata={
+                        "market_family": profile.family,
+                        "market_profile": profile.model_payload(),
                         "variants": [batch.prompt_variant for batch, _ in components],
                         "models": [batch.model for batch, _ in components],
                         "providers": [batch.provider for batch, _ in components],
@@ -372,7 +380,140 @@ class MatchForecaster:
                     },
                 )
             )
+        if self.settings.enable_coherence_adjustments:
+            self._apply_coherence_adjustments(output)
         return output
+
+    def _apply_coherence_adjustments(self, forecasts: list[AggregatedForecast]) -> None:
+        if not forecasts:
+            return
+        min_delta = self.settings.coherence_min_adjustment_points / 100.0
+        penalty_probability = max(
+            (
+                forecast.probability
+                for forecast in forecasts
+                if self._market_family(forecast) == "penalty"
+            ),
+            default=None,
+        )
+        if penalty_probability is not None:
+            for forecast in forecasts:
+                family = self._market_family(forecast)
+                if family not in {"player_shot_on_target", "player_goal"}:
+                    continue
+                if not self._has_penalty_taker_signal(forecast):
+                    continue
+                fraction = (
+                    self.settings.penalty_taker_sot_floor_fraction
+                    if family == "player_shot_on_target"
+                    else self.settings.penalty_taker_goal_floor_fraction
+                )
+                floor = max(0.01, min(0.99, penalty_probability * fraction))
+                if floor - forecast.probability >= min_delta:
+                    self._adjust_probability(
+                        forecast,
+                        floor,
+                        reason=(
+                            f"Raised to preserve explicit penalty-taker channel: penalty market "
+                            f"{penalty_probability:.2f} x floor fraction {fraction:.2f}."
+                        ),
+                    )
+
+        best_goal_by_subject: dict[str, AggregatedForecast] = {}
+        best_sot_by_subject: dict[str, AggregatedForecast] = {}
+        for forecast in forecasts:
+            profile = self._market_profile(forecast)
+            subject = str(profile.get("subject_key") or "")
+            if not subject:
+                continue
+            family = self._market_family(forecast)
+            if family == "player_goal":
+                if subject not in best_goal_by_subject or forecast.probability > best_goal_by_subject[subject].probability:
+                    best_goal_by_subject[subject] = forecast
+            elif family == "player_shot_on_target":
+                if subject not in best_sot_by_subject or forecast.probability > best_sot_by_subject[subject].probability:
+                    best_sot_by_subject[subject] = forecast
+        for subject, goal_forecast in best_goal_by_subject.items():
+            sot_forecast = best_sot_by_subject.get(subject)
+            if sot_forecast is None:
+                continue
+            if goal_forecast.probability - sot_forecast.probability >= min_delta:
+                self._adjust_probability(
+                    sot_forecast,
+                    goal_forecast.probability,
+                    reason=(
+                        "Raised player shot-on-target probability because the same player's goal "
+                        "probability was higher; a credited goal normally implies a shot on target."
+                    ),
+                )
+
+    @staticmethod
+    def _market_family(forecast: AggregatedForecast) -> str:
+        return str((forecast.metadata or {}).get("market_family") or "")
+
+    @staticmethod
+    def _market_profile(forecast: AggregatedForecast) -> dict[str, Any]:
+        profile = (forecast.metadata or {}).get("market_profile")
+        return profile if isinstance(profile, dict) else {}
+
+    @staticmethod
+    def _has_penalty_taker_signal(forecast: AggregatedForecast) -> bool:
+        fields: list[str] = [forecast.question]
+        for key in (
+            "reference_classes",
+            "base_rate_rationales",
+            "yes_reasons",
+            "probability_rationales",
+            "consistency_notes",
+        ):
+            value = (forecast.metadata or {}).get(key)
+            fields.append(json.dumps(value, ensure_ascii=True) if value is not None else "")
+        text = " ".join(fields).lower()
+        penalty_terms = (
+            "penalty taker",
+            "takes penalties",
+            "on penalties",
+            "primary penalty",
+            "first-choice penalty",
+            "spot kick",
+            "spot-kick",
+            "penalty duty",
+            "penalty duties",
+        )
+        plausible_terms = (
+            "plausible penalty",
+            "possible penalty taker",
+            "likely penalty taker",
+            "set-piece",
+            "dead-ball",
+        )
+        return any(term in text for term in penalty_terms) or (
+            "penalty" in text and any(term in text for term in plausible_terms)
+        )
+
+    @staticmethod
+    def _adjust_probability(forecast: AggregatedForecast, probability: float, *, reason: str) -> None:
+        old_probability = forecast.probability
+        new_probability = max(0.01, min(0.99, probability))
+        forecast.probability = new_probability
+        forecast.probability_int = probability_to_int(new_probability)
+        forecast.notes = f"{forecast.notes} Coherence adjusted {old_probability:.3f}->{new_probability:.3f}."
+        adjustments = list((forecast.metadata or {}).get("coherence_adjustments") or [])
+        adjustments.append(
+            {
+                "old_probability": old_probability,
+                "new_probability": new_probability,
+                "reason": reason,
+            }
+        )
+        forecast.metadata["coherence_adjustments"] = adjustments
+        logger.warning(
+            "Coherence adjusted market_id=%s old=%.3f new=%.3f reason=%s",
+            forecast.market_id,
+            old_probability,
+            new_probability,
+            reason,
+        )
 
     @staticmethod
     def _repair_boundary_probability(batch: ForecastBatch, forecast: MarketForecast) -> dict[str, Any]:

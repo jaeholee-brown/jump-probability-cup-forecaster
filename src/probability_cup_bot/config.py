@@ -131,6 +131,10 @@ class Settings:
     extremize_alpha: float = 1.05
     base_shrinkage: float = 0.04
     low_evidence_shrinkage: float = 0.12
+    enable_coherence_adjustments: bool = True
+    coherence_min_adjustment_points: float = 2.0
+    penalty_taker_sot_floor_fraction: float = 0.45
+    penalty_taker_goal_floor_fraction: float = 0.32
     concurrency: int = 4
     odds_api_key: str = ""
     odds_sport_key: str = "soccer"
@@ -238,6 +242,10 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         extremize_alpha=_float_env("EXTREMIZE_ALPHA", 1.05),
         base_shrinkage=_float_env("BASE_SHRINKAGE", 0.04),
         low_evidence_shrinkage=_float_env("LOW_EVIDENCE_SHRINKAGE", 0.12),
+        enable_coherence_adjustments=_bool_env("ENABLE_COHERENCE_ADJUSTMENTS", True),
+        coherence_min_adjustment_points=_float_env("COHERENCE_MIN_ADJUSTMENT_POINTS", 2.0),
+        penalty_taker_sot_floor_fraction=_float_env("PENALTY_TAKER_SOT_FLOOR_FRACTION", 0.45),
+        penalty_taker_goal_floor_fraction=_float_env("PENALTY_TAKER_GOAL_FLOOR_FRACTION", 0.32),
         concurrency=max(1, _int_env("CONCURRENCY", 4)),
         odds_api_key=os.getenv("ODDS_API_KEY", ""),
         odds_sport_key=os.getenv("ODDS_SPORT_KEY", "soccer"),

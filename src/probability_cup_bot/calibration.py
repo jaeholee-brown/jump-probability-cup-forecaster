@@ -4,6 +4,7 @@ import math
 from collections import defaultdict
 from typing import Any
 
+from probability_cup_bot.market_analysis import classify_market_family
 from probability_cup_bot.models import utcnow
 
 
@@ -38,6 +39,9 @@ def build_calibration_report(
     settled_records: list[dict[str, Any]] = []
     provider_scores: dict[str, list[float]] = defaultdict(list)
     model_scores: dict[str, list[float]] = defaultdict(list)
+    family_scores: dict[str, list[float]] = defaultdict(list)
+    model_family_scores: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    provider_family_scores: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     aggregate_scores: list[float] = []
 
     for result in results:
@@ -48,8 +52,11 @@ def build_calibration_report(
         if outcome is None:
             continue
         hist = market_history[market_id]
+        question = result.get("question") or hist.get("question") or ""
+        market_family = str(hist.get("market_family") or classify_market_family(question))
         aggregate_brier = float(result.get("brier_score"))
         aggregate_scores.append(aggregate_brier)
+        family_scores[market_family].append(aggregate_brier)
         components = hist.get("components") or []
         component_rows: list[dict[str, Any]] = []
         for component in components:
@@ -59,10 +66,13 @@ def build_calibration_report(
             provider = str(component.get("provider") or "unknown")
             model_scores[model].append(score)
             provider_scores[provider].append(score)
+            model_family_scores[market_family][model].append(score)
+            provider_family_scores[market_family][provider].append(score)
             component_rows.append(
                 {
                     "model": model,
                     "provider": provider,
+                    "market_family": market_family,
                     "variant": component.get("variant"),
                     "probability": probability,
                     "weight": component.get("weight"),
@@ -72,7 +82,8 @@ def build_calibration_report(
         settled_records.append(
             {
                 "market_id": market_id,
-                "question": result.get("question") or hist.get("question"),
+                "question": question,
+                "market_family": market_family,
                 "outcome": outcome,
                 "probability_submitted": result.get("probability_submitted"),
                 "aggregate_brier": aggregate_brier,
@@ -82,6 +93,15 @@ def build_calibration_report(
 
     model_summary = _summary_table(model_scores)
     provider_summary = _summary_table(provider_scores)
+    family_summary = _summary_table(family_scores)
+    model_by_family_summary = {
+        family: _summary_table(scores_by_model)
+        for family, scores_by_model in sorted(model_family_scores.items())
+    }
+    provider_by_family_summary = {
+        family: _summary_table(scores_by_provider)
+        for family, scores_by_provider in sorted(provider_family_scores.items())
+    }
     model_mean = _weighted_reference_mean(model_summary)
     suggested_multipliers = _suggest_multipliers(
         model_summary=model_summary,
@@ -99,6 +119,9 @@ def build_calibration_report(
         },
         "providers": provider_summary,
         "models": model_summary,
+        "market_families": family_summary,
+        "models_by_family": model_by_family_summary,
+        "providers_by_family": provider_by_family_summary,
         "current_multipliers": current_multipliers,
         "suggested_multipliers": suggested_multipliers,
         "settled_records": settled_records,

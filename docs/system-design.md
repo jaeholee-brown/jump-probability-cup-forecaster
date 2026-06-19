@@ -45,6 +45,7 @@ Important limitations:
    - configurable forecasting variants per configured forecast provider;
    - log-odds aggregation;
    - mild extremization and evidence-quality shrinkage;
+   - conservative coherence adjustments for explicit penalty-taker channels and player goal/SOT consistency;
    - integer 1-99 conversion.
 7. Compare with existing predictions.
 8. Submit creates in batches of 50 and PATCH material updates.
@@ -70,6 +71,8 @@ Default:
 - Default model-specific forecast weights: `gpt-5=0.35`, `grok-4.3=0.2`, `grok-4.20-0309-reasoning=0.15`, `claude-opus-4-8=1.2`, and `claude-opus-4-6=1.1`. These are live-audit weights that deliberately keep every model active while moving more mass toward the Claude models after the first 100 settled markets.
 - Claude forecast calls use Anthropic tool-choice structured output and do not enable extended thinking. The forecaster passes `reasoning_effort=none` for Claude so logs and future adapter behavior stay explicit; Opus still uses normal inference at standard token pricing.
 - Calibration multipliers are applied on top of those base weights after enough settled results accumulate.
+- Every market is deterministically tagged with a market family before forecasting. The forecast payload includes the family, a broad prior range, and a decomposition hint, and `forecast-history.json` persists the same tag for calibration.
+- A narrow post-aggregation coherence layer can raise player SOT/goal probabilities when the model explicitly identified a penalty-taker path and the match also has a penalty market. It also enforces the basic relation that a player's goal probability should not exceed that player's SOT probability when both markets exist. These repairs are logged in `coherence_adjustments` metadata.
 - Full prompt-ensemble mode: set `OPENAI_FORECAST_VARIANTS=all`, `GROK_FORECAST_VARIANTS=all`, and/or `CLAUDE_FORECAST_VARIANTS=all`.
 - Grok-only mode is supported if `OPENAI_API_KEY` is absent.
 - Not used: `gpt-5.5-pro`.
@@ -189,6 +192,9 @@ Key environment controls:
 - `EXTREMIZE_ALPHA=1.05`: mild log-odds extremization.
 - `BASE_SHRINKAGE=0.04`: mild shrinkage toward 50.
 - `LOW_EVIDENCE_SHRINKAGE=0.12`: stronger shrinkage when evidence is weak.
+- `ENABLE_COHERENCE_ADJUSTMENTS=true`: enable conservative post-aggregation coherence repairs.
+- `COHERENCE_MIN_ADJUSTMENT_POINTS=2`: minimum probability-point change before a repair is applied.
+- `PENALTY_TAKER_SOT_FLOOR_FRACTION=0.45`, `PENALTY_TAKER_GOAL_FLOOR_FRACTION=0.32`: penalty-market fractions used as lower-bound channels only when the component rationale identifies a penalty-taking role.
 
 Cost telemetry:
 
@@ -200,8 +206,8 @@ Cost telemetry:
 ## Future Improvements
 
 1. Add bookmaker consensus and de-vigged odds anchors if a reliable sports odds feed is available.
-2. Add hard coherence repair for mutually exclusive markets and monotone totals.
-3. Learn calibration by market family once enough settled results exist.
+2. Add broader hard coherence repair for mutually exclusive markets and monotone totals.
+3. Turn market-family telemetry into regularized family-specific model weights once enough settled results exist.
 4. Persist historical odds snapshots and detect meaningful odds moves before updating.
 5. Add domain-targeted Firecrawl allowlists for official team, tournament, weather, and lineup sources.
 6. Add a second bot key with an intentionally different strategy if platform rules allow two bots per user.
