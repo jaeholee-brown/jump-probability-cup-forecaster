@@ -206,6 +206,4 @@ def _looks_like_player_prop(question: str, match_name: str) -> bool:
     if subject in {"there", "either team", "both teams", "neither team", "the match", "match"}:
         return False
     words = [word for word in subject.split() if word not in {"the"}]
-    if any(term in q for term in ("shot on target", "shots on target", "assist", "score", "goal")):
-        return bool(words)
     return len(words) >= 2

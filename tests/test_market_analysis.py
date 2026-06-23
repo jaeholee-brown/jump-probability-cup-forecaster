@@ -23,6 +23,13 @@ def test_market_classifier_uses_match_teams_to_avoid_false_player_props() -> Non
         )
         == "shots_on_target"
     )
+    assert (
+        classify_market_family(
+            "Will Argentina have 6 or more shots on target?",
+            match_name="ARG vs AUT",
+        )
+        == "shots_on_target"
+    )
 
 
 def test_market_profile_exposes_prior_and_decomposition_hint() -> None:
