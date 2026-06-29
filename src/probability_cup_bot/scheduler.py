@@ -35,7 +35,7 @@ def build_due_actions(
     *,
     now: datetime,
     forecast_offset_minutes: float = 1440.0,
-    news_offset_minutes: float = 15.0,
+    news_offset_minutes: float = 40.0,
 ) -> DueActions:
     now = now.astimezone(timezone.utc)
     forecast_ids: list[str] = []

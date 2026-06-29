@@ -161,7 +161,7 @@ Key environment controls:
 - `ENABLE_UPDATE_GATE=true`: skip full reforecasting of already-fresh matches.
 - `STALE_REFORECAST_WITHOUT_NEWS=true`: daily scheduled runs can refresh stale forecasts.
 - `SCHEDULER_FORECAST_OFFSET_MINUTES=1440`: run the one full paid forecast about 24 hours before market lock. This is deliberately much earlier than the original 30-minute lead because GitHub scheduled runs can be delayed by minutes or hours.
-- `SCHEDULER_NEWS_OFFSET_MINUTES=15`: run the cheap late-news check about 15 minutes before market lock and only reforecast when material news appears.
+- `SCHEDULER_NEWS_OFFSET_MINUTES=40`: run the cheap late-news check about 40 minutes before market lock and only reforecast when material news appears. This keeps the check close enough to catch lineups/news while giving GitHub scheduled runs room for normal delay.
 - `MAX_PREDICTION_AGE_HOURS=24`: default stale cadence for daily full refreshes.
 - `FORCE_REFORECAST_WITHIN_HOURS=1.5`: full ensemble enters mandatory final-window cadence 90 minutes before kickoff.
 - `FINAL_REFORECAST_MIN_INTERVAL_MINUTES=30`: avoid paid-model spam inside the final window while still catching confirmed lineups.

@@ -107,7 +107,7 @@ class Settings:
     news_monitor_materiality_threshold_points: int = 2
     stale_reforecast_without_news: bool = False
     scheduler_forecast_offset_minutes: float = 1440.0
-    scheduler_news_offset_minutes: float = 15.0
+    scheduler_news_offset_minutes: float = 40.0
     firecrawl_api_key: str = ""
     use_firecrawl_retrieval: bool = True
     firecrawl_mode: str = "targeted"
@@ -217,7 +217,7 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         news_monitor_materiality_threshold_points=_int_env("NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS", 2),
         stale_reforecast_without_news=_bool_env("STALE_REFORECAST_WITHOUT_NEWS", False),
         scheduler_forecast_offset_minutes=_float_env("SCHEDULER_FORECAST_OFFSET_MINUTES", 1440.0),
-        scheduler_news_offset_minutes=_float_env("SCHEDULER_NEWS_OFFSET_MINUTES", 15.0),
+        scheduler_news_offset_minutes=_float_env("SCHEDULER_NEWS_OFFSET_MINUTES", 40.0),
         firecrawl_api_key=os.getenv("FIRECRAWL_API_KEY", ""),
         use_firecrawl_retrieval=_bool_env("USE_FIRECRAWL_RETRIEVAL", True),
         firecrawl_mode=os.getenv("FIRECRAWL_MODE", "targeted"),
