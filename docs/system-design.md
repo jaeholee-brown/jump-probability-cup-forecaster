@@ -143,8 +143,8 @@ ForecastBench's current tournament leaderboard, checked June 16, 2026, is domina
 
 The workflow has two scheduled modes and also supports manual `workflow_dispatch`:
 
-- `17 */6 * * *`: news-monitor-only mode. It runs cheap Grok web/X checks on already-covered matches, updates `state/news-cache.json`, and forecasts only affected market ids if material news moved.
-- `43 8 * * *`: daily full mode. It refreshes missing/stale forecasts using the normal update gate and final-window rules.
+- `17 */6 * * *`: schedule refresh mode. It polls SportsPredict for newly posted matches and updates `state/match-schedule.json`.
+- `2/15 * * * *`: due-check mode. It runs the scheduler only, not the model pipeline directly. The scheduler triggers targeted full forecasts when a match is inside the configured forecast lead window, then runs a cheap late-news check close to market lock.
 
 Repository secrets:
 
@@ -160,6 +160,8 @@ Key environment controls:
 - `MAX_HOURS_TO_CLOSE=168`: forecast next seven days by default.
 - `ENABLE_UPDATE_GATE=true`: skip full reforecasting of already-fresh matches.
 - `STALE_REFORECAST_WITHOUT_NEWS=true`: daily scheduled runs can refresh stale forecasts.
+- `SCHEDULER_FORECAST_OFFSET_MINUTES=1440`: run the one full paid forecast about 24 hours before market lock. This is deliberately much earlier than the original 30-minute lead because GitHub scheduled runs can be delayed by minutes or hours.
+- `SCHEDULER_NEWS_OFFSET_MINUTES=15`: run the cheap late-news check about 15 minutes before market lock and only reforecast when material news appears.
 - `MAX_PREDICTION_AGE_HOURS=24`: default stale cadence for daily full refreshes.
 - `FORCE_REFORECAST_WITHIN_HOURS=1.5`: full ensemble enters mandatory final-window cadence 90 minutes before kickoff.
 - `FINAL_REFORECAST_MIN_INTERVAL_MINUTES=30`: avoid paid-model spam inside the final window while still catching confirmed lineups.

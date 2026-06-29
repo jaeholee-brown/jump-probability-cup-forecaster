@@ -34,7 +34,7 @@ def build_due_actions(
     schedule: dict[str, Any],
     *,
     now: datetime,
-    forecast_offset_minutes: float = 30.0,
+    forecast_offset_minutes: float = 1440.0,
     news_offset_minutes: float = 15.0,
 ) -> DueActions:
     now = now.astimezone(timezone.utc)
@@ -107,7 +107,12 @@ class MatchScheduler:
         state = read_json(self.schedule_path, {"matches": {}})
 
         now = utcnow()
-        due = build_due_actions(state, now=now)
+        due = build_due_actions(
+            state,
+            now=now,
+            forecast_offset_minutes=self.settings.scheduler_forecast_offset_minutes,
+            news_offset_minutes=self.settings.scheduler_news_offset_minutes,
+        )
         logger.info(
             "Schedule due check forecast_due=%d news_due=%d",
             len(due.forecast_match_ids),
@@ -180,8 +185,12 @@ class MatchScheduler:
             )
             if closes_at is not None:
                 close = closes_at.astimezone(timezone.utc)
-                entry["late_forecast_due_at"] = _iso(close - timedelta(minutes=30))
-                entry["news_check_due_at"] = _iso(close - timedelta(minutes=15))
+                entry["late_forecast_due_at"] = _iso(
+                    close - timedelta(minutes=self.settings.scheduler_forecast_offset_minutes)
+                )
+                entry["news_check_due_at"] = _iso(
+                    close - timedelta(minutes=self.settings.scheduler_news_offset_minutes)
+                )
             entries[match.id] = entry
         for match_id, entry in list(entries.items()):
             if match_id not in seen_ids:

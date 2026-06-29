@@ -30,15 +30,15 @@ def test_opening_time_is_prediction_lock_before_closing_time() -> None:
     assert market.closes_at == datetime(2026, 6, 16, 19, 0, tzinfo=timezone.utc)
 
 
-def test_due_actions_forecasts_at_thirty_minutes_before_close() -> None:
-    now = datetime(2026, 6, 16, 12, 30, tzinfo=timezone.utc)
+def test_due_actions_forecasts_at_twenty_four_hours_before_close_by_default() -> None:
+    now = datetime(2026, 6, 16, 12, 0, tzinfo=timezone.utc)
     schedule = {
         "matches": {
             "due": {
-                "closing_time": "2026-06-16T13:00:00Z",
+                "closing_time": "2026-06-17T12:00:00Z",
             },
             "not_due": {
-                "closing_time": "2026-06-16T13:01:00Z",
+                "closing_time": "2026-06-17T12:01:00Z",
             },
         }
     }
@@ -60,7 +60,7 @@ def test_due_actions_use_opening_time_before_closing_time() -> None:
         }
     }
 
-    due = build_due_actions(schedule, now=now)
+    due = build_due_actions(schedule, now=now, forecast_offset_minutes=30)
 
     assert due.forecast_match_ids == ["due"]
     assert due.news_match_ids == []
