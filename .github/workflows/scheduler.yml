@@ -11,7 +11,7 @@ on:
     # Poll for newly posted games every 6 hours.
     - cron: "17 */6 * * *"
     # Watchdog due-checker. GitHub cron delivery is best-effort, so any
-    # received tick runs an internal loop and can restart the self-dispatch loop.
+    # received tick does one due check and can restart the self-dispatch loop.
     - cron: "7,22,37,52 * * * *"
 
 concurrency:
@@ -120,7 +120,7 @@ jobs:
             echo "SPORTSPREDICT_API_KEY is required for scheduler."
             exit 1
           fi
-          if [ "$INPUT_MODE" = "loop" ] || [ "$EVENT_SCHEDULE" = "7,22,37,52 * * * *" ]; then
+          if [ "$INPUT_MODE" = "loop" ]; then
             echo "Scheduler mode=loop schedule='${EVENT_SCHEDULE}'"
             for iteration in 1 2 3 4 5; do
               echo "::group::Due check iteration ${iteration}"

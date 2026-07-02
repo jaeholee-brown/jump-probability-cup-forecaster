@@ -144,7 +144,7 @@ ForecastBench's current tournament leaderboard, checked June 16, 2026, is domina
 The workflow has two scheduled modes and also supports manual `workflow_dispatch`:
 
 - `17 */6 * * *`: schedule refresh mode. It polls SportsPredict for newly posted matches and updates `state/match-schedule.json`.
-- `7,22,37,52 * * * *`: watchdog due-check mode. GitHub scheduled events are best-effort and can be delayed or dropped, so any received watchdog tick runs a 5-iteration internal due-check loop at 10-minute spacing. It also restarts the self-dispatching loop when no scheduler run is already active or queued.
+- `7,22,37,52 * * * *`: watchdog due-check mode. GitHub scheduled events are best-effort and can be delayed or dropped, so any received watchdog tick runs one cheap due check and restarts the self-dispatching loop when no scheduler run is already active or queued.
 - `workflow_dispatch mode=loop`: self-dispatching due-check loop. Each loop covers about 40 minutes with 10-minute checks, then dispatches the next loop if no duplicate scheduler run is already active. This is the primary reliability layer; cron is now a watchdog/backstop, not the only timer.
 
 Repository secrets:
