@@ -10,8 +10,9 @@ on:
   schedule:
     # Poll for newly posted games every 6 hours.
     - cron: "17 */6 * * *"
-    # Cheap due-checker. It only spends model credits when a match hits its scheduled window.
-    - cron: "2/15 * * * *"
+    # Watchdog due-checker. GitHub cron delivery is best-effort, so any
+    # received tick runs an internal loop and can restart the self-dispatch loop.
+    - cron: "7,22,37,52 * * * *"
 
 concurrency:
   group: probability-cup-forecaster
@@ -20,7 +21,7 @@ concurrency:
 jobs:
   scheduler:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 75
     permissions:
       actions: write
       contents: read
@@ -119,17 +120,17 @@ jobs:
             echo "SPORTSPREDICT_API_KEY is required for scheduler."
             exit 1
           fi
-          if [ "$INPUT_MODE" = "loop" ]; then
+          if [ "$INPUT_MODE" = "loop" ] || [ "$EVENT_SCHEDULE" = "7,22,37,52 * * * *" ]; then
             echo "Scheduler mode=loop schedule='${EVENT_SCHEDULE}'"
-            for iteration in 1 2 3 4; do
+            for iteration in 1 2 3 4 5; do
               echo "::group::Due check iteration ${iteration}"
               probability-cup-bot schedule --run-due
               echo "::endgroup::"
-              if [ "$iteration" = "4" ]; then
+              if [ "$iteration" = "5" ]; then
                 break
               fi
-              SLEEP_SECONDS="$(python3 -c 'from datetime import datetime, timedelta, timezone; slots=(2,17,32,47); now=datetime.now(timezone.utc); base=now.replace(second=0, microsecond=0); candidates=[(base+timedelta(hours=h)).replace(minute=m) for h in (0,1) for m in slots]; target=min(t for t in candidates if t > now + timedelta(seconds=20)); print(max(0, int((target-now).total_seconds())))')"
-              echo "Sleeping ${SLEEP_SECONDS}s until next due-check slot"
+              SLEEP_SECONDS=600
+              echo "Sleeping ${SLEEP_SECONDS}s before next due-check iteration"
               sleep "$SLEEP_SECONDS"
             done
           elif [ "$EVENT_SCHEDULE" = "17 */6 * * *" ] || [ "$INPUT_MODE" = "refresh" ]; then
@@ -158,8 +159,40 @@ jobs:
           key: forecast-state-${{ github.run_id }}
 
       - name: Dispatch next scheduler loop
-        if: ${{ always() && github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'loop' }}
+        if: ${{ always() && ((github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'loop') || (github.event_name == 'schedule' && github.event.schedule == '7,22,37,52 * * * *')) }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          python3 <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          current_run_id = int(os.environ["GITHUB_RUN_ID"])
+          active = []
+          for status in ("queued", "in_progress"):
+              raw = subprocess.check_output(
+                  [
+                      "gh",
+                      "api",
+                      f"repos/{repo}/actions/workflows/scheduler.yml/runs?status={status}&per_page=30",
+                  ],
+                  text=True,
+              )
+              for run in json.loads(raw).get("workflow_runs", []):
+                  if int(run["id"]) != current_run_id:
+                      active.append(
+                          f"{run['id']} {run['status']} {run['event']} {run['html_url']}"
+                      )
+
+          Path("/tmp/active_scheduler_runs").write_text("\n".join(active))
+          Path("/tmp/should_dispatch_loop").write_text("0" if active else "1")
+          PY
+          if [ "$(cat /tmp/should_dispatch_loop)" != "1" ]; then
+            echo "Another scheduler run is already active or queued; not dispatching a duplicate loop."
+            cat /tmp/active_scheduler_runs
+            exit 0
+          fi
           gh workflow run scheduler.yml --ref main -f mode=loop
