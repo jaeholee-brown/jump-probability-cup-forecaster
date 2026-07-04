@@ -154,6 +154,23 @@ def decomposition_hint_for_family(family: str) -> str:
     return hints.get(family, "Find a source-backed reference class and state why it applies.")
 
 
+def market_subtype(question: str) -> str:
+    """Coarse structural sub-type within a family.
+
+    Round-of-32 platform recap (2026-07-04) showed opposite biases pooled
+    inside single families: cards comparisons were well-calibrated (+3.3 RBP
+    vs crowd) while total-cards thresholds were the worst category (-2.8), and
+    total-SOT under-forecasts cancelled comparison over-forecasts. Corrections
+    are therefore keyed by family|subtype with the family as fallback.
+    """
+    q = _normalize(question)
+    if re.search(r"\bmore\b.+\bthan\b|\bfewer\b.+\bthan\b", q):
+        return "comparison"
+    if "total" in q:
+        return "total_threshold"
+    return "team_or_other"
+
+
 def threshold_from_question(question: str) -> float | None:
     q = _normalize(question)
     match = re.search(r"(\d+(?:\.\d+)?)\s*\+", q)

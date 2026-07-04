@@ -345,7 +345,9 @@ class MatchForecaster:
             p_raw = log_odds_mean(probabilities, weights)
             correction_note = None
             if self.family_corrections.get("enabled"):
-                p, correction_note = self._apply_family_correction(p_raw, profile.family)
+                p, correction_note = self._apply_family_correction(
+                    p_raw, profile.family, market.question
+                )
                 if evidence_quality == "low":
                     p = shrink_toward_half(p, self.settings.low_evidence_shrinkage)
             else:
@@ -401,13 +403,22 @@ class MatchForecaster:
 
     def _tournament_context(self, family: str, question: str) -> dict[str, Any] | None:
         """Realized this-tournament rates for the market family, plus structural notes."""
-        stats = (self.family_corrections.get("family_stats") or {}).get(family)
+        from probability_cup_bot.market_analysis import market_subtype
+
+        all_stats = self.family_corrections.get("family_stats") or {}
+        subtype = market_subtype(question)
+        group = family
+        stats = all_stats.get(f"{family}|{subtype}")
+        if stats and int(stats.get("count", 0)) >= 8:
+            group = f"{family} {subtype.replace('_', ' ')}"
+        else:
+            stats = all_stats.get(family)
         context: dict[str, Any] = {}
         if stats and int(stats.get("count", 0)) >= 8:
             context["family_settled_count"] = int(stats["count"])
             context["family_yes_rate"] = stats["yes_rate"]
             context["note"] = (
-                f"Across this tournament so far, {family} markets on this platform resolved YES "
+                f"Across this tournament so far, {group} markets on this platform resolved YES "
                 f"{stats['yes_rate']:.0%} of the time (n={int(stats['count'])}). Platform thresholds "
                 "are similar across matches, so treat this as a strong reference class and deviate "
                 "only with concrete match-specific evidence."
@@ -420,16 +431,22 @@ class MatchForecaster:
             )
         return context or None
 
-    def _apply_family_correction(self, p_raw: float, family: str) -> tuple[float, dict[str, Any]]:
+    def _apply_family_correction(
+        self, p_raw: float, family: str, question: str
+    ) -> tuple[float, dict[str, Any]]:
+        from probability_cup_bot.calibration import lookup_shift
+        from probability_cup_bot.market_analysis import market_subtype
         from probability_cup_bot.scoring import clamp_probability, inv_logit, logit
 
         corrections = self.family_corrections
-        shift = float((corrections.get("shifts") or {}).get(family, 0.0))
+        subtype = market_subtype(question)
+        shift = lookup_shift(corrections.get("shifts") or {}, family, subtype)
         intercept = float(corrections.get("intercept") or 0.0)
         slope = float(corrections.get("slope") or 1.0)
         corrected = clamp_probability(inv_logit(intercept + slope * (logit(p_raw) + shift)))
         note = {
             "family": family,
+            "subtype": subtype,
             "shift": shift,
             "intercept": intercept,
             "slope": slope,

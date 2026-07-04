@@ -235,6 +235,8 @@ def build_family_corrections(
     full-history fits beating recency-weighted ones. Replaces the old
     extremize/shrink pair, whose defaults cancelled each other out.
     """
+    from probability_cup_bot.market_analysis import market_subtype
+
     rows: list[tuple[str, float, int]] = []
     for record in settled_records:
         praw = _record_raw_probability(record)
@@ -242,7 +244,8 @@ def build_family_corrections(
         family = record.get("market_family")
         if praw is None or outcome is None or not family:
             continue
-        rows.append((str(family), praw, int(outcome)))
+        subtype = market_subtype(str(record.get("question") or ""))
+        rows.append((f"{family}|{subtype}", praw, int(outcome)))
     if len(rows) < min_settled:
         return {
             "enabled": False,
@@ -251,15 +254,19 @@ def build_family_corrections(
         }
 
     by_family: dict[str, list[tuple[float, int]]] = defaultdict(list)
-    for family, praw, outcome in rows:
-        by_family[family].append((praw, outcome))
+    by_subtype: dict[str, list[tuple[float, int]]] = defaultdict(list)
+    for key, praw, outcome in rows:
+        by_family[key.split("|", 1)[0]].append((praw, outcome))
+        by_subtype[key].append((praw, outcome))
+
+    def _group_stats(data: list[tuple[float, int]]) -> tuple[int, float, float]:
+        n = len(data)
+        return n, sum(p for p, _ in data) / n, sum(y for _, y in data) / n
 
     shifts: dict[str, float] = {}
     family_stats: dict[str, dict[str, float]] = {}
     for family, data in sorted(by_family.items()):
-        n = len(data)
-        mean_p = sum(p for p, _ in data) / n
-        yes_rate = sum(y for _, y in data) / n
+        n, mean_p, yes_rate = _group_stats(data)
         family_stats[family] = {
             "count": n,
             "yes_rate": round(yes_rate, 4),
@@ -273,16 +280,49 @@ def build_family_corrections(
         shift = raw_shift * shrink * damp
         shifts[family] = round(max(-max_shift, min(max_shift, shift)), 4)
 
+    # Sub-type shifts shrink toward their family shift, which itself shrinks
+    # toward zero — families pool structurally different questions (threshold
+    # totals vs strictly-greater comparisons) whose biases can cancel.
+    for key, data in sorted(by_subtype.items()):
+        n, mean_p, yes_rate = _group_stats(data)
+        family_stats[key] = {
+            "count": n,
+            "yes_rate": round(yes_rate, 4),
+            "mean_forecast": round(mean_p, 4),
+        }
+        if n < min_family_n:
+            continue
+        parent = shifts.get(key.split("|", 1)[0], 0.0)
+        clamped_rate = max(0.03, min(0.97, yes_rate))
+        raw_shift = _logit(clamped_rate) - _logit(mean_p)
+        shrink = n / (n + max(1.0, prior_n))
+        shift = parent + (raw_shift * damp - parent) * shrink
+        shifts[key] = round(max(-max_shift, min(max_shift, shift)), 4)
+
     intercept, slope = _fit_recalibration_slope(rows, shifts)
     return {
         "enabled": True,
-        "basis": "equal_weight_component_log_odds_mean",
+        "basis": "equal_weight_component_log_odds_mean; shifts keyed family|subtype with family fallback",
         "settled_count": len(rows),
         "shifts": shifts,
         "intercept": round(max(-0.2, min(0.2, intercept)), 4),
         "slope": round(max(0.9, min(1.4, slope)), 4),
         "family_stats": family_stats,
     }
+
+
+def lookup_shift(shifts: dict[str, float], family: str, subtype: str | None = None) -> float:
+    """Most specific available shift: family|subtype, then family, then 0."""
+    if subtype is not None:
+        specific = shifts.get(f"{family}|{subtype}")
+        if specific is not None:
+            return specific
+    if "|" in family:
+        specific = shifts.get(family)
+        if specific is not None:
+            return specific
+        family = family.split("|", 1)[0]
+    return shifts.get(family, 0.0)
 
 
 def _fit_recalibration_slope(
@@ -294,7 +334,7 @@ def _fit_recalibration_slope(
     for _ in range(60):
         g0 = g1 = h00 = h01 = h11 = 0.0
         for family, praw, outcome in rows:
-            x = _logit(praw) + shifts.get(family, 0.0)
+            x = _logit(praw) + lookup_shift(shifts, family)
             mu = _inv_logit(intercept + slope * x)
             g0 += outcome - mu
             g1 += (outcome - mu) * x

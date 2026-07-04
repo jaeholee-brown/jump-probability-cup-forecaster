@@ -133,3 +133,42 @@ def test_suggested_multipliers_are_stateless_in_current_multiplier() -> None:
     )
 
     assert first["suggested_multipliers"] == second["suggested_multipliers"]
+
+
+def test_family_corrections_split_subtypes_within_family() -> None:
+    from probability_cup_bot.calibration import build_family_corrections, lookup_shift
+
+    records = []
+    for i in range(80):
+        # comparisons well-calibrated: says 50%, resolves 50%
+        records.append(
+            {
+                "market_family": "cards",
+                "question": "Will Team A receive more cards than Team B?",
+                "outcome": 1 if i % 2 == 0 else 0,
+                "probability_submitted": 50,
+                "components": [
+                    {"model": "a", "provider": "openai", "probability": 0.5, "weight": 1.0}
+                ],
+            }
+        )
+        # totals badly over-forecast: says 55%, resolves 20%
+        records.append(
+            {
+                "market_family": "cards",
+                "question": "Will there be 4 or more total cards shown?",
+                "outcome": 1 if i % 5 == 0 else 0,
+                "probability_submitted": 55,
+                "components": [
+                    {"model": "a", "provider": "openai", "probability": 0.55, "weight": 1.0}
+                ],
+            }
+        )
+    corrections = build_family_corrections(records, min_settled=150)
+    shifts = corrections["shifts"]
+
+    total_shift = lookup_shift(shifts, "cards", "total_threshold")
+    comparison_shift = lookup_shift(shifts, "cards", "comparison")
+    assert total_shift < -0.3
+    assert abs(comparison_shift) < abs(total_shift) / 2
+    assert corrections["family_stats"]["cards|total_threshold"]["count"] == 80
