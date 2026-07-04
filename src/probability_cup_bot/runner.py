@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from probability_cup_bot.anthropic_adapter import AnthropicAdapter
-from probability_cup_bot.calibration import build_calibration_report
+from probability_cup_bot.calibration import build_calibration_report, build_family_corrections
 from probability_cup_bot.config import Settings
 from probability_cup_bot.evidence import EvidenceCollector
 from probability_cup_bot.firecrawl import FirecrawlClient
@@ -139,6 +139,19 @@ class ForecastRunner:
                 calibration_multipliers = {}
             if self.settings.enable_family_correction:
                 family_corrections = previous_calibration.get("family_corrections") or {}
+                if not family_corrections.get("enabled"):
+                    # Reports written before the correction layer existed lack the
+                    # key but carry settled_records; fit on the fly so the first
+                    # post-deploy forecast run is not a warm-up gap.
+                    settled = previous_calibration.get("settled_records") or []
+                    if settled:
+                        family_corrections = build_family_corrections(
+                            settled,
+                            prior_n=self.settings.family_correction_prior_n,
+                            damp=self.settings.family_correction_damp,
+                            min_settled=self.settings.family_correction_min_settled,
+                            max_shift=self.settings.family_correction_max_shift,
+                        )
             else:
                 family_corrections = {}
             logger.info(
