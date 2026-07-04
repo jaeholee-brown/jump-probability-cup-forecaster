@@ -860,6 +860,7 @@ class ForecastRunner:
                         "evidence_quality": forecast.evidence_quality,
                         "component_count": len(forecast.component_probabilities),
                         "coherence_adjustments": forecast.metadata.get("coherence_adjustments", []),
+                        "family_correction": forecast.metadata.get("family_correction"),
                         "components": self._component_records(forecast),
                     }
                 else:
