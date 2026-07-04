@@ -68,9 +68,10 @@ Default:
 - Claude forecast models: `claude-opus-4-8` and `claude-opus-4-6`.
 - Fallback research/evidence model with OpenAI key: `gpt-5.4-mini`.
 - Default forecast variants: one `base_rate_frequency` call per configured forecast model.
-- Default model-specific forecast weights: `gpt-5=0.35`, `grok-4.3=0.2`, `grok-4.20-0309-reasoning=0.15`, `claude-opus-4-8=1.2`, and `claude-opus-4-6=1.1`. These are live-audit weights that deliberately keep every model active while moving more mass toward the Claude models after the first 100 settled markets.
+- Default model-specific forecast weights: uniform `1.0` for every model. The 2026-07-03 audit of 517 common settled markets found no statistically distinguishable model differences (all pairwise |t| < 1.8) and 0.99 error correlation, because all models share the same evidence pack. Earlier non-uniform weights were fit to noise at n=48-74 and their ordering did not replicate.
 - Claude forecast calls use Anthropic tool-choice structured output and do not enable extended thinking. The forecaster passes `reasoning_effort=none` for Claude so logs and future adapter behavior stay explicit; Opus still uses normal inference at standard token pricing.
-- Calibration multipliers are applied on top of those base weights after enough settled results accumulate.
+- Calibration multipliers are report-only by default (`APPLY_CALIBRATION_WEIGHTS=false`). The pre-July formula compounded cumulative regret every run until weights hit the clamps; the formula is now stateless, but model reweighting stays off because the settled data cannot rank these models.
+- Family correction layer (`ENABLE_FAMILY_CORRECTION=true`): each run fits per-family logit shifts plus one global recalibration slope from settled outcomes against the raw equal-weight component ensemble, shrunk by n/(n+12), damped 0.9, shift-clamped to ±0.6 and slope-clamped to [0.9, 1.4]. It replaces the old `EXTREMIZE_ALPHA=1.05` + `BASE_SHRINKAGE=0.04` pair, which nearly cancelled to identity. Validated out-of-sample on 50/50 through 80/20 time-ordered folds at -0.004 to -0.013 Brier per market (t -1.5 to -3.4). The same family stats feed `tournament_to_date` prompt anchors (realized family YES rates plus a ties-resolve-NO note for strictly-greater comparison markets).
 - Every market is deterministically tagged with a market family before forecasting. The forecast payload includes the family, a broad prior range, and a decomposition hint, and `forecast-history.json` persists the same tag for calibration.
 - A narrow post-aggregation coherence layer can raise player SOT/goal probabilities when the model explicitly identified a penalty-taker path and the match also has a penalty market. It also enforces the basic relation that a player's goal probability should not exceed that player's SOT probability when both markets exist. These repairs are logged in `coherence_adjustments` metadata.
 - Full prompt-ensemble mode: set `OPENAI_FORECAST_VARIANTS=all`, `GROK_FORECAST_VARIANTS=all`, and/or `CLAUDE_FORECAST_VARIANTS=all`.
@@ -161,8 +162,9 @@ Key environment controls:
 - `MAX_HOURS_TO_CLOSE=168`: forecast next seven days by default.
 - `ENABLE_UPDATE_GATE=true`: skip full reforecasting of already-fresh matches.
 - `STALE_REFORECAST_WITHOUT_NEWS=true`: daily scheduled runs can refresh stale forecasts.
-- `SCHEDULER_FORECAST_OFFSET_MINUTES=1440`: run the one full paid forecast about 24 hours before market lock. This is deliberately much earlier than the original 30-minute lead because GitHub scheduled runs can be delayed by minutes or hours.
-- `SCHEDULER_NEWS_OFFSET_MINUTES=40`: run the cheap late-news check about 40 minutes before market lock and only reforecast when material news appears. This keeps the check close enough to catch lineups/news while giving GitHub scheduled runs room for normal delay.
+- `SCHEDULER_FORECAST_OFFSET_MINUTES=1440`: run the first full paid forecast about 24 hours before market lock for coverage. This is deliberately much earlier than the original 30-minute lead because GitHub scheduled runs can be delayed by minutes or hours.
+- `SCHEDULER_FINAL_FORECAST_OFFSET_MINUTES=55`: run an unconditional full-ensemble pass about 55 minutes before lock, once confirmed lineups are typically published (~T-60). Added after the 2026-06-29..07-02 cohort locked 16-27 hours stale when the single news-check window was missed; a full forecast completed after this point also satisfies the pass.
+- `SCHEDULER_NEWS_OFFSET_MINUTES=40`: run the cheap late-news check about 40 minutes before market lock as a late-shock safety net after the final pass; it retries on later ticks if the monitor call fails instead of being marked complete.
 - `MAX_PREDICTION_AGE_HOURS=24`: default stale cadence for daily full refreshes.
 - `FORCE_REFORECAST_WITHIN_HOURS=1.5`: full ensemble enters mandatory final-window cadence 90 minutes before kickoff.
 - `FINAL_REFORECAST_MIN_INTERVAL_MINUTES=30`: avoid paid-model spam inside the final window while still catching confirmed lineups.
@@ -189,15 +191,13 @@ Key environment controls:
 - `OPENAI_FORECAST_VARIANTS=base_rate_frequency`: comma-separated OpenAI variants, or `all`.
 - `GROK_FORECAST_VARIANTS=base_rate_frequency`: comma-separated Grok variants, or `all`.
 - `CLAUDE_FORECAST_VARIANTS=base_rate_frequency`: comma-separated Claude variants, or `all`.
-- `FORECAST_MODEL_WEIGHTS=gpt-5=0.35,grok-4.3=0.2,grok-4.20-0309-reasoning=0.15,claude-opus-4-8=1.2,claude-opus-4-6=1.1`: model-specific component weights before confidence/evidence adjustments.
-- `APPLY_CALIBRATION_WEIGHTS=true`: apply suggested multipliers from prior settled results.
-- `CALIBRATION_LEARNING_RATE=1.8`, `CALIBRATION_PRIOR_COUNT=20`: conservative online reweighting controls.
-- `EXTREMIZE_ALPHA=1.05`: mild log-odds extremization.
-- `BASE_SHRINKAGE=0.04`: mild shrinkage toward 50.
+- `FORECAST_MODEL_WEIGHTS=gpt-5=1.0,...`: uniform model weights (see Model Strategy for why).
+- `APPLY_CALIBRATION_WEIGHTS=false`: model multipliers are report-only telemetry.
+- `ENABLE_FAMILY_CORRECTION=true`: post-aggregation family logit shifts + global slope fit from settled results (see Model Strategy). `FAMILY_CORRECTION_PRIOR_N=12`, `FAMILY_CORRECTION_DAMP=0.9`, `FAMILY_CORRECTION_MIN_SETTLED=150`, `FAMILY_CORRECTION_MAX_SHIFT=0.6`.
+- `EXTREMIZE_ALPHA=1.0`, `BASE_SHRINKAGE=0.0`: legacy pair now neutral; the fitted slope in the family correction supplies extremization instead.
 - `LOW_EVIDENCE_SHRINKAGE=0.12`: stronger shrinkage when evidence is weak.
-- `ENABLE_COHERENCE_ADJUSTMENTS=true`: enable conservative post-aggregation coherence repairs.
-- `COHERENCE_MIN_ADJUSTMENT_POINTS=2`: minimum probability-point change before a repair is applied.
-- `PENALTY_TAKER_SOT_FLOOR_FRACTION=0.45`, `PENALTY_TAKER_GOAL_FLOOR_FRACTION=0.32`: penalty-market fractions used as lower-bound channels only when the component rationale identifies a penalty-taking role.
+- `ENABLE_COHERENCE_ADJUSTMENTS=false`: post-aggregation coherence repairs are off; all three settled adjustments hurt (including one team-market misfire), so simplicity wins until there is evidence they help.
+- `ODDS_SPORT_KEY=soccer_fifa_world_cup`, `ODDS_REGIONS=eu`, `ODDS_MARKETS=h2h,totals`: The Odds API consensus anchors on the free tier (500 credits/month; a call costs regions x markets). Responses are cached per match in `state/odds-cache.json` for `ODDS_CACHE_HOURS=3` (or `ODDS_CACHE_FINAL_MINUTES=45` inside the last `ODDS_CACHE_FINAL_WINDOW_HOURS=2`).
 
 Cost telemetry:
 

@@ -71,12 +71,14 @@ class MatchForecaster:
         grok: OpenAIAdapter | None = None,
         anthropic: AnthropicAdapter | None = None,
         calibration_multipliers: dict[str, float] | None = None,
+        family_corrections: dict[str, Any] | None = None,
     ) -> None:
         self.settings = settings
         self.openai = openai
         self.grok = grok
         self.anthropic = anthropic
         self.calibration_multipliers = calibration_multipliers or {}
+        self.family_corrections = family_corrections or {}
 
     async def forecast_match(
         self,
@@ -166,6 +168,9 @@ class MatchForecaster:
                         "status": market.status,
                         "closing_time": market.match.closing_time,
                         "profile": profiles[market.id].model_payload(),
+                        "tournament_to_date": self._tournament_context(
+                            profiles[market.id].family, market.question
+                        ),
                     }
                     for market in markets
                 ],
@@ -337,10 +342,17 @@ class MatchForecaster:
             )
             from probability_cup_bot.scoring import extremize, log_odds_mean, shrink_toward_half
 
-            p = shrink_toward_half(
-                extremize(log_odds_mean(probabilities, weights), self.settings.extremize_alpha),
-                shrinkage,
-            )
+            p_raw = log_odds_mean(probabilities, weights)
+            correction_note = None
+            if self.family_corrections.get("enabled"):
+                p, correction_note = self._apply_family_correction(p_raw, profile.family)
+                if evidence_quality == "low":
+                    p = shrink_toward_half(p, self.settings.low_evidence_shrinkage)
+            else:
+                p = shrink_toward_half(
+                    extremize(p_raw, self.settings.extremize_alpha),
+                    shrinkage,
+                )
             output.append(
                 AggregatedForecast(
                     market_id=market.id,
@@ -377,12 +389,54 @@ class MatchForecaster:
                         "probability_repairs": [
                             repair for repair in probability_repairs if repair["repaired"]
                         ],
+                        "family_correction": correction_note,
                     },
                 )
             )
         if self.settings.enable_coherence_adjustments:
             self._apply_coherence_adjustments(output)
         return output
+
+    _COMPARISON_PATTERN = re.compile(r"\bmore\b.+\bthan\b|\bfewer\b.+\bthan\b", re.IGNORECASE)
+
+    def _tournament_context(self, family: str, question: str) -> dict[str, Any] | None:
+        """Realized this-tournament rates for the market family, plus structural notes."""
+        stats = (self.family_corrections.get("family_stats") or {}).get(family)
+        context: dict[str, Any] = {}
+        if stats and int(stats.get("count", 0)) >= 8:
+            context["family_settled_count"] = int(stats["count"])
+            context["family_yes_rate"] = stats["yes_rate"]
+            context["note"] = (
+                f"Across this tournament so far, {family} markets on this platform resolved YES "
+                f"{stats['yes_rate']:.0%} of the time (n={int(stats['count'])}). Platform thresholds "
+                "are similar across matches, so treat this as a strong reference class and deviate "
+                "only with concrete match-specific evidence."
+            )
+        if self._COMPARISON_PATTERN.search(question):
+            context["comparison_note"] = (
+                "Strictly-greater comparison: a tie resolves NO. For low-count stats (cards, "
+                "goals, offsides, corners in a half), P(tie) is often 20-35%, so P(A beats B) "
+                "for evenly matched sides is usually 33-40%, not 50%."
+            )
+        return context or None
+
+    def _apply_family_correction(self, p_raw: float, family: str) -> tuple[float, dict[str, Any]]:
+        from probability_cup_bot.scoring import clamp_probability, inv_logit, logit
+
+        corrections = self.family_corrections
+        shift = float((corrections.get("shifts") or {}).get(family, 0.0))
+        intercept = float(corrections.get("intercept") or 0.0)
+        slope = float(corrections.get("slope") or 1.0)
+        corrected = clamp_probability(inv_logit(intercept + slope * (logit(p_raw) + shift)))
+        note = {
+            "family": family,
+            "shift": shift,
+            "intercept": intercept,
+            "slope": slope,
+            "raw_probability": round(p_raw, 4),
+            "corrected_probability": round(corrected, 4),
+        }
+        return corrected, note
 
     def _apply_coherence_adjustments(self, forecasts: list[AggregatedForecast]) -> None:
         if not forecasts:

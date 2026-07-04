@@ -12,7 +12,7 @@ import httpx
 
 from probability_cup_bot.config import Settings
 from probability_cup_bot.firecrawl import FirecrawlClient
-from probability_cup_bot.models import EvidenceAudit, Match, MatchEvidence, Market, utcnow
+from probability_cup_bot.models import EvidenceAudit, Match, MatchEvidence, Market, parse_dt, utcnow
 from probability_cup_bot.openai_adapter import OpenAIAdapter
 from probability_cup_bot.prompts import RESEARCH_INSTRUCTIONS
 
@@ -483,10 +483,25 @@ class EvidenceCollector:
             or self.settings.firecrawl_search_queries <= 0
         ):
             return ""
-        queries = self._firecrawl_queries(match, markets)[: self.settings.firecrawl_search_queries]
+        hours_to_close = self._hours_to_close(match)
+        final_window = (
+            hours_to_close is not None
+            and hours_to_close <= self.settings.firecrawl_force_within_hours
+        )
+        queries = self._firecrawl_queries(match, markets, final_window=final_window)[
+            : self.settings.firecrawl_search_queries
+        ]
+        # Near lock the only text that reliably moves forecasts is same-day
+        # lineup/availability reporting, so tighten recency to the past day.
+        tbs = "qdr:d,sbd:1" if final_window else "qdr:w,sbd:1"
         contexts: list[str] = []
         total_credits = 0
-        logger.info("Firecrawl evidence start match_id=%s queries=%d", match.id, len(queries))
+        logger.info(
+            "Firecrawl evidence start match_id=%s queries=%d final_window=%s",
+            match.id,
+            len(queries),
+            final_window,
+        )
         for index, query in enumerate(queries, start=1):
             logger.info(
                 "Firecrawl evidence query start match_id=%s query=%d/%d",
@@ -499,7 +514,7 @@ class EvidenceCollector:
                     query,
                     limit=self.settings.firecrawl_search_limit,
                     sources=("web",),
-                    tbs="qdr:w,sbd:1",
+                    tbs=tbs,
                 )
             except Exception as exc:
                 logger.warning(
@@ -535,8 +550,21 @@ class EvidenceCollector:
         return f"Firecrawl credits used: {total_credits}\n" + "\n\n".join(contexts)
 
     @staticmethod
-    def _firecrawl_queries(match: Match, markets: list[Market]) -> list[str]:
+    def _hours_to_close(match: Match) -> float | None:
+        closes_at = match.closes_at
+        if closes_at is None:
+            return None
+        return (closes_at - utcnow()).total_seconds() / 3600
+
+    @staticmethod
+    def _firecrawl_queries(match: Match, markets: list[Market], *, final_window: bool = False) -> list[str]:
         market_terms = " ".join(market.question for market in markets[:8])
+        if final_window:
+            return [
+                f"{match.name} confirmed starting lineup XI official team news",
+                f"{match.name} injuries suspensions late fitness weather kickoff",
+                f"{match.name} odds preview player props {market_terms}",
+            ]
         return [
             f"{match.name} confirmed lineup injuries suspensions team news weather",
             f"{match.name} odds preview goals cards corners shots player props {market_terms}",
@@ -549,24 +577,36 @@ class EvidenceCollector:
         teams = split_match_name(match.name)
         if teams is None:
             return ""
+        cached = self._read_cached_odds(match)
+        if cached is not None:
+            return cached
         home, away = teams
         sport_keys = await self._sport_keys()
         if not sport_keys:
             return ""
         contexts: list[str] = []
+        remaining_credits: str | None = None
         async with httpx.AsyncClient(timeout=20.0) as client:
-            for sport_key in sport_keys[:3]:
+            # Free tier is 500 credits/month and each call costs
+            # regions x markets, so stay on one sport key and pinned regions.
+            for sport_key in sport_keys[:1]:
                 url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds"
                 params = {
                     "apiKey": self.settings.odds_api_key,
-                    "regions": "us,uk,eu",
-                    "markets": "h2h,totals,btts",
+                    "regions": self.settings.odds_regions,
+                    "markets": self.settings.odds_markets,
                     "oddsFormat": "decimal",
                 }
                 try:
                     response = await client.get(url, params=params)
                     if response.status_code >= 400:
+                        logger.warning(
+                            "Odds API request failed sport_key=%s status=%d",
+                            sport_key,
+                            response.status_code,
+                        )
                         continue
+                    remaining_credits = response.headers.get("x-requests-remaining")
                     for event in response.json():
                         home_team = event.get("home_team", "")
                         away_team = event.get("away_team", "")
@@ -577,9 +617,67 @@ class EvidenceCollector:
                         if score < 0.62:
                             continue
                         contexts.append(self._render_odds_event(event))
-                except Exception:
+                except Exception as exc:
+                    logger.warning(
+                        "Odds API request errored sport_key=%s error_type=%s",
+                        sport_key,
+                        type(exc).__name__,
+                    )
                     continue
-        return "\n".join(context for context in contexts if context)[:4000]
+        rendered = "\n".join(context for context in contexts if context)[:4000]
+        if rendered:
+            rendered = (
+                "Bookmaker consensus (The Odds API, decimal prices include vig; "
+                "de-vig before using as probability anchors):\n" + rendered
+            )
+        logger.info(
+            "Odds context match_id=%s events=%d credits_remaining=%s",
+            match.id,
+            len(contexts),
+            remaining_credits,
+        )
+        self._write_cached_odds(match, rendered)
+        return rendered
+
+    def _odds_cache_path(self) -> Any:
+        return self.settings.state_dir / "odds-cache.json"
+
+    def _odds_cache_max_age_hours(self, match: Match) -> float:
+        closes_at = match.closes_at
+        if closes_at is not None:
+            hours_to_close = (closes_at - utcnow()).total_seconds() / 3600
+            if hours_to_close <= self.settings.odds_cache_final_window_hours:
+                return self.settings.odds_cache_final_minutes / 60.0
+        return self.settings.odds_cache_hours
+
+    def _read_cached_odds(self, match: Match) -> str | None:
+        from probability_cup_bot.state import read_json
+
+        cache = read_json(self._odds_cache_path(), {})
+        entry = (cache.get("matches") or {}).get(match.id)
+        if not isinstance(entry, dict):
+            return None
+        fetched_at = parse_dt(entry.get("fetched_at"))
+        if fetched_at is None:
+            return None
+        age_hours = (utcnow() - fetched_at).total_seconds() / 3600
+        if age_hours > self._odds_cache_max_age_hours(match):
+            return None
+        return str(entry.get("context") or "")
+
+    def _write_cached_odds(self, match: Match, context: str) -> None:
+        from probability_cup_bot.state import read_json, write_json
+
+        cache = read_json(self._odds_cache_path(), {})
+        matches = cache.setdefault("matches", {})
+        matches[match.id] = {"fetched_at": utcnow().isoformat(), "context": context}
+        # Drop entries for matches that closed long ago to keep the file small.
+        now = utcnow()
+        for match_id, entry in list(matches.items()):
+            fetched_at = parse_dt(entry.get("fetched_at")) if isinstance(entry, dict) else None
+            if fetched_at is None or (now - fetched_at).total_seconds() > 5 * 86400:
+                matches.pop(match_id, None)
+        write_json(self._odds_cache_path(), cache)
 
     async def _sport_keys(self) -> list[str]:
         configured = [key.strip() for key in self.settings.odds_sport_key.split(",") if key.strip()]

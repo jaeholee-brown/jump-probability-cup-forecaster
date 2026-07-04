@@ -35,6 +35,7 @@ def build_due_actions(
     *,
     now: datetime,
     forecast_offset_minutes: float = 1440.0,
+    final_forecast_offset_minutes: float = 55.0,
     news_offset_minutes: float = 40.0,
 ) -> DueActions:
     now = now.astimezone(timezone.utc)
@@ -45,17 +46,33 @@ def build_due_actions(
         if closes_at is None or closes_at <= now:
             continue
         forecast_due_at = closes_at - timedelta(minutes=forecast_offset_minutes)
+        final_due_at = closes_at - timedelta(minutes=final_forecast_offset_minutes)
         news_due_at = closes_at - timedelta(minutes=news_offset_minutes)
         forecast_completed_at = _parse(entry.get("late_forecast_completed_at"))
+        final_completed_at = _parse(entry.get("final_forecast_completed_at"))
         news_completed_at = _parse(entry.get("news_check_completed_at"))
+        latest_full = max(
+            (value for value in (forecast_completed_at, final_completed_at) if value is not None),
+            default=None,
+        )
+
+        final_satisfied = final_completed_at is not None or (
+            forecast_completed_at is not None and forecast_completed_at >= final_due_at
+        )
 
         if now >= forecast_due_at and forecast_completed_at is None:
             forecast_ids.append(match_id)
             continue
+        # Unconditional full-ensemble pass once confirmed lineups are typically
+        # out (~T-60m). Not gated on news materiality: the 2026-06-29..07-02
+        # stale cohort showed a single one-shot news window is too fragile.
+        if now >= final_due_at and not final_satisfied:
+            forecast_ids.append(match_id)
+            continue
         if now >= news_due_at and news_completed_at is None:
-            if forecast_completed_at is None:
+            if latest_full is None:
                 forecast_ids.append(match_id)
-            elif forecast_completed_at < news_due_at:
+            elif latest_full < news_due_at:
                 news_ids.append(match_id)
     return DueActions(forecast_ids, news_ids)
 
@@ -111,6 +128,7 @@ class MatchScheduler:
             state,
             now=now,
             forecast_offset_minutes=self.settings.scheduler_forecast_offset_minutes,
+            final_forecast_offset_minutes=self.settings.scheduler_final_forecast_offset_minutes,
             news_offset_minutes=self.settings.scheduler_news_offset_minutes,
         )
         logger.info(
@@ -188,6 +206,9 @@ class MatchScheduler:
                 entry["late_forecast_due_at"] = _iso(
                     close - timedelta(minutes=self.settings.scheduler_forecast_offset_minutes)
                 )
+                entry["final_forecast_due_at"] = _iso(
+                    close - timedelta(minutes=self.settings.scheduler_final_forecast_offset_minutes)
+                )
                 entry["news_check_due_at"] = _iso(
                     close - timedelta(minutes=self.settings.scheduler_news_offset_minutes)
                 )
@@ -223,12 +244,16 @@ class MatchScheduler:
         match_ids: list[str],
         completed_at: str,
     ) -> None:
+        completed = _parse(completed_at)
         for match_id in match_ids:
             entry = (state.get("matches") or {}).setdefault(match_id, {"match_id": match_id})
-            entry["late_forecast_completed_at"] = completed_at
+            entry.setdefault("late_forecast_completed_at", completed_at)
+            final_due_at = _parse(entry.get("final_forecast_due_at"))
+            if completed and final_due_at and completed >= final_due_at:
+                entry["final_forecast_completed_at"] = completed_at
 
-    @staticmethod
     def _mark_news_completed(
+        self,
         state: dict[str, Any],
         match_ids: list[str],
         completed_at: str,
@@ -238,21 +263,35 @@ class MatchScheduler:
         checks_by_match = {check.get("match_id"): check for check in checks if isinstance(check, dict)}
         for match_id in match_ids:
             entry = (state.get("matches") or {}).setdefault(match_id, {"match_id": match_id})
+            if match_id not in checks_by_match:
+                # Leave incomplete so the next due tick retries instead of
+                # silently locking with a stale forecast, unless the monitor is
+                # disabled and can never produce a check.
+                if not self.settings.use_grok_news_monitor:
+                    entry["news_check_completed_at"] = completed_at
+                    entry["news_check_skipped_reason"] = "news monitor disabled"
+                continue
+            check = checks_by_match[match_id]
             entry["news_check_completed_at"] = completed_at
-            if match_id in checks_by_match:
-                check = checks_by_match[match_id]
-                entry["news_check_should_reforecast"] = check.get("should_reforecast")
-                entry["news_check_estimated_delta_points"] = check.get("estimated_delta_points")
-                entry["news_check_materiality"] = check.get("materiality")
-                if check.get("should_reforecast"):
-                    entry["news_reforecast_completed_at"] = completed_at
+            entry["news_check_should_reforecast"] = check.get("should_reforecast")
+            entry["news_check_estimated_delta_points"] = check.get("estimated_delta_points")
+            entry["news_check_materiality"] = check.get("materiality")
+            if check.get("should_reforecast"):
+                entry["news_reforecast_completed_at"] = completed_at
 
     @staticmethod
     def _mark_late_forecast_as_news_check_if_needed(state: dict[str, Any], match_ids: set[str]) -> None:
         for match_id in match_ids:
             entry = (state.get("matches") or {}).get(match_id) or {}
-            forecast_completed_at = _parse(entry.get("late_forecast_completed_at"))
+            completions = [
+                value
+                for value in (
+                    _parse(entry.get("late_forecast_completed_at")),
+                    _parse(entry.get("final_forecast_completed_at")),
+                )
+                if value is not None
+            ]
             news_due_at = _parse(entry.get("news_check_due_at"))
-            if forecast_completed_at and news_due_at and forecast_completed_at >= news_due_at:
-                entry["news_check_completed_at"] = entry["late_forecast_completed_at"]
-                entry["news_check_skipped_reason"] = "late forecast completed after news-check due time"
+            if completions and news_due_at and max(completions) >= news_due_at:
+                entry["news_check_completed_at"] = _iso(max(completions))
+                entry["news_check_skipped_reason"] = "full forecast completed after news-check due time"

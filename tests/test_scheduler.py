@@ -72,7 +72,9 @@ def test_due_actions_news_checks_at_forty_minutes_before_close() -> None:
         "matches": {
             "match": {
                 "closing_time": "2026-06-16T13:00:00Z",
-                "late_forecast_completed_at": "2026-06-16T12:00:00Z",
+                # Completed after the T-55 final-pass due point, so it counts
+                # as the final pass and only the news safety check remains.
+                "late_forecast_completed_at": "2026-06-16T12:06:00Z",
             }
         }
     }
@@ -97,3 +99,59 @@ def test_due_actions_runs_forecast_instead_of_news_if_late_forecast_missing() ->
 
     assert due.forecast_match_ids == ["match"]
     assert due.news_match_ids == []
+
+
+def test_due_actions_runs_final_forecast_pass_before_lock() -> None:
+    now = datetime(2026, 6, 16, 12, 10, tzinfo=timezone.utc)
+    schedule = {
+        "matches": {
+            "match": {
+                "closing_time": "2026-06-16T13:00:00Z",
+                "late_forecast_completed_at": "2026-06-15T13:05:00Z",
+            }
+        }
+    }
+
+    due = build_due_actions(schedule, now=now)
+
+    assert due.forecast_match_ids == ["match"]
+    assert due.news_match_ids == []
+
+
+def test_due_actions_skips_final_pass_when_already_completed() -> None:
+    now = datetime(2026, 6, 16, 12, 25, tzinfo=timezone.utc)
+    schedule = {
+        "matches": {
+            "match": {
+                "closing_time": "2026-06-16T13:00:00Z",
+                "late_forecast_completed_at": "2026-06-15T13:05:00Z",
+                "final_forecast_completed_at": "2026-06-16T12:12:00Z",
+                "news_check_completed_at": "2026-06-16T12:12:00Z",
+            }
+        }
+    }
+
+    due = build_due_actions(schedule, now=now)
+
+    assert due.forecast_match_ids == []
+    assert due.news_match_ids == []
+
+
+def test_due_actions_news_check_after_final_pass_when_due_gap_exists() -> None:
+    # Final pass completed before the news due point, so the news check still
+    # runs as a late-shock safety net.
+    now = datetime(2026, 6, 16, 12, 21, tzinfo=timezone.utc)
+    schedule = {
+        "matches": {
+            "match": {
+                "closing_time": "2026-06-16T13:00:00Z",
+                "late_forecast_completed_at": "2026-06-15T13:05:00Z",
+                "final_forecast_completed_at": "2026-06-16T12:10:00Z",
+            }
+        }
+    }
+
+    due = build_due_actions(schedule, now=now)
+
+    assert due.forecast_match_ids == []
+    assert due.news_match_ids == ["match"]

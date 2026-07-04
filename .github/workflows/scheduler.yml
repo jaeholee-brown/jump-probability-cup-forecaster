@@ -54,31 +54,34 @@ jobs:
       OPENAI_FORECAST_VARIANTS: base_rate_frequency
       GROK_FORECAST_VARIANTS: base_rate_frequency
       CLAUDE_FORECAST_VARIANTS: base_rate_frequency
+      # Uniform weights: at n=517 common settled markets the five models were
+      # statistically indistinguishable (all pairwise |t| < 1.8), so tuned
+      # weights only encoded noise.
       OPENAI_FORECAST_WEIGHT: "1.0"
-      GROK_FORECAST_WEIGHT: "0.5"
-      CLAUDE_FORECAST_WEIGHT: "0.75"
-      FORECAST_MODEL_WEIGHTS: gpt-5=0.35,grok-4.3=0.2,grok-4.20-0309-reasoning=0.15,claude-opus-4-8=1.2,claude-opus-4-6=1.1
-      APPLY_CALIBRATION_WEIGHTS: "true"
-      CALIBRATION_LEARNING_RATE: "1.8"
-      CALIBRATION_PRIOR_COUNT: "20"
+      GROK_FORECAST_WEIGHT: "1.0"
+      CLAUDE_FORECAST_WEIGHT: "1.0"
+      FORECAST_MODEL_WEIGHTS: gpt-5=1.0,grok-4.3=1.0,grok-4.20-0309-reasoning=1.0,claude-opus-4-8=1.0,claude-opus-4-6=1.0
+      APPLY_CALIBRATION_WEIGHTS: "false"
+      ENABLE_FAMILY_CORRECTION: "true"
       USE_GROK_NEWS_MONITOR: "true"
       NEWS_MONITOR_MAX_HOURS_TO_CLOSE: "168"
       NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS: "2"
       STALE_REFORECAST_WITHOUT_NEWS: "true"
       SCHEDULER_FORECAST_OFFSET_MINUTES: "1440"
+      SCHEDULER_FINAL_FORECAST_OFFSET_MINUTES: "55"
       SCHEDULER_NEWS_OFFSET_MINUTES: "40"
       USE_FIRECRAWL_RETRIEVAL: "true"
       FIRECRAWL_MODE: targeted
       FIRECRAWL_SEARCH_LIMIT: "5"
-      FIRECRAWL_SEARCH_QUERIES: "2"
+      FIRECRAWL_SEARCH_QUERIES: "3"
       FIRECRAWL_FORCE_WITHIN_HOURS: "2"
       FIRECRAWL_VOLATILE_WITHIN_HOURS: "24"
       FIRECRAWL_DISAGREEMENT_THRESHOLD_POINTS: "20"
+      ODDS_SPORT_KEY: soccer_fifa_world_cup
+      ODDS_REGIONS: eu
+      ODDS_MARKETS: h2h,totals
       REASONING_EFFORT: medium
-      ENABLE_COHERENCE_ADJUSTMENTS: "true"
-      COHERENCE_MIN_ADJUSTMENT_POINTS: "2"
-      PENALTY_TAKER_SOT_FLOOR_FRACTION: "0.45"
-      PENALTY_TAKER_GOAL_FLOOR_FRACTION: "0.32"
+      ENABLE_COHERENCE_ADJUSTMENTS: "false"
       MAX_HOURS_TO_CLOSE: "168"
       ENABLE_UPDATE_GATE: "true"
       MAX_PREDICTION_AGE_HOURS: "24"

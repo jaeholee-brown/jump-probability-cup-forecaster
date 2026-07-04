@@ -137,10 +137,16 @@ class ForecastRunner:
                 calibration_multipliers = previous_calibration.get("suggested_multipliers") or {}
             else:
                 calibration_multipliers = {}
+            if self.settings.enable_family_correction:
+                family_corrections = previous_calibration.get("family_corrections") or {}
+            else:
+                family_corrections = {}
             logger.info(
-                "Loaded calibration multipliers enabled=%s count=%d",
+                "Loaded calibration multipliers enabled=%s count=%d family_correction=%s shifts=%d",
                 self.settings.apply_calibration_weights,
                 len(calibration_multipliers),
+                bool(family_corrections.get("enabled")),
+                len(family_corrections.get("shifts") or {}),
             )
             evidence_collector = EvidenceCollector(self.settings, openai, grok, firecrawl)
             forecaster = MatchForecaster(
@@ -149,6 +155,7 @@ class ForecastRunner:
                 grok,
                 anthropic,
                 calibration_multipliers=calibration_multipliers,
+                family_corrections=family_corrections,
             )
 
             logger.info("Fetching event")
@@ -1025,11 +1032,16 @@ class ForecastRunner:
             current_multipliers=calibration_multipliers,
             learning_rate=self.settings.calibration_learning_rate,
             prior_count=self.settings.calibration_prior_count,
+            family_correction_prior_n=self.settings.family_correction_prior_n,
+            family_correction_damp=self.settings.family_correction_damp,
+            family_correction_min_settled=self.settings.family_correction_min_settled,
+            family_correction_max_shift=self.settings.family_correction_max_shift,
         )
         logger.info(
-            "Calibration complete settled_market_count=%d suggested_multipliers=%d",
+            "Calibration complete settled_market_count=%d suggested_multipliers=%d family_shifts=%d",
             report.get("settled_market_count", 0),
             len(report.get("suggested_multipliers") or {}),
+            len((report.get("family_corrections") or {}).get("shifts") or {}),
         )
         return report
 

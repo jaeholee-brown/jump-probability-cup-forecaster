@@ -52,3 +52,84 @@ def test_calibration_report_scores_components_and_suggests_weights() -> None:
     )
     assert report["models"]["good"]["mean_brier"] < report["models"]["bad"]["mean_brier"]
     assert report["suggested_multipliers"]["good"] > report["suggested_multipliers"]["bad"]
+
+
+def _settled_record(family: str, probability: float, outcome: int) -> dict:
+    return {
+        "market_family": family,
+        "outcome": outcome,
+        "probability_submitted": int(round(probability * 100)),
+        "components": [
+            {"model": "a", "provider": "openai", "probability": probability, "weight": 1.0},
+            {"model": "b", "provider": "claude", "probability": probability, "weight": 1.0},
+        ],
+    }
+
+
+def test_family_corrections_disabled_below_min_settled() -> None:
+    from probability_cup_bot.calibration import build_family_corrections
+
+    records = [_settled_record("cards", 0.5, 0) for _ in range(10)]
+    corrections = build_family_corrections(records, min_settled=150)
+
+    assert corrections["enabled"] is False
+
+
+def test_family_corrections_shift_direction_matches_bias() -> None:
+    from probability_cup_bot.calibration import build_family_corrections
+
+    # cards over-forecast (says 55%, resolves 25%), corners under-forecast.
+    records = []
+    for i in range(100):
+        records.append(_settled_record("cards", 0.55, 1 if i % 4 == 0 else 0))
+        records.append(_settled_record("corners", 0.45, 0 if i % 4 == 0 else 1))
+    corrections = build_family_corrections(records, min_settled=150)
+
+    assert corrections["enabled"] is True
+    assert corrections["shifts"]["cards"] < 0
+    assert corrections["shifts"]["corners"] > 0
+    assert 0.9 <= corrections["slope"] <= 1.4
+    assert corrections["family_stats"]["cards"]["count"] == 100
+
+
+def test_family_corrections_shift_is_clamped() -> None:
+    from probability_cup_bot.calibration import build_family_corrections
+
+    records = [_settled_record("player_assist", 0.6, 0) for _ in range(200)]
+    corrections = build_family_corrections(records, min_settled=150, max_shift=0.6)
+
+    assert corrections["shifts"]["player_assist"] == -0.6
+
+
+def test_suggested_multipliers_are_stateless_in_current_multiplier() -> None:
+    report_kwargs = dict(
+        results=[
+            {
+                "market_id": "market",
+                "question": "Will A win?",
+                "probability_submitted": 70,
+                "brier_score": 0.09,
+            }
+        ],
+        history={
+            "markets": {
+                "market": {
+                    "question": "Will A win?",
+                    "market_family": "match_result",
+                    "components": [
+                        {"model": "good", "provider": "openai", "probability": 0.8, "weight": 1.0},
+                        {"model": "bad", "provider": "grok", "probability": 0.2, "weight": 1.0},
+                    ],
+                }
+            }
+        },
+        learning_rate=2.0,
+        prior_count=1,
+    )
+    first = build_calibration_report(current_multipliers={}, **report_kwargs)
+    # Feeding the suggestions back in must NOT compound them further.
+    second = build_calibration_report(
+        current_multipliers=first["suggested_multipliers"], **report_kwargs
+    )
+
+    assert first["suggested_multipliers"] == second["suggested_multipliers"]

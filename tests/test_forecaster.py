@@ -172,7 +172,7 @@ def test_forecaster_builds_cross_provider_specs() -> None:
         ("base_rate_frequency",),
         ("base_rate_frequency",),
     ]
-    assert [spec.weight for spec in specs] == [0.35, 0.2, 0.15, 1.2, 1.1]
+    assert [spec.weight for spec in specs] == [1.0, 1.0, 1.0, 1.0, 1.0]
 
 
 def test_forecaster_applies_calibration_multipliers() -> None:
@@ -192,7 +192,7 @@ def test_forecaster_applies_calibration_multipliers() -> None:
 
     specs = forecaster._forecast_model_specs()
 
-    assert [spec.weight for spec in specs] == pytest.approx([0.315, 0.2, 0.165, 1.2, 1.1])
+    assert [spec.weight for spec in specs] == pytest.approx([0.9, 1.0, 1.1, 1.0, 1.0])
 
 
 def test_aggregate_preserves_component_reasoning_metadata() -> None:
@@ -330,6 +330,8 @@ def test_aggregate_applies_conservative_penalty_taker_coherence_floor() -> None:
     settings = Settings(
         sportspredict_api_key="sportspredict_test_key",
         openai_api_key="openai_test_key",
+        # Disabled by default (hurt on all 3 settled firings); test the flag path.
+        enable_coherence_adjustments=True,
     )
     forecaster = MatchForecaster(settings)
     penalty_market = Market(
@@ -390,3 +392,117 @@ def test_aggregate_applies_conservative_penalty_taker_coherence_floor() -> None:
     assert xhaka.probability >= 0.13
     assert xhaka.metadata["coherence_adjustments"][0]["old_probability"] < xhaka.probability
     assert "penalty-taker channel" in xhaka.metadata["coherence_adjustments"][0]["reason"]
+
+
+def test_aggregate_applies_family_correction() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+    )
+    corrections = {
+        "enabled": True,
+        "shifts": {"cards": -0.45},
+        "intercept": 0.0,
+        "slope": 1.2,
+        "family_stats": {"cards": {"count": 42, "yes_rate": 0.29, "mean_forecast": 0.52}},
+    }
+    forecaster = MatchForecaster(settings, family_corrections=corrections)
+    market = Market(
+        id="cards_market",
+        question="Will there be 4 or more total cards shown?",
+        status="open",
+        match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+        lobby_id="lobby",
+    )
+    batch = ForecastBatch(
+        match_id="match",
+        match_name="A vs B",
+        model="gpt-5",
+        prompt_variant="base_rate_frequency",
+        provider="openai",
+        weight=1.0,
+        forecasts=[
+            MarketForecast(
+                market_id="cards_market",
+                question=market.question,
+                reference_class="Tournament card rates.",
+                probability_rationale="Cards estimate. Final probability: 0.52",
+                probability=0.52,
+                confidence="medium",
+                evidence_quality="medium",
+            ),
+        ],
+    )
+
+    forecasts = forecaster._aggregate([market], [batch])
+    result = forecasts[0]
+
+    # logit(0.52) + (-0.45) scaled by slope 1.2 => noticeably below 0.52
+    assert result.probability < 0.45
+    note = result.metadata["family_correction"]
+    assert note["family"] == "cards"
+    assert note["shift"] == -0.45
+    assert note["raw_probability"] == 0.52
+
+
+def test_aggregate_without_corrections_is_plain_log_odds_mean() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+    )
+    forecaster = MatchForecaster(settings)
+    market = Market(
+        id="m",
+        question="Will A win?",
+        status="open",
+        match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+        lobby_id="lobby",
+    )
+    batch = ForecastBatch(
+        match_id="match",
+        match_name="A vs B",
+        model="gpt-5",
+        prompt_variant="base_rate_frequency",
+        provider="openai",
+        weight=1.0,
+        forecasts=[
+            MarketForecast(
+                market_id="m",
+                question=market.question,
+                reference_class="odds",
+                probability_rationale="Final probability: 0.60",
+                probability=0.60,
+                confidence="medium",
+                evidence_quality="medium",
+            ),
+        ],
+    )
+
+    forecasts = forecaster._aggregate([market], [batch])
+
+    # extremize_alpha=1.0 and base_shrinkage=0.0 defaults: no distortion.
+    assert forecasts[0].probability == pytest.approx(0.60, abs=1e-9)
+
+
+def test_tournament_context_includes_family_rate_and_tie_note() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+    )
+    corrections = {
+        "enabled": True,
+        "shifts": {},
+        "family_stats": {"cards": {"count": 42, "yes_rate": 0.2857, "mean_forecast": 0.52}},
+    }
+    forecaster = MatchForecaster(settings, family_corrections=corrections)
+
+    context = forecaster._tournament_context(
+        "cards", "Will Curaçao receive more cards than Ivory Coast?"
+    )
+
+    assert context["family_settled_count"] == 42
+    assert "resolved YES 29%" in context["note"]
+    assert "tie resolves NO" in context["comparison_note"]
+
+    no_stats = forecaster._tournament_context("shots", "Will X have 2+ shots?")
+    assert no_stats is None or "note" not in (no_stats or {})

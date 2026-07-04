@@ -46,12 +46,15 @@ def _mapping_env(name: str, default: dict[str, float]) -> dict[str, float]:
     return output or default
 
 
+# Uniform: settled results through 2026-07-03 (n=517 common markets) showed no
+# statistically distinguishable model differences (all pairwise |t| < 1.8) and
+# 0.99 error correlation, so non-uniform weights only encode noise.
 DEFAULT_FORECAST_MODEL_WEIGHTS = {
-    "gpt-5": 0.35,
-    "grok-4.3": 0.2,
-    "grok-4.20-0309-reasoning": 0.15,
-    "claude-opus-4-8": 1.2,
-    "claude-opus-4-6": 1.1,
+    "gpt-5": 1.0,
+    "grok-4.3": 1.0,
+    "grok-4.20-0309-reasoning": 1.0,
+    "claude-opus-4-8": 1.0,
+    "claude-opus-4-6": 1.0,
 }
 
 
@@ -94,19 +97,25 @@ class Settings:
     grok_forecast_variants: tuple[str, ...] = ("base_rate_frequency",)
     claude_forecast_variants: tuple[str, ...] = ("base_rate_frequency",)
     openai_forecast_weight: float = 1.0
-    grok_forecast_weight: float = 0.5
-    claude_forecast_weight: float = 0.75
+    grok_forecast_weight: float = 1.0
+    claude_forecast_weight: float = 1.0
     forecast_model_weights: dict[str, float] = field(
         default_factory=lambda: dict(DEFAULT_FORECAST_MODEL_WEIGHTS)
     )
-    apply_calibration_weights: bool = True
+    apply_calibration_weights: bool = False
     calibration_learning_rate: float = 1.8
     calibration_prior_count: int = 20
+    enable_family_correction: bool = True
+    family_correction_prior_n: float = 12.0
+    family_correction_damp: float = 0.9
+    family_correction_min_settled: int = 150
+    family_correction_max_shift: float = 0.6
     use_grok_news_monitor: bool = True
     news_monitor_max_hours_to_close: float = 168.0
     news_monitor_materiality_threshold_points: int = 2
     stale_reforecast_without_news: bool = False
     scheduler_forecast_offset_minutes: float = 1440.0
+    scheduler_final_forecast_offset_minutes: float = 55.0
     scheduler_news_offset_minutes: float = 40.0
     firecrawl_api_key: str = ""
     use_firecrawl_retrieval: bool = True
@@ -130,16 +139,21 @@ class Settings:
     sportspredict_retry_initial_seconds: float = 2.0
     sportspredict_retry_max_seconds: float = 60.0
     sportspredict_update_interval_seconds: float = 1.1
-    extremize_alpha: float = 1.05
-    base_shrinkage: float = 0.04
+    extremize_alpha: float = 1.0
+    base_shrinkage: float = 0.0
     low_evidence_shrinkage: float = 0.12
-    enable_coherence_adjustments: bool = True
+    enable_coherence_adjustments: bool = False
     coherence_min_adjustment_points: float = 2.0
     penalty_taker_sot_floor_fraction: float = 0.45
     penalty_taker_goal_floor_fraction: float = 0.32
     concurrency: int = 4
     odds_api_key: str = ""
     odds_sport_key: str = "soccer"
+    odds_regions: str = "eu"
+    odds_markets: str = "h2h,totals"
+    odds_cache_hours: float = 3.0
+    odds_cache_final_window_hours: float = 2.0
+    odds_cache_final_minutes: float = 45.0
     state_dir: Path = Path("state")
     logs_dir: Path = Path("logs")
 
@@ -203,20 +217,28 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         grok_forecast_variants=_csv_env("GROK_FORECAST_VARIANTS", ("base_rate_frequency",)),
         claude_forecast_variants=_csv_env("CLAUDE_FORECAST_VARIANTS", ("base_rate_frequency",)),
         openai_forecast_weight=_float_env("OPENAI_FORECAST_WEIGHT", 1.0),
-        grok_forecast_weight=_float_env("GROK_FORECAST_WEIGHT", 0.5),
-        claude_forecast_weight=_float_env("CLAUDE_FORECAST_WEIGHT", 0.75),
+        grok_forecast_weight=_float_env("GROK_FORECAST_WEIGHT", 1.0),
+        claude_forecast_weight=_float_env("CLAUDE_FORECAST_WEIGHT", 1.0),
         forecast_model_weights=_mapping_env(
             "FORECAST_MODEL_WEIGHTS",
             dict(DEFAULT_FORECAST_MODEL_WEIGHTS),
         ),
-        apply_calibration_weights=_bool_env("APPLY_CALIBRATION_WEIGHTS", True),
+        apply_calibration_weights=_bool_env("APPLY_CALIBRATION_WEIGHTS", False),
         calibration_learning_rate=_float_env("CALIBRATION_LEARNING_RATE", 1.8),
         calibration_prior_count=_int_env("CALIBRATION_PRIOR_COUNT", 20),
+        enable_family_correction=_bool_env("ENABLE_FAMILY_CORRECTION", True),
+        family_correction_prior_n=_float_env("FAMILY_CORRECTION_PRIOR_N", 12.0),
+        family_correction_damp=_float_env("FAMILY_CORRECTION_DAMP", 0.9),
+        family_correction_min_settled=_int_env("FAMILY_CORRECTION_MIN_SETTLED", 150),
+        family_correction_max_shift=_float_env("FAMILY_CORRECTION_MAX_SHIFT", 0.6),
         use_grok_news_monitor=_bool_env("USE_GROK_NEWS_MONITOR", True),
         news_monitor_max_hours_to_close=_float_env("NEWS_MONITOR_MAX_HOURS_TO_CLOSE", 168.0),
         news_monitor_materiality_threshold_points=_int_env("NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS", 2),
         stale_reforecast_without_news=_bool_env("STALE_REFORECAST_WITHOUT_NEWS", False),
         scheduler_forecast_offset_minutes=_float_env("SCHEDULER_FORECAST_OFFSET_MINUTES", 1440.0),
+        scheduler_final_forecast_offset_minutes=_float_env(
+            "SCHEDULER_FINAL_FORECAST_OFFSET_MINUTES", 55.0
+        ),
         scheduler_news_offset_minutes=_float_env("SCHEDULER_NEWS_OFFSET_MINUTES", 40.0),
         firecrawl_api_key=os.getenv("FIRECRAWL_API_KEY", ""),
         use_firecrawl_retrieval=_bool_env("USE_FIRECRAWL_RETRIEVAL", True),
@@ -243,16 +265,21 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
             0.0,
             _float_env("SPORTSPREDICT_UPDATE_INTERVAL_SECONDS", 1.1),
         ),
-        extremize_alpha=_float_env("EXTREMIZE_ALPHA", 1.05),
-        base_shrinkage=_float_env("BASE_SHRINKAGE", 0.04),
+        extremize_alpha=_float_env("EXTREMIZE_ALPHA", 1.0),
+        base_shrinkage=_float_env("BASE_SHRINKAGE", 0.0),
         low_evidence_shrinkage=_float_env("LOW_EVIDENCE_SHRINKAGE", 0.12),
-        enable_coherence_adjustments=_bool_env("ENABLE_COHERENCE_ADJUSTMENTS", True),
+        enable_coherence_adjustments=_bool_env("ENABLE_COHERENCE_ADJUSTMENTS", False),
         coherence_min_adjustment_points=_float_env("COHERENCE_MIN_ADJUSTMENT_POINTS", 2.0),
         penalty_taker_sot_floor_fraction=_float_env("PENALTY_TAKER_SOT_FLOOR_FRACTION", 0.45),
         penalty_taker_goal_floor_fraction=_float_env("PENALTY_TAKER_GOAL_FLOOR_FRACTION", 0.32),
         concurrency=max(1, _int_env("CONCURRENCY", 4)),
         odds_api_key=os.getenv("ODDS_API_KEY", ""),
         odds_sport_key=os.getenv("ODDS_SPORT_KEY", "soccer"),
+        odds_regions=os.getenv("ODDS_REGIONS", "eu"),
+        odds_markets=os.getenv("ODDS_MARKETS", "h2h,totals"),
+        odds_cache_hours=_float_env("ODDS_CACHE_HOURS", 3.0),
+        odds_cache_final_window_hours=_float_env("ODDS_CACHE_FINAL_WINDOW_HOURS", 2.0),
+        odds_cache_final_minutes=_float_env("ODDS_CACHE_FINAL_MINUTES", 45.0),
         state_dir=Path(os.getenv("STATE_DIR", "state")),
         logs_dir=Path(os.getenv("LOGS_DIR", "logs")),
     )
