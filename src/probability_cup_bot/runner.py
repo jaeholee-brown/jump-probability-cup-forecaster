@@ -1006,6 +1006,8 @@ class ForecastRunner:
             models.append(self.settings.forecast_model)
         if self.settings.use_grok_forecast and self.settings.xai_api_key:
             models.extend(self.settings.grok_forecast_models)
+        if self.settings.use_grok_independent_forecast and self.settings.xai_api_key:
+            models.append(self.settings.grok_independent_forecast_model)
         if self.settings.use_claude_forecast and self.settings.anthropic_api_key:
             models.extend(self.settings.claude_forecast_models)
         seen: set[str] = set()

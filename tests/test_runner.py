@@ -587,12 +587,12 @@ def test_component_coverage_reports_missing_configured_models() -> None:
     assert coverage["full_coverage_market_count"] == 0
     assert coverage["partial_coverage_market_count"] == 1
     assert coverage["missing_by_model"] == {
-        "grok-4.20-0309-reasoning": 1,
+        "grok-4.5": 1,
         "claude-opus-4-8": 1,
         "claude-opus-4-6": 1,
     }
     assert coverage["markets_missing_components"][0]["missing_models"] == [
-        "grok-4.20-0309-reasoning",
+        "grok-4.5",
         "claude-opus-4-8",
         "claude-opus-4-6",
     ]

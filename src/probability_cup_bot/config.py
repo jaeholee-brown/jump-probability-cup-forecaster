@@ -52,7 +52,7 @@ def _mapping_env(name: str, default: dict[str, float]) -> dict[str, float]:
 DEFAULT_FORECAST_MODEL_WEIGHTS = {
     "gpt-5": 1.0,
     "grok-4.3": 1.0,
-    "grok-4.20-0309-reasoning": 1.0,
+    "grok-4.5": 1.0,
     "claude-opus-4-8": 1.0,
     "claude-opus-4-6": 1.0,
 }
@@ -86,7 +86,9 @@ class Settings:
     grok_news_model: str = "grok-4.20-multi-agent-0309"
     grok_news_reasoning_effort: str = "low"
     grok_forecast_model: str = "grok-4.3"
-    grok_forecast_models: tuple[str, ...] = ("grok-4.3", "grok-4.20-0309-reasoning")
+    grok_forecast_models: tuple[str, ...] = ("grok-4.3",)
+    use_grok_independent_forecast: bool = True
+    grok_independent_forecast_model: str = "grok-4.5"
     claude_forecast_model: str = "claude-opus-4-8"
     claude_forecast_models: tuple[str, ...] = ("claude-opus-4-8", "claude-opus-4-6")
     use_openai_forecast: bool = True
@@ -202,8 +204,10 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         grok_forecast_model=os.getenv("GROK_FORECAST_MODEL", "grok-4.3"),
         grok_forecast_models=_csv_env(
             "GROK_FORECAST_MODELS",
-            (os.getenv("GROK_FORECAST_MODEL") or "grok-4.3", "grok-4.20-0309-reasoning"),
+            (os.getenv("GROK_FORECAST_MODEL") or "grok-4.3",),
         ),
+        use_grok_independent_forecast=_bool_env("USE_GROK_INDEPENDENT_FORECAST", True),
+        grok_independent_forecast_model=os.getenv("GROK_INDEPENDENT_FORECAST_MODEL", "grok-4.5"),
         claude_forecast_model=os.getenv("CLAUDE_FORECAST_MODEL", "claude-opus-4-8"),
         claude_forecast_models=_csv_env(
             "CLAUDE_FORECAST_MODELS",

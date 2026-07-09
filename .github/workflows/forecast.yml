@@ -53,11 +53,13 @@ jobs:
       GROK_RESEARCH_PASSES: overview,base_rates,late_news,market_micro,lineup_roles,volatile_market_anchors
       GROK_RESEARCH_REASONING_EFFORT: medium
       USE_GROK_EVIDENCE_QA: "true"
-      GROK_EVIDENCE_QA_MODEL: grok-4.20-multi-agent-0309
+      GROK_EVIDENCE_QA_MODEL: grok-4.5
       GROK_EVIDENCE_QA_REASONING_EFFORT: low
-      GROK_NEWS_MODEL: grok-4.20-multi-agent-0309
+      GROK_NEWS_MODEL: grok-4.5
       GROK_NEWS_REASONING_EFFORT: low
-      GROK_FORECAST_MODELS: grok-4.3,grok-4.20-0309-reasoning
+      GROK_FORECAST_MODELS: grok-4.3
+      USE_GROK_INDEPENDENT_FORECAST: "true"
+      GROK_INDEPENDENT_FORECAST_MODEL: grok-4.5
       CLAUDE_FORECAST_MODELS: claude-opus-4-8,claude-opus-4-6
       USE_OPENAI_FORECAST: "true"
       USE_GROK_RESEARCH: "true"
@@ -69,7 +71,7 @@ jobs:
       OPENAI_FORECAST_WEIGHT: "1.0"
       GROK_FORECAST_WEIGHT: "1.0"
       CLAUDE_FORECAST_WEIGHT: "1.0"
-      FORECAST_MODEL_WEIGHTS: gpt-5=1.0,grok-4.3=1.0,grok-4.20-0309-reasoning=1.0,claude-opus-4-8=1.0,claude-opus-4-6=1.0
+      FORECAST_MODEL_WEIGHTS: gpt-5=1.0,grok-4.3=1.0,grok-4.5=1.0,claude-opus-4-8=1.0,claude-opus-4-6=1.0
       APPLY_CALIBRATION_WEIGHTS: "false"
       ENABLE_FAMILY_CORRECTION: "true"
       USE_GROK_NEWS_MONITOR: "true"

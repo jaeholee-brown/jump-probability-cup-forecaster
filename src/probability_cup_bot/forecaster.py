@@ -61,6 +61,10 @@ class ForecastModelSpec:
     variants: tuple[str, ...]
     weight: float
     tools: list[dict[str, str]] | None = None
+    # Independent specs research the match themselves via server-side search
+    # and are deliberately not given the shared evidence pack, so their errors
+    # decorrelate from the pack-fed models (which sit at 0.99 correlation).
+    independent: bool = False
 
 
 class MatchForecaster:
@@ -117,6 +121,7 @@ class MatchForecaster:
                 provider=spec.provider,
                 weight=spec.weight,
                 tools=spec.tools,
+                independent=spec.independent,
             )
             for spec, variant, variant_instruction in call_specs
         ]
@@ -155,9 +160,29 @@ class MatchForecaster:
         provider: str,
         weight: float,
         tools: list[dict[str, str]] | None = None,
+        independent: bool = False,
     ) -> ForecastBatch:
         instructions = f"{FORECASTING_INSTRUCTIONS}\n\nVariant emphasis:\n{variant_instruction}"
+        if independent:
+            instructions += (
+                "\n\nIndependent research mode: you have deliberately NOT been given the shared "
+                "research pack that other ensemble members see. Use your web and X search tools to "
+                "research this match yourself before forecasting: confirmed or probable lineups, "
+                "injuries, suspensions, team form, referee tendencies, weather, and market-relevant "
+                "statistical rates. The odds context and tournament-to-date rates provided are "
+                "objective anchors you should still use. Corroborate social-media claims; discount "
+                "fan speculation. You are forecasting BEFORE the match kicks off: if search results "
+                "appear to show this match already played or resolved, they are mismatched fixtures, "
+                "wrong dates, or unreliable pages - ignore them and forecast the upcoming match."
+            )
         profiles = profile_markets(markets)
+        if independent:
+            evidence_payload: dict[str, Any] = {
+                "odds_context": evidence.odds_context,
+                "note": "Shared research pack withheld; research independently with your search tools.",
+            }
+        else:
+            evidence_payload = evidence.model_dump()
         user_input = json.dumps(
             {
                 "match": match.model_dump(),
@@ -175,7 +200,7 @@ class MatchForecaster:
                     for market in markets
                 ],
                 "market_profiles": [profiles[market.id].model_payload() for market in markets],
-                "evidence": evidence.model_dump(),
+                "evidence": evidence_payload,
                 "output_requirements": (
                     "Return exactly one forecast for every market id. Decimals must be between "
                     "0.01 and 0.99. Use enough structured audit detail to justify the number. "
@@ -258,6 +283,24 @@ class MatchForecaster:
                         weight=self._model_weight(model, self.settings.grok_forecast_weight),
                     )
                 )
+        if (
+            self.settings.use_grok_independent_forecast
+            and self.grok
+            and self.settings.grok_independent_forecast_model
+        ):
+            model = self.settings.grok_independent_forecast_model
+            specs.append(
+                ForecastModelSpec(
+                    name=f"{self._spec_name('grok', model)}_independent",
+                    provider="grok",
+                    adapter=self.grok,
+                    model=model,
+                    variants=self.settings.grok_forecast_variants,
+                    weight=self._model_weight(model, self.settings.grok_forecast_weight),
+                    tools=[{"type": "web_search"}, {"type": "x_search"}],
+                    independent=True,
+                )
+            )
         if self.settings.use_claude_forecast and self.anthropic:
             for model in self._unique_models(self.settings.claude_forecast_models):
                 specs.append(
@@ -323,6 +366,7 @@ class MatchForecaster:
             components = by_market.get(market.id, [])
             if not components:
                 continue
+            components, dropped_independent = self._drop_divergent_independent(market.id, components)
             probability_repairs = [
                 self._repair_boundary_probability(batch, forecast) for batch, forecast in components
             ]
@@ -392,6 +436,7 @@ class MatchForecaster:
                             repair for repair in probability_repairs if repair["repaired"]
                         ],
                         "family_correction": correction_note,
+                        "dropped_independent_components": dropped_independent,
                     },
                 )
             )
@@ -585,6 +630,59 @@ class MatchForecaster:
             new_probability,
             reason,
         )
+
+    INDEPENDENT_MAX_DIVERGENCE_LOGITS = 3.0
+
+    def _drop_divergent_independent(
+        self,
+        market_id: str,
+        components: list[tuple[ForecastBatch, MarketForecast]],
+    ) -> tuple[list[tuple[ForecastBatch, MarketForecast]], list[dict[str, Any]]]:
+        """Drop independent-research components that wildly diverge from the rest.
+
+        An independent searcher that latches onto mismatched fixtures or
+        "already resolved" pages can emit a confident boundary probability
+        that carries no forecast information but moves a log-odds ensemble by
+        double-digit points. 3 logits still allows ~25x odds-ratio
+        disagreement, so genuine contrarian reads survive.
+        """
+        from probability_cup_bot.scoring import logit
+
+        independent = [
+            (batch, forecast)
+            for batch, forecast in components
+            if "_independent_" in (batch.prompt_variant or "")
+        ]
+        others = [
+            (batch, forecast)
+            for batch, forecast in components
+            if "_independent_" not in (batch.prompt_variant or "")
+        ]
+        if not independent or not others:
+            return components, []
+        reference = sum(logit(float(f.probability)) for _, f in others) / len(others)
+        dropped: list[dict[str, Any]] = []
+        kept = list(others)
+        for batch, forecast in independent:
+            divergence = logit(float(forecast.probability)) - reference
+            if abs(divergence) > self.INDEPENDENT_MAX_DIVERGENCE_LOGITS:
+                dropped.append(
+                    {
+                        "model": batch.model,
+                        "probability": float(forecast.probability),
+                        "divergence_logits": round(divergence, 3),
+                    }
+                )
+                logger.warning(
+                    "Dropped divergent independent component market_id=%s model=%s p=%.3f divergence=%.2f logits",
+                    market_id,
+                    batch.model,
+                    float(forecast.probability),
+                    divergence,
+                )
+            else:
+                kept.append((batch, forecast))
+        return (kept, dropped) if dropped else (components, [])
 
     @staticmethod
     def _repair_boundary_probability(batch: ForecastBatch, forecast: MarketForecast) -> dict[str, Any]:

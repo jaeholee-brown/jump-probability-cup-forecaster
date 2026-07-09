@@ -161,7 +161,7 @@ def test_forecaster_builds_cross_provider_specs() -> None:
     assert [spec.model for spec in specs] == [
         "gpt-5",
         "grok-4.3",
-        "grok-4.20-0309-reasoning",
+        "grok-4.5",
         "claude-opus-4-8",
         "claude-opus-4-6",
     ]
@@ -173,6 +173,9 @@ def test_forecaster_builds_cross_provider_specs() -> None:
         ("base_rate_frequency",),
     ]
     assert [spec.weight for spec in specs] == [1.0, 1.0, 1.0, 1.0, 1.0]
+    assert [spec.independent for spec in specs] == [False, False, True, False, False]
+    grok_45 = specs[2]
+    assert grok_45.tools == [{"type": "web_search"}, {"type": "x_search"}]
 
 
 def test_forecaster_applies_calibration_multipliers() -> None:
@@ -192,7 +195,7 @@ def test_forecaster_applies_calibration_multipliers() -> None:
 
     specs = forecaster._forecast_model_specs()
 
-    assert [spec.weight for spec in specs] == pytest.approx([0.9, 1.0, 1.1, 1.0, 1.0])
+    assert [spec.weight for spec in specs] == pytest.approx([0.9, 1.0, 1.0, 1.0, 1.0])
 
 
 def test_aggregate_preserves_component_reasoning_metadata() -> None:
@@ -506,3 +509,98 @@ def test_tournament_context_includes_family_rate_and_tie_note() -> None:
 
     no_stats = forecaster._tournament_context("shots", "Will X have 2+ shots?")
     assert no_stats is None or "note" not in (no_stats or {})
+
+
+async def test_independent_forecaster_does_not_receive_shared_evidence() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="",
+        xai_api_key="xai_test_key",
+        use_openai_forecast=False,
+        use_claude_forecast=False,
+        use_grok_forecast=False,
+        use_grok_independent_forecast=True,
+    )
+    adapter = SuccessfulAdapter("xai")
+    forecaster = MatchForecaster(settings, grok=adapter)
+    match = Match(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z")
+    market = Market(
+        id="market",
+        question="Will A win?",
+        status="open",
+        match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+        lobby_id="lobby",
+    )
+    evidence = MatchEvidence(
+        match_id="match",
+        match_name="A vs B",
+        generated_at="2026-06-16T00:00:00Z",
+        query_summary="secret shared research summary",
+        key_facts=["secret shared research fact"],
+        odds_context="Bookmaker consensus: A 1.80, B 4.50",
+    )
+
+    forecasts = await forecaster.forecast_match(match=match, markets=[market], evidence=evidence)
+
+    assert forecasts[0].market_id == "market"
+    payload = adapter.user_inputs[0]
+    serialized = json.dumps(payload)
+    assert "secret shared research" not in serialized
+    assert payload["evidence"]["odds_context"] == "Bookmaker consensus: A 1.80, B 4.50"
+    assert "research independently" in payload["evidence"]["note"]
+
+
+def test_divergent_independent_component_is_dropped() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+    )
+    forecaster = MatchForecaster(settings)
+    market = Market(
+        id="m",
+        question="Will A win?",
+        status="open",
+        match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+        lobby_id="lobby",
+    )
+
+    def make_batch(model: str, variant: str, p: float) -> ForecastBatch:
+        return ForecastBatch(
+            match_id="match",
+            match_name="A vs B",
+            model=model,
+            prompt_variant=variant,
+            provider="grok" if "grok" in model else "openai",
+            weight=1.0,
+            forecasts=[
+                MarketForecast(
+                    market_id="m",
+                    question=market.question,
+                    reference_class="odds",
+                    probability_rationale=f"Final probability: {p}",
+                    probability=p,
+                    confidence="medium",
+                    evidence_quality="medium",
+                )
+            ],
+        )
+
+    batches = [
+        make_batch("gpt-5", "openai_gpt_5_base_rate_frequency", 0.55),
+        make_batch("claude-opus-4-8", "claude_claude_opus_4_8_base_rate_frequency", 0.57),
+        # rogue: thinks the match already resolved
+        make_batch("grok-4.5", "grok_grok_4_5_independent_base_rate_frequency", 0.01),
+    ]
+    forecasts = forecaster._aggregate([market], batches)
+
+    assert len(forecasts) == 1
+    # rogue dropped: aggregate stays near the sane components
+    assert forecasts[0].probability > 0.45
+    dropped = forecasts[0].metadata["dropped_independent_components"]
+    assert len(dropped) == 1 and dropped[0]["model"] == "grok-4.5"
+
+    # sane disagreement survives (0.30 vs ~0.56 is well under 3 logits)
+    batches[2] = make_batch("grok-4.5", "grok_grok_4_5_independent_base_rate_frequency", 0.30)
+    forecasts = forecaster._aggregate([market], batches)
+    assert forecasts[0].metadata["dropped_independent_components"] == []
+    assert 0.40 < forecasts[0].probability < 0.55
