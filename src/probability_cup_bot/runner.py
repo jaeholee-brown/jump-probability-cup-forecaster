@@ -138,21 +138,34 @@ class ForecastRunner:
             else:
                 calibration_multipliers = {}
             if self.settings.enable_family_correction:
+                # Always refit from the last report's settled records so the
+                # applied corrections reflect current settings (fit window,
+                # damping) rather than whatever code built the stored report.
+                # The stored family_corrections are only a fallback for reports
+                # that carry no settled_records.
                 family_corrections = previous_calibration.get("family_corrections") or {}
-                if not family_corrections.get("enabled"):
-                    # Reports written before the correction layer existed lack the
-                    # key but carry settled_records; fit on the fly so the first
-                    # post-deploy forecast run is not a warm-up gap.
-                    settled = previous_calibration.get("settled_records") or []
-                    if settled:
-                        family_corrections = build_family_corrections(
-                            settled,
-                            prior_n=self.settings.family_correction_prior_n,
-                            damp=self.settings.family_correction_damp,
-                            min_settled=self.settings.family_correction_min_settled,
-                            max_shift=self.settings.family_correction_max_shift,
-                            since=self.settings.family_correction_since,
+                settled = previous_calibration.get("settled_records") or []
+                if settled:
+                    if any(not record.get("closing_time") for record in settled):
+                        history_for_join = read_json(
+                            self.settings.state_dir / "forecast-history.json", {}
                         )
+                        markets_by_id = history_for_join.get("markets") or {}
+                        matches_by_id = history_for_join.get("matches") or {}
+                        for record in settled:
+                            if record.get("closing_time"):
+                                continue
+                            market = markets_by_id.get(str(record.get("market_id") or "")) or {}
+                            match = matches_by_id.get(str(market.get("match_id") or "")) or {}
+                            record["closing_time"] = match.get("closing_time")
+                    family_corrections = build_family_corrections(
+                        settled,
+                        prior_n=self.settings.family_correction_prior_n,
+                        damp=self.settings.family_correction_damp,
+                        min_settled=self.settings.family_correction_min_settled,
+                        max_shift=self.settings.family_correction_max_shift,
+                        since=self.settings.family_correction_since,
+                    )
             else:
                 family_corrections = {}
             logger.info(
