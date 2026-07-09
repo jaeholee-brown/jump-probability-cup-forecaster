@@ -151,6 +151,7 @@ class ForecastRunner:
                             damp=self.settings.family_correction_damp,
                             min_settled=self.settings.family_correction_min_settled,
                             max_shift=self.settings.family_correction_max_shift,
+                            since=self.settings.family_correction_since,
                         )
             else:
                 family_corrections = {}
@@ -1052,6 +1053,7 @@ class ForecastRunner:
             family_correction_damp=self.settings.family_correction_damp,
             family_correction_min_settled=self.settings.family_correction_min_settled,
             family_correction_max_shift=self.settings.family_correction_max_shift,
+            family_correction_since=self.settings.family_correction_since,
         )
         logger.info(
             "Calibration complete settled_market_count=%d suggested_multipliers=%d family_shifts=%d",

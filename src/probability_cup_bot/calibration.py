@@ -37,6 +37,7 @@ def build_calibration_report(
     family_correction_damp: float = 0.9,
     family_correction_min_settled: int = 150,
     family_correction_max_shift: float = 0.6,
+    family_correction_since: str = "",
 ) -> dict[str, Any]:
     current_multipliers = current_multipliers or {}
     market_history = history.get("markets") or {}
@@ -83,6 +84,7 @@ def build_calibration_report(
                     "brier": score,
                 }
             )
+        match_entry = (history.get("matches") or {}).get(str(hist.get("match_id") or ""), {})
         settled_records.append(
             {
                 "market_id": market_id,
@@ -91,6 +93,7 @@ def build_calibration_report(
                 "outcome": outcome,
                 "probability_submitted": result.get("probability_submitted"),
                 "aggregate_brier": aggregate_brier,
+                "closing_time": match_entry.get("closing_time"),
                 "components": component_rows,
             }
         )
@@ -120,6 +123,7 @@ def build_calibration_report(
         damp=family_correction_damp,
         min_settled=family_correction_min_settled,
         max_shift=family_correction_max_shift,
+        since=family_correction_since,
     )
     return {
         "generated_at": utcnow().isoformat(),
@@ -227,25 +231,48 @@ def build_family_corrections(
     min_settled: int = 150,
     max_shift: float = 0.6,
     min_family_n: int = 8,
+    since: str = "",
 ) -> dict[str, Any]:
     """Fit per-family logit shifts plus a global slope on settled outcomes.
 
     Validated 2026-07-03 on 50/50, 60/40, 70/30, and 80/20 time-ordered folds:
-    -0.006 to -0.013 Brier on every held-out split (t -1.5 to -3.4), with
-    full-history fits beating recency-weighted ones. Replaces the old
-    extremize/shrink pair, whose defaults cancelled each other out.
+    -0.006 to -0.013 Brier on every held-out split (t -1.5 to -3.4).
+
+    `since` restricts the fit to markets that closed on/after an ISO date.
+    Live R16 results (2026-07-09, n=118) showed corrections that encode
+    tournament regime rather than model bias do not survive stage boundaries:
+    up-shifts fit on hot group-stage totals backfired when knockout matches
+    tightened (+0.64 Brier total on team_total), while model-bias down-shifts
+    (cards, assists) kept working. Fitting on the knockout era only beat the
+    all-history fit on both held-out R16 splits. If the filter leaves fewer
+    than min_settled records, the full history is used instead.
     """
     from probability_cup_bot.market_analysis import market_subtype
 
-    rows: list[tuple[str, float, int]] = []
-    for record in settled_records:
-        praw = _record_raw_probability(record)
-        outcome = record.get("outcome")
-        family = record.get("market_family")
-        if praw is None or outcome is None or not family:
-            continue
-        subtype = market_subtype(str(record.get("question") or ""))
-        rows.append((f"{family}|{subtype}", praw, int(outcome)))
+    def _extract(records: list[dict[str, Any]]) -> list[tuple[str, float, int]]:
+        rows: list[tuple[str, float, int]] = []
+        for record in records:
+            praw = _record_raw_probability(record)
+            outcome = record.get("outcome")
+            family = record.get("market_family")
+            if praw is None or outcome is None or not family:
+                continue
+            subtype = market_subtype(str(record.get("question") or ""))
+            rows.append((f"{family}|{subtype}", praw, int(outcome)))
+        return rows
+
+    fit_window = "all"
+    records = settled_records
+    if since:
+        filtered = [
+            record
+            for record in settled_records
+            if str(record.get("closing_time") or "") >= since
+        ]
+        if len(_extract(filtered)) >= min_settled:
+            records = filtered
+            fit_window = f"since {since}"
+    rows = _extract(records)
     if len(rows) < min_settled:
         return {
             "enabled": False,
@@ -303,6 +330,7 @@ def build_family_corrections(
     return {
         "enabled": True,
         "basis": "equal_weight_component_log_odds_mean; shifts keyed family|subtype with family fallback",
+        "fit_window": fit_window,
         "settled_count": len(rows),
         "shifts": shifts,
         "intercept": round(max(-0.2, min(0.2, intercept)), 4),

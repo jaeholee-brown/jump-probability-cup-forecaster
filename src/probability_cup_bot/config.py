@@ -112,6 +112,7 @@ class Settings:
     family_correction_damp: float = 0.9
     family_correction_min_settled: int = 150
     family_correction_max_shift: float = 0.6
+    family_correction_since: str = "2026-06-28"
     use_grok_news_monitor: bool = True
     news_monitor_max_hours_to_close: float = 168.0
     news_monitor_materiality_threshold_points: int = 2
@@ -235,6 +236,7 @@ def load_settings(dotenv_path: str | None = None, *, force_dry_run: bool = False
         family_correction_damp=_float_env("FAMILY_CORRECTION_DAMP", 0.9),
         family_correction_min_settled=_int_env("FAMILY_CORRECTION_MIN_SETTLED", 150),
         family_correction_max_shift=_float_env("FAMILY_CORRECTION_MAX_SHIFT", 0.6),
+        family_correction_since=os.getenv("FAMILY_CORRECTION_SINCE", "2026-06-28"),
         use_grok_news_monitor=_bool_env("USE_GROK_NEWS_MONITOR", True),
         news_monitor_max_hours_to_close=_float_env("NEWS_MONITOR_MAX_HOURS_TO_CLOSE", 168.0),
         news_monitor_materiality_threshold_points=_int_env("NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS", 2),

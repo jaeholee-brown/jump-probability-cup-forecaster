@@ -172,3 +172,29 @@ def test_family_corrections_split_subtypes_within_family() -> None:
     assert total_shift < -0.3
     assert abs(comparison_shift) < abs(total_shift) / 2
     assert corrections["family_stats"]["cards|total_threshold"]["count"] == 80
+
+
+def test_family_corrections_since_filters_by_closing_time() -> None:
+    from probability_cup_bot.calibration import build_family_corrections
+
+    old = [
+        dict(_settled_record("cards", 0.5, 1), closing_time="2026-06-20T19:00:00Z")
+        for _ in range(100)
+    ]
+    new = [
+        dict(_settled_record("cards", 0.5, 0), closing_time="2026-07-01T19:00:00Z")
+        for _ in range(160)
+    ]
+    all_fit = build_family_corrections(old + new, min_settled=150)
+    windowed = build_family_corrections(old + new, min_settled=150, since="2026-06-28")
+
+    assert all_fit["fit_window"] == "all"
+    assert windowed["fit_window"] == "since 2026-06-28"
+    assert windowed["settled_count"] == 160
+    # windowed sees only the all-NO era, so its cards shift is more negative
+    assert windowed["shifts"]["cards"] < all_fit["shifts"]["cards"]
+
+    # falls back to full history when the window is too thin
+    fallback = build_family_corrections(old + old + new[:20], min_settled=150, since="2026-06-28")
+    assert fallback["fit_window"] == "all"
+    assert fallback["enabled"] is True

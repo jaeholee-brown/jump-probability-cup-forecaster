@@ -65,6 +65,8 @@ jobs:
       FORECAST_MODEL_WEIGHTS: gpt-5=1.0,grok-4.3=1.0,grok-4.5=1.0,claude-opus-4-8=1.0,claude-opus-4-6=1.0
       APPLY_CALIBRATION_WEIGHTS: "false"
       ENABLE_FAMILY_CORRECTION: "true"
+      # Knockout-era fit only: group-stage regime corrections backfired on R16
+      FAMILY_CORRECTION_SINCE: "2026-06-28"
       USE_GROK_NEWS_MONITOR: "true"
       NEWS_MONITOR_MAX_HOURS_TO_CLOSE: "168"
       NEWS_MONITOR_MATERIALITY_THRESHOLD_POINTS: "2"
