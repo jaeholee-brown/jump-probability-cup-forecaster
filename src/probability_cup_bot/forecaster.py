@@ -366,10 +366,18 @@ class MatchForecaster:
             components = by_market.get(market.id, [])
             if not components:
                 continue
-            components, dropped_independent = self._drop_divergent_independent(market.id, components)
+            # Repair BEFORE the divergence guard: xAI batches can zero the
+            # probability field wholesale while the rationale keeps the real
+            # value (seen on every FRA-MAR market, 2026-07-09). Guarding on raw
+            # values discarded 13 repairable grok-4.5 forecasts that night; a
+            # genuine hallucination has a rationale that agrees with the
+            # boundary value, so it still gets dropped post-repair.
             probability_repairs = [
                 self._repair_boundary_probability(batch, forecast) for batch, forecast in components
             ]
+            components, probability_repairs, dropped_independent = self._drop_divergent_independent(
+                market.id, components, probability_repairs
+            )
             probabilities = [repair["probability"] for repair in probability_repairs]
             weights = [
                 batch.weight
@@ -637,52 +645,62 @@ class MatchForecaster:
         self,
         market_id: str,
         components: list[tuple[ForecastBatch, MarketForecast]],
-    ) -> tuple[list[tuple[ForecastBatch, MarketForecast]], list[dict[str, Any]]]:
+        probability_repairs: list[dict[str, Any]],
+    ) -> tuple[
+        list[tuple[ForecastBatch, MarketForecast]],
+        list[dict[str, Any]],
+        list[dict[str, Any]],
+    ]:
         """Drop independent-research components that wildly diverge from the rest.
 
         An independent searcher that latches onto mismatched fixtures or
         "already resolved" pages can emit a confident boundary probability
         that carries no forecast information but moves a log-odds ensemble by
         double-digit points. 3 logits still allows ~25x odds-ratio
-        disagreement, so genuine contrarian reads survive.
+        disagreement, so genuine contrarian reads survive. Divergence is
+        measured on repaired probabilities.
         """
         from probability_cup_bot.scoring import logit
 
-        independent = [
-            (batch, forecast)
-            for batch, forecast in components
+        independent_indices = [
+            index
+            for index, (batch, _) in enumerate(components)
             if "_independent_" in (batch.prompt_variant or "")
         ]
-        others = [
-            (batch, forecast)
-            for batch, forecast in components
-            if "_independent_" not in (batch.prompt_variant or "")
+        other_indices = [
+            index for index in range(len(components)) if index not in independent_indices
         ]
-        if not independent or not others:
-            return components, []
-        reference = sum(logit(float(f.probability)) for _, f in others) / len(others)
+        if not independent_indices or not other_indices:
+            return components, probability_repairs, []
+        reference = sum(
+            logit(float(probability_repairs[index]["probability"])) for index in other_indices
+        ) / len(other_indices)
         dropped: list[dict[str, Any]] = []
-        kept = list(others)
-        for batch, forecast in independent:
-            divergence = logit(float(forecast.probability)) - reference
+        dropped_indices: set[int] = set()
+        for index in independent_indices:
+            probability = float(probability_repairs[index]["probability"])
+            divergence = logit(probability) - reference
             if abs(divergence) > self.INDEPENDENT_MAX_DIVERGENCE_LOGITS:
+                dropped_indices.add(index)
                 dropped.append(
                     {
-                        "model": batch.model,
-                        "probability": float(forecast.probability),
+                        "model": components[index][0].model,
+                        "probability": probability,
                         "divergence_logits": round(divergence, 3),
                     }
                 )
                 logger.warning(
                     "Dropped divergent independent component market_id=%s model=%s p=%.3f divergence=%.2f logits",
                     market_id,
-                    batch.model,
-                    float(forecast.probability),
+                    components[index][0].model,
+                    probability,
                     divergence,
                 )
-            else:
-                kept.append((batch, forecast))
-        return (kept, dropped) if dropped else (components, [])
+        if not dropped_indices:
+            return components, probability_repairs, []
+        kept_components = [c for i, c in enumerate(components) if i not in dropped_indices]
+        kept_repairs = [r for i, r in enumerate(probability_repairs) if i not in dropped_indices]
+        return kept_components, kept_repairs, dropped
 
     @staticmethod
     def _repair_boundary_probability(batch: ForecastBatch, forecast: MarketForecast) -> dict[str, Any]:

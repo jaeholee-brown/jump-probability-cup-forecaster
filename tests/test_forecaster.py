@@ -588,7 +588,8 @@ def test_divergent_independent_component_is_dropped() -> None:
     batches = [
         make_batch("gpt-5", "openai_gpt_5_base_rate_frequency", 0.55),
         make_batch("claude-opus-4-8", "claude_claude_opus_4_8_base_rate_frequency", 0.57),
-        # rogue: thinks the match already resolved
+        # rogue: thinks the match already resolved (rationale agrees at 0.01,
+        # so boundary repair cannot recover it)
         make_batch("grok-4.5", "grok_grok_4_5_independent_base_rate_frequency", 0.01),
     ]
     forecasts = forecaster._aggregate([market], batches)
@@ -604,3 +605,59 @@ def test_divergent_independent_component_is_dropped() -> None:
     forecasts = forecaster._aggregate([market], batches)
     assert forecasts[0].metadata["dropped_independent_components"] == []
     assert 0.40 < forecasts[0].probability < 0.55
+
+
+def test_boundary_artifact_on_independent_component_is_repaired_not_dropped() -> None:
+    settings = Settings(
+        sportspredict_api_key="sportspredict_test_key",
+        openai_api_key="openai_test_key",
+    )
+    forecaster = MatchForecaster(settings)
+    market = Market(
+        id="m",
+        question="Will A win?",
+        status="open",
+        match=MarketMatch(id="match", name="A vs B", closing_time="2026-06-20T12:00:00Z"),
+        lobby_id="lobby",
+    )
+
+    def make_batch(model, variant, p, rationale):
+        return ForecastBatch(
+            match_id="match",
+            match_name="A vs B",
+            model=model,
+            prompt_variant=variant,
+            provider="grok" if "grok" in model else "openai",
+            weight=1.0,
+            forecasts=[
+                MarketForecast(
+                    market_id="m",
+                    question=market.question,
+                    reference_class="odds",
+                    probability_rationale=rationale,
+                    probability=p,
+                    confidence="medium",
+                    evidence_quality="medium",
+                )
+            ],
+        )
+
+    batches = [
+        make_batch("gpt-5", "openai_gpt_5_base_rate_frequency", 0.55, "Final probability: 0.55"),
+        make_batch(
+            "claude-opus-4-8", "claude_claude_opus_4_8_base_rate_frequency", 0.57,
+            "Final probability: 0.57",
+        ),
+        # xAI zeroed-field artifact: raw 0.01 but the rationale holds the
+        # real value. Seen on every FRA-MAR market on 2026-07-09.
+        make_batch(
+            "grok-4.5", "grok_grok_4_5_independent_base_rate_frequency", 0.01,
+            "Solid case both ways. Final probability: 0.52",
+        ),
+    ]
+    forecasts = forecaster._aggregate([market], batches)
+
+    assert forecasts[0].metadata["dropped_independent_components"] == []
+    repairs = forecasts[0].metadata["probability_repairs"]
+    assert any(r["model"] == "grok-4.5" and r["probability"] == 0.52 for r in repairs)
+    assert 0.5 < forecasts[0].probability < 0.6
