@@ -38,7 +38,18 @@ def _status_code(exc: BaseException) -> int | None:
 
 
 def _strict_schema(schema: dict[str, Any]) -> dict[str, Any]:
-    """Make a Pydantic JSON schema friendlier to OpenAI strict structured outputs."""
+    """Make a Pydantic JSON schema friendlier to OpenAI strict structured outputs.
+
+    Numeric range keywords are stripped: xAI's strict constrained decoder pins
+    bounded number fields to their minimum (verified 2026-07-10 on grok-4.3
+    and grok-4.5: with minimum=0.01 every probability came back 0.01 while
+    rationales held the true values; without bounds, 8/8 calls matched
+    exactly). Range validation still happens client-side when Pydantic parses
+    the response, and a violation triggers the adapter's retry.
+    """
+    if schema.get("type") in ("number", "integer"):
+        for keyword in ("minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"):
+            schema.pop(keyword, None)
     if schema.get("type") == "object":
         schema.setdefault("additionalProperties", False)
         props = schema.get("properties", {})

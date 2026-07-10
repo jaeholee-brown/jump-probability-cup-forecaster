@@ -661,3 +661,17 @@ def test_boundary_artifact_on_independent_component_is_repaired_not_dropped() ->
     repairs = forecasts[0].metadata["probability_repairs"]
     assert any(r["model"] == "grok-4.5" and r["probability"] == 0.52 for r in repairs)
     assert 0.5 < forecasts[0].probability < 0.6
+
+
+def test_strict_schema_strips_numeric_bounds() -> None:
+    from probability_cup_bot.models import ForecastBatch
+    from probability_cup_bot.openai_adapter import _strict_schema
+
+    schema = _strict_schema(ForecastBatch.model_json_schema())
+    probability = schema["$defs"]["MarketForecast"]["properties"]["probability"]
+    base_rate = schema["$defs"]["MarketForecast"]["properties"]["base_rate"]
+
+    assert "minimum" not in probability and "maximum" not in probability
+    assert not any(
+        k in json.dumps(base_rate) for k in ("minimum", "maximum")
+    )
